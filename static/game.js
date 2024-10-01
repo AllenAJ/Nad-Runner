@@ -84,6 +84,7 @@ function initializeGame() {
     resetGame();
 
     document.addEventListener('keydown', handleKeyDown);
+    canvas.addEventListener('touchstart', handleTouch);
 
     startButton.addEventListener('click', function () {
         console.log('Start button clicked');
@@ -110,6 +111,14 @@ function handleKeyDown(e) {
         if (!isGameOver) {
             character.jump();
         }
+    }
+}
+
+// Add this function to handle touch events
+function handleTouch(e) {
+    e.preventDefault();
+    if (!isGameOver) {
+        character.jump();
     }
 }
 
