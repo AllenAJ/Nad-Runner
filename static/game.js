@@ -12,71 +12,10 @@ let gameContainer;
 let scoreElement;
 let salmonadObstacle;
 let startButton;
+let leaderboard = [];
+const MAX_LEADERBOARD_ENTRIES = 10;
 
-// Import the SalmonadObstacle class and spawnSalmonadObstacle function
-import { SalmonadObstacle, spawnSalmonadObstacle } from './salmonad.js';
-import { postScoreOnchain } from './web3.js';
-
-function initializeGame() {
-    canvas = document.getElementById('game-canvas');
-    ctx = canvas.getContext('2d');
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    character = new Character(50, gameHeight - characterSize, characterSize, characterSize);
-    console.log(`Initial character position: (${character.x}, ${character.y})`);
-
-    gameContainer = document.getElementById('game-container');
-    salmonadObstacle = new SalmonadObstacle();
-    startButton = document.getElementById('start-button');
-
-    // Make sure the canvas and start screen are visible
-    canvas.style.display = 'block';
-    document.getElementById('start-screen').style.display = 'flex';
-
-    // Load images
-    loadImages();
-
-    // Initialize game state
-    resetGame();
-
-    // Add event listener for spacebar
-    document.addEventListener('keydown', handleKeyDown);
-
-    // Add event listener to start button
-    startButton.addEventListener('click', startGame);
-
-    // Draw the initial game state (including tutorial)
-    requestAnimationFrame(drawInitialGameState);
-
-    // Show the tutorial
-    showTutorial();
-}
-
-// Add this new function to handle keydown events
-function handleKeyDown(e) {
-    if (e.code === 'Space' && !e.repeat) {
-        e.preventDefault();
-        if (!isGameOver) {
-            character.jump();
-        }
-    }
-}
-
-function startGame() {
-    console.log('Game started');
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('game-over-screen').style.display = 'none';
-    hideTutorial();
-
-    // Reset game state
-    resetGame();
-
-    // Start the game loop
-    lastTime = 0;
-    isGameOver = false;
-    requestAnimationFrame(gameLoop);
-}
+let isScoreSubmitted = false;
 
 // Game dimensions
 const originalGameWidth = 800;
@@ -111,26 +50,103 @@ let lastObstacleX = 0;
 let powerups = [];
 const powerupSize = 30;
 const powerupScoreBoost = 100;
-const powerupSpawnChance = 0.005; // Adjust this value to change spawn frequency
-const powerupMinDistance = 200; // Minimum distance from obstacles
+const powerupSpawnChance = 0.005;
+const powerupMinDistance = 200;
 
-// Add this constant for maximum jump height
-const maxJumpHeight = 150; // Adjust this value based on your game's physics
+const maxJumpHeight = 150;
 
-// Character class
+// Add this near the top of the file with other game variables
+const speedIncreaseInterval = 3; // Increase speed every 10 seconds
+const speedIncreaseAmount = 0.5; // Increase speed by 0.5 each time
+
+// Import the SalmonadObstacle class and spawnSalmonadObstacle function
+import { SalmonadObstacle, spawnSalmonadObstacle } from './salmonad.js';
+
+function initializeGame() {
+    console.log('Initializing game...');
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    character = new Character(50, gameHeight - characterSize, characterSize, characterSize);
+    console.log(`Initial character position: (${character.x}, ${character.y})`);
+
+    gameContainer = document.getElementById('game-container');
+    salmonadObstacle = new SalmonadObstacle();
+    startButton = document.getElementById('start-button');
+    console.log('Start button:', startButton);
+
+    canvas.style.display = 'block';
+    document.getElementById('start-screen').style.display = 'flex';
+
+    loadImages();
+    resetGame();
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    startButton.addEventListener('click', function () {
+        console.log('Start button clicked');
+        startGame();
+    });
+    console.log('Added click event listener to start button');
+
+    requestAnimationFrame(drawInitialGameState);
+    showTutorial();
+
+    const storedLeaderboard = localStorage.getItem('leaderboard');
+    if (storedLeaderboard) {
+        leaderboard = JSON.parse(storedLeaderboard);
+    }
+
+    document.getElementById('submit-score').addEventListener('click', submitScore);
+    document.getElementById('close-leaderboard').addEventListener('click', hideLeaderboard);
+    document.getElementById('show-leaderboard').addEventListener('click', showLeaderboard);
+}
+
+function handleKeyDown(e) {
+    if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        if (!isGameOver) {
+            character.jump();
+        }
+    }
+}
+
+function startGame() {
+    console.log('Start game function called');
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
+    hideLeaderboard();
+    hideTutorial();
+
+    resetGame();
+
+    isScoreSubmitted = false;
+    const submitButton = document.getElementById('submit-score');
+    submitButton.disabled = false;
+    submitButton.textContent = 'Submit Score';
+
+    lastTime = 0;
+    isGameOver = false;
+    requestAnimationFrame(gameLoop);
+}
+
 class Character {
-    constructor(x, y, width, height) {
+    constructor(x, y, width, height, yOffset = -10) {
         this.x = x;
-        this.y = y;
+        this.y = y + yOffset;
         this.width = width;
         this.height = height;
         this.yVelocity = 0;
-        this.jumpStrength = -550; // Reverted to the previous value
-        this.gravity = 1500; // Reverted to the previous value
+        this.jumpStrength = -550;
+        this.gravity = 1500;
         this.grounded = true;
         this.jumpCount = 0;
         this.maxJumps = 2;
         this.image = molandakImage;
+        this.rotation = 0;
+        this.rotationSpeed = Math.PI * 5;
     }
 
     jump() {
@@ -144,6 +160,7 @@ class Character {
     update(deltaTime) {
         this.yVelocity += this.gravity * deltaTime;
         this.y += this.yVelocity * deltaTime;
+        this.rotation += this.rotationSpeed * deltaTime;
 
         if (this.y + this.height > gameHeight) {
             this.y = gameHeight - this.height;
@@ -155,12 +172,16 @@ class Character {
 
     draw() {
         if (this.image && this.image.complete) {
-            const scaleFactor = 0.9; // Adjust this value to make the image smaller
+            ctx.save();
+            ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+            ctx.rotate(this.rotation);
+            const scaleFactor = 0.9;
             const newWidth = this.width * scaleFactor;
             const newHeight = this.height * scaleFactor;
             const xOffset = (this.width - newWidth) / 2;
             const yOffset = (this.height - newHeight) / 2;
-            ctx.drawImage(this.image, this.x + xOffset, this.y + yOffset, newWidth, newHeight);
+            ctx.drawImage(this.image, -newWidth / 2 - xOffset, -newHeight / 2 - yOffset, newWidth, newHeight);
+            ctx.restore();
         }
     }
 
@@ -169,10 +190,10 @@ class Character {
         this.yVelocity = 0;
         this.grounded = true;
         this.jumpCount = 0;
+        this.rotation = 0;
     }
 }
 
-// Obstacle class
 class Obstacle {
     constructor(x, y, width, height, type) {
         this.x = x;
@@ -182,8 +203,6 @@ class Obstacle {
         this.type = type;
         this.image = new Image();
         this.image.src = type === 'ground' ? '/static/chog.png' : '/static/mouch.png';
-        this.rotation = 0;
-        this.rotationSpeed = type === 'ground' ? Math.PI : 0; // Rotate ground obstacles (chog.png)
     }
 
     draw() {
@@ -200,7 +219,6 @@ class Obstacle {
     }
 }
 
-// New Powerup class
 class Powerup {
     constructor(x, y, width, height) {
         this.x = x;
@@ -219,11 +237,6 @@ class Powerup {
     }
 }
 
-// Game functions
-function generateSVGBackground() {
-    // ... (keep the existing SVG generation code) ...
-}
-
 function resetGame() {
     obstacles = [];
     powerups = [];
@@ -235,44 +248,9 @@ function resetGame() {
     backgroundX = 0;
 }
 
-function init() {
-    canvas = document.getElementById('game-canvas');
-    ctx = canvas.getContext('2d');
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    character = new Character(50, gameHeight - characterSize, characterSize, characterSize);
-
-    // Update event listeners for jump
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && !e.repeat) {
-            e.preventDefault();
-            character.jump();
-        }
-    });
-
-    // Add touch event listener
-    canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        character.jump();
-    });
-
-    // Disable text selection
-    document.body.style.userSelect = 'none';
-    document.body.style.webkitUserSelect = 'none';
-    document.body.style.msUserSelect = 'none';
-    document.body.style.mozUserSelect = 'none';
-
-    // Load images
-    loadImages();
-
-    // Initialize game state
-    resetGame();
-}
-
 function loadImages() {
     let imagesLoaded = 0;
-    const totalImages = 6;
+    const totalImages = 5;
 
     function onImageLoad() {
         imagesLoaded++;
@@ -282,20 +260,11 @@ function loadImages() {
         }
     }
 
-    backgroundImage = new Image();
-    backgroundImage.src = generateSVGBackground();
-    backgroundImage.onload = onImageLoad;
-    backgroundImage.onerror = () => {
-        console.error('Background image failed to load');
-        backgroundImage = null;
-        onImageLoad();
-    };
-
     molandakImage = new Image();
     molandakImage.src = '/static/molandak.png';
     molandakImage.onload = () => {
         console.log('Molandak image loaded');
-        character.image = molandakImage; // Ensure the character uses the loaded image
+        character.image = molandakImage;
         onImageLoad();
     };
     molandakImage.onerror = () => {
@@ -335,7 +304,6 @@ function resizeCanvas() {
 
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-    // Adjust character position after resize
     if (character) {
         character.y = gameHeight - character.height;
         console.log(`Character position after resize: (${character.x}, ${character.y})`);
@@ -351,7 +319,6 @@ function gameLoop(currentTime) {
 
     update(deltaTime);
 
-    // Add this line to update the Salmonad obstacle
     salmonadObstacle.update(deltaTime);
 
     if (isGameOver) {
@@ -366,34 +333,30 @@ function update(deltaTime) {
     ctx.clearRect(0, 0, gameWidth, gameHeight);
     drawBackground(deltaTime);
 
-    // Debug: Draw game boundaries
     ctx.strokeStyle = 'green';
     ctx.strokeRect(0, 0, gameWidth, gameHeight);
 
     character.update(deltaTime);
     character.draw();
 
-    // Generate obstacles
     if (Math.random() < obstacleSpawnChance * deltaTime * 60 && gameWidth - lastObstacleX > minObstacleDistance) {
         const isGroundObstacle = Math.random() < 0.6;
         const obstacleY = isGroundObstacle ? gameHeight - obstacleSize : gameHeight - 100;
         obstacles.push(new Obstacle(gameWidth, obstacleY, obstacleSize, obstacleSize, isGroundObstacle ? 'ground' : 'aerial'));
         lastObstacleX = gameWidth;
     }
-    // Generate powerups
+
     if (Math.random() < powerupSpawnChance * deltaTime * 60) {
         const minY = gameHeight - maxJumpHeight - powerupSize;
-        const maxY = gameHeight - 100; // Adjust this value if needed
+        const maxY = gameHeight - 100;
         const powerupY = Math.random() * (maxY - minY) + minY;
         if (canSpawnPowerup(gameWidth, powerupY)) {
             powerups.push(new Powerup(gameWidth, powerupY, powerupSize, powerupSize));
         }
     }
 
-    // Add this line to potentially spawn the Salmonad obstacle
     spawnSalmonadObstacle(salmonadObstacle);
 
-    // Update and draw obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].update(deltaTime);
         obstacles[i].draw();
@@ -418,7 +381,6 @@ function update(deltaTime) {
         }
     }
 
-    // Update and draw powerups
     for (let i = powerups.length - 1; i >= 0; i--) {
         powerups[i].update(deltaTime);
         powerups[i].draw();
@@ -428,7 +390,6 @@ function update(deltaTime) {
             continue;
         }
 
-        // Collision detection with character
         if (
             character.x < powerups[i].x + powerups[i].width &&
             character.x + character.width > powerups[i].x &&
@@ -437,7 +398,6 @@ function update(deltaTime) {
         ) {
             score += powerupScoreBoost;
             powerups.splice(i, 1);
-            // You can add a sound effect or visual feedback here
         }
     }
 
@@ -450,38 +410,31 @@ function update(deltaTime) {
     ctx.font = `bold ${20 / scale}px Inter, sans-serif`;
     const scoreText = `Score: ${Math.floor(score)}`;
     const textWidth = ctx.measureText(scoreText).width;
-    const padding = 20 / scale; // Add some padding from the right edge
+    const padding = 20 / scale;
     ctx.fillText(scoreText, (gameWidth - textWidth - padding) / scale, 30 / scale);
+
+    // Increase game speed over time
+    if (Math.floor(score / 60) % speedIncreaseInterval === 0 && Math.floor(score / 60) > 0) {
+        gameSpeed += speedIncreaseAmount * deltaTime;
+    }
 }
 
 function gameOver() {
     isGameOver = true;
-    drawOverlay();
     const gameOverScreen = document.getElementById('game-over-screen');
     gameOverScreen.style.display = 'flex';
     document.getElementById('final-score').textContent = Math.floor(score);
 
-    // Show the tutorial again
-    showTutorial();
-
-    // Remove any existing event listeners to prevent multiple listeners
     const restartButton = document.getElementById('restart-button');
     restartButton.removeEventListener('click', startGame);
     restartButton.addEventListener('click', startGame);
+
+    updateLeaderboardDisplay();
 }
 
 function drawBackground(deltaTime) {
-    if (backgroundImage) {
-        ctx.drawImage(backgroundImage, backgroundX, 0, gameWidth, gameHeight);
-        ctx.drawImage(backgroundImage, backgroundX + gameWidth, 0, gameWidth, gameHeight);
-        backgroundX -= gameSpeed * 30 * deltaTime;
-        if (backgroundX <= -gameWidth) {
-            backgroundX = 0;
-        }
-    } else {
-        ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(0, 0, gameWidth, gameHeight);
-    }
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, gameWidth, gameHeight);
 }
 
 function canSpawnPowerup(x, y) {
@@ -494,20 +447,17 @@ function canSpawnPowerup(x, y) {
     return true;
 }
 
-// Add this new function to draw the initial game state
 function drawInitialGameState() {
     ctx.clearRect(0, 0, gameWidth, gameHeight);
     drawBackground(0);
     character.draw();
 }
 
-// Add this function to draw a semi-transparent overlay
 function drawOverlay() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(0, 0, gameWidth, gameHeight);
 }
 
-// Add these new functions
 function showTutorial() {
     document.getElementById('tutorial').style.display = 'flex';
 }
@@ -516,5 +466,39 @@ function hideTutorial() {
     document.getElementById('tutorial').style.display = 'none';
 }
 
-// Initialize the game when the window loads
-window.onload = initializeGame;
+function submitScore() {
+    const playerName = document.getElementById('player-name').value;
+    const submitButton = document.getElementById('submit-score');
+    if (playerName && !isScoreSubmitted) {
+        leaderboard.push({ name: playerName, score: Math.floor(score) });
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_ENTRIES);
+        localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+        updateLeaderboardDisplay();
+        document.getElementById('player-name').value = '';
+        submitButton.disabled = true;
+        submitButton.textContent = 'Score Submitted';
+        isScoreSubmitted = true;
+    }
+}
+
+function updateLeaderboardDisplay() {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    leaderboardList.innerHTML = '';
+    leaderboard.forEach((entry, index) => {
+        const li = document.createElement('li');
+        li.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
+        leaderboardList.appendChild(li);
+    });
+}
+
+function showLeaderboard() {
+    document.getElementById('leaderboard-container').style.display = 'block';
+}
+
+function hideLeaderboard() {
+    document.getElementById('leaderboard-container').style.display = 'none';
+}
+
+window.addEventListener('load', initializeGame);
+console.log('Added load event listener to window');
