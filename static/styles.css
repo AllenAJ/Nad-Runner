@@ -1,0 +1,370 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    font-family: 'Inter', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    /* Use full viewport width */
+    height: 50vw;
+    /* Maintain 2:1 aspect ratio */
+    max-height: 100vh;
+    /* Prevent overflow on narrow screens */
+    border: 2px solid #333;
+    overflow: hidden;
+    margin: 0 auto;
+    padding-top: 40px;
+    /* Add padding to the top */
+    box-sizing: border-box;
+    /* Include padding in the height calculation */
+}
+
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: transparent;
+    color: black;
+    z-index: 10;
+    /* Ensure screens are above the canvas */
+}
+
+h1,
+h2 {
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 18px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    z-index: 20;
+    /* Ensure buttons are clickable */
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Update the game-over-screen style */
+#game-over-screen {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    z-index: 20;
+}
+
+#salmonad-container {
+    position: absolute;
+    right: -700px;
+    /* Start off-screen */
+    bottom: 0;
+    /* Align to the bottom */
+    width: 700px;
+    height: 700px;
+    display: none;
+    /* Hide initially */
+    z-index: 1000;
+    /* Ensure it's above other elements */
+}
+
+#salmonad {
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1);
+    /* Flip horizontally if needed */
+}
+
+#laser-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#laser-beam {
+    stroke-dasharray: 10;
+    animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+/* Add or update these styles */
+#start-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Add this new style for the start-content */
+#start-content {
+    text-align: center;
+}
+
+/* Update the game title style */
+#game-title {
+    font-size: 3em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Update the start button style */
+#start-button {
+    font-size: 1.2em;
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #8A2BE2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+#start-button:hover {
+    background-color: #9932CC;
+}
+
+/* Add this new style for the tutorial text */
+.tutorial-text {
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* Update the score display style */
+#score-display {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: black;
+    z-index: 10;
+    padding: 5px;
+    background-color: rgba(255, 255, 255, 0.7);
+    /* Semi-transparent white background */
+    border-radius: 5px;
+}
+
+/* Add a new style for the game title */
+#game-title {
+    font-size: 3em;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+/* Update the start button style */
+#start-button {
+    font-size: 1.2em;
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #8A2BE2;
+    margin-bottom: 20px;
+}
+
+#start-button:hover {
+    background-color: #9932CC;
+}
+
+/* Add this to your CSS file */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    z-index: 10;
+}
+
+.tutorial-content {
+    display: flex;
+    justify-content: space-around;
+    width: 80%;
+    margin-bottom: 20px;
+}
+
+.obstacle-example {
+    text-align: center;
+}
+
+.obstacle-example img {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 5px;
+}
+
+.obstacle-example p {
+    font-size: 0.9em;
+    margin: 0;
+}
+
+#tutorial>p {
+    font-size: 1em;
+    margin: 5px 0;
+}
+
+/* Update the tutorial styles */
+#tutorial {
+    margin-top: 20px;
+    color: black;
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+}
+
+#tutorial h2 {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+
+.tutorial-content {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.obstacle-example {
+    text-align: center;
+}
+
+.obstacle-example img {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 5px;
+}
+
+.obstacle-example p {
+    font-size: 0.9em;
+    margin: 0;
+}
+
+#tutorial>p {
+    font-size: 1em;
+    margin: 5px 0;
+}
+
+/* You can remove or comment out the .overlay class if it's no longer needed */
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+    #game-title {
+        font-size: 2.5em;
+    }
+
+    #start-button {
+        font-size: 1em;
+        padding: 10px 20px;
+    }
+
+    #tutorial h2 {
+        font-size: 1.2em;
+    }
+
+    .tutorial-content {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .obstacle-example {
+        margin: 0 10px 10px;
+    }
+
+    .obstacle-example img {
+        width: 30px;
+        height: 30px;
+    }
+
+    .obstacle-example p {
+        font-size: 0.8em;
+    }
+
+    .tutorial-instructions p {
+        font-size: 0.9em;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    #game-title {
+        font-size: 2em;
+    }
+
+    #start-button {
+        font-size: 0.9em;
+        padding: 8px 16px;
+    }
+
+    #tutorial h2 {
+        font-size: 1em;
+    }
+
+    .obstacle-example img {
+        width: 25px;
+        height: 25px;
+    }
+
+    .obstacle-example p {
+        font-size: 0.7em;
+    }
+
+    .tutorial-instructions p {
+        font-size: 0.8em;
+    }
+}
