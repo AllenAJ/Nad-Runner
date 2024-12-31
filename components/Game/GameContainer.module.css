@@ -88,23 +88,47 @@
     gap: 1rem;
     align-items: center;
     z-index: 10;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
     padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    min-width: 300px;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    min-width: 320px;
+    text-align: center;
 }
 
 .gameOverContainer h2 {
-    font-size: 2rem;
+    font-size: 2.5rem;
     color: #2d3436;
     margin: 0;
+    font-weight: bold;
 }
 
 .gameOverContainer p {
-    font-size: 1.5rem;
-    color: #2d3436;
-    margin: 0;
+    font-size: 1.8rem;
+    color: #6c5ce7;
+    margin: 0.5rem 0 1.5rem 0;
+    font-weight: 500;
+}
+
+.gameOverContainer input {
+    padding: 0.8rem 1rem;
+    font-size: 1.2rem;
+    border: 2px solid #6c5ce7;
+    border-radius: 8px;
+    width: 100%;
+    background-color: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 0.5rem;
+}
+
+.gameOverContainer input:focus {
+    outline: none;
+    border-color: #5b4bc4;
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+}
+
+.gameOverContainer input::placeholder {
+    color: #a0a0a0;
 }
 
 .gameOverContainer button {
@@ -113,31 +137,40 @@
     background-color: #6c5ce7;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
     width: 100%;
+    font-weight: 500;
 }
 
 .gameOverContainer button:hover {
     background-color: #5b4bc4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(108, 92, 231, 0.2);
 }
 
 .gameOverContainer button:disabled {
     background-color: #b2bec3;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .leaderboard {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     width: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    padding: 1rem;
 }
 
 .leaderboard h3 {
     color: #6c5ce7;
     text-align: center;
     margin-bottom: 1rem;
-    font-size: 1.2rem;
+    font-size: 1.4rem;
+    font-weight: bold;
 }
 
 .leaderboardEntry {
@@ -145,7 +178,12 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem;
-    border-bottom: 1px solid #dfe6e9;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.2);
+    transition: background-color 0.2s;
+}
+
+.leaderboardEntry:hover {
+    background-color: rgba(108, 92, 231, 0.05);
 }
 
 .leaderboardEntry:last-child {
@@ -161,9 +199,13 @@
 .name {
     flex: 1;
     margin: 0 1rem;
+    color: #2d3436;
+    font-weight: 500;
 }
 
 .score {
     font-weight: bold;
-    color: #2d3436;
+    color: #6c5ce7;
+    min-width: 60px;
+    text-align: right;
 }
