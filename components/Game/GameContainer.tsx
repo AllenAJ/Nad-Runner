@@ -1,12 +1,13 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import { useAccount, useDisconnect } from 'wagmi';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
-import { useChainId, useSwitchChain } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import React, { useEffect, useState } from 'react';
+import { ethers } from 'ethers';
 import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
-import { mintScore, TransactionStatus } from '../../utils/web3';
+
+interface GameState {
+    isPlaying: boolean;
+    score: number;
+    playerName: string;
+}
 
 interface LeaderboardEntry {
     name: string;
@@ -16,143 +17,88 @@ interface LeaderboardEntry {
 
 const GAME_WIDTH = 1600;
 const GAME_HEIGHT = 800;
-const MAX_LEADERBOARD_ENTRIES = 20;
+const MAX_LEADERBOARD_ENTRIES = 10;
 
-const GameContainer: React.FC = () => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [score, setScore] = useState(0);
+export default function GameContainer() {
+    const [gameState, setGameState] = useState<GameState>({
+        isPlaying: false,
+        score: 0,
+        playerName: ''
+    });
     const [isGameOver, setIsGameOver] = useState(false);
     const [isMinting, setIsMinting] = useState(false);
-    const [mintError, setMintError] = useState<string | null>(null);
-    const [txStatus, setTxStatus] = useState<TransactionStatus | null>(null);
-    const [playerName, setPlayerName] = useState('');
+    const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [showNameInput, setShowNameInput] = useState(false);
-
-    const { address, isConnected } = useAccount();
-    const { disconnect } = useDisconnect();
-    const chainId = useChainId();
-    const { switchChain } = useSwitchChain();
-    const { open: openWeb3Modal } = useWeb3Modal();
 
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                if (!isPlaying && !isGameOver) {
-                    setIsPlaying(true);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isPlaying, isGameOver]);
-
-    useEffect(() => {
-        // Load leaderboard from localStorage on mount
+        // Load leaderboard from localStorage
         const savedLeaderboard = localStorage.getItem('monadrun_leaderboard');
         if (savedLeaderboard) {
             setLeaderboard(JSON.parse(savedLeaderboard));
         }
+
+        if (window.ethereum) {
+            const web3Provider = new ethers.BrowserProvider(window.ethereum);
+            setProvider(web3Provider);
+        }
     }, []);
 
-    const handleGameOver = (finalScore: number) => {
-        setIsPlaying(false);
-        setIsGameOver(true);
-        const roundedScore = Math.floor(finalScore);
-        setScore(roundedScore);
-
-        // Check if score qualifies for leaderboard
-        const isHighScore = leaderboard.length < MAX_LEADERBOARD_ENTRIES ||
-            roundedScore > leaderboard[leaderboard.length - 1]?.score;
-
-        if (isHighScore) {
-            setShowNameInput(true);
+    const handleConnect = async () => {
+        if (!provider) return;
+        try {
+            await provider.send("eth_requestAccounts", []);
+            const network = await provider.getNetwork();
+            if (network.chainId !== 84532n) { // Base Sepolia chainId
+                await window.ethereum.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [{ chainId: "0x14a34" }], // Base Sepolia chainId in hex
+                });
+            }
+        } catch (error) {
+            console.error('Failed to connect:', error);
         }
     };
 
-    const handleNameSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!playerName.trim()) return;
-
-        const newEntry: LeaderboardEntry = {
-            name: playerName.trim(),
-            score: score,
-            date: new Date().toISOString()
-        };
-
-        const updatedLeaderboard = [...leaderboard, newEntry]
-            .sort((a, b) => b.score - a.score)
-            .slice(0, MAX_LEADERBOARD_ENTRIES);
-
-        setLeaderboard(updatedLeaderboard);
-        localStorage.setItem('monadrun_leaderboard', JSON.stringify(updatedLeaderboard));
-        setShowNameInput(false);
-        setPlayerName('');
-    };
-
     const handleMintScore = async () => {
+        if (!provider || !gameState.score) return;
+        setIsMinting(true);
         try {
-            setIsMinting(true);
-            setMintError(null);
-            setTxStatus(null);
-
-            // Check if we're on Base Sepolia first
-            if (chainId !== baseSepolia.id) {
-                if (switchChain) {
-                    await switchChain({ chainId: baseSepolia.id });
-                } else {
-                    throw new Error("Please switch to Base Sepolia network manually");
-                }
-                return;
-            }
-
-            // Only open modal if not connected
-            if (!isConnected) {
-                await openWeb3Modal();
-                return;
-            }
-
-            if (!address) {
-                throw new Error("No wallet address found");
-            }
-
-            const tx = await mintScore(address, score, setTxStatus);
-            console.log('Transaction hash:', tx.hash);
-
-        } catch (error: any) {
-            console.error('Error minting score:', error);
-            setMintError(error.message || 'Failed to mint score. Please try again.');
+            const signer = await provider.getSigner();
+            // Contract interaction code here
+            // We'll add this back once the basic build works
+        } catch (error) {
+            console.error('Failed to mint:', error);
         } finally {
             setIsMinting(false);
         }
     };
 
-    const handleDisconnect = async () => {
-        try {
-            await disconnect();
-        } catch (error) {
-            console.error('Failed to disconnect:', error);
-        }
-    };
-
-    const getExplorerLink = (hash: string) => {
-        return `https://sepolia.basescan.org/tx/${hash}`;
-    };
-
-    const handlePlayAgain = () => {
+    const handleStartGame = () => {
+        if (!gameState.playerName) return;
+        setGameState(prev => ({ ...prev, isPlaying: true }));
         setIsGameOver(false);
-        setScore(0);
-        setMintError(null);
-        setIsPlaying(true);
     };
 
-    const getMintButtonText = () => {
-        if (isMinting) return 'Minting...';
-        if (!isConnected) return 'Connect Wallet to Mint';
-        if (chainId !== baseSepolia.id) return 'Switch to Base Sepolia';
-        return 'Mint Score';
+    const handleGameOver = (finalScore: number) => {
+        const roundedScore = Math.floor(finalScore);
+        setGameState(prev => ({ ...prev, isPlaying: false, score: roundedScore }));
+        setIsGameOver(true);
+
+        // Update leaderboard if score qualifies
+        if (gameState.playerName) {
+            const newEntry: LeaderboardEntry = {
+                name: gameState.playerName,
+                score: roundedScore,
+                date: new Date().toISOString()
+            };
+
+            const updatedLeaderboard = [...leaderboard, newEntry]
+                .sort((a, b) => b.score - a.score)
+                .slice(0, MAX_LEADERBOARD_ENTRIES);
+
+            setLeaderboard(updatedLeaderboard);
+            localStorage.setItem('monadrun_leaderboard', JSON.stringify(updatedLeaderboard));
+        }
     };
 
     return (
@@ -161,133 +107,67 @@ const GameContainer: React.FC = () => {
                 <Canvas
                     width={GAME_WIDTH}
                     height={GAME_HEIGHT}
-                    isPlaying={isPlaying}
-                    onGameOver={(finalScore) => handleGameOver(finalScore)}
+                    isPlaying={gameState.isPlaying}
+                    onGameOver={handleGameOver}
                 />
-                {!isPlaying && !isGameOver && (
-                    <div className={styles.overlay}>
-                        <div className={styles.gameInstructions}>
+                {!gameState.isPlaying && !isGameOver && (
+                    <div className={styles.menuContainer}>
+                        <div className={styles.instructions}>
                             <h3>How to Play</h3>
-                            <p>Press <span className={styles.controls}>Space</span> or <span className={styles.controls}>Tap</span> to jump</p>
+                            <p>Press <span className={styles.key}>Space</span> or <span className={styles.key}>Tap</span> to jump</p>
                             <p>Collect power-ups and avoid obstacles</p>
                             <p>The longer you survive, the higher your score!</p>
                         </div>
-                        <div className={styles.menuContainer}>
-                            <button
-                                className={styles.startButton}
-                                onClick={() => setIsPlaying(true)}
-                            >
-                                Start Game
-                            </button>
-                            {leaderboard.length > 0 && (
-                                <div className={styles.leaderboard}>
-                                    <h2>Top Scores</h2>
-                                    <div className={styles.leaderboardList}>
-                                        {leaderboard.map((entry, index) => (
-                                            <div key={index} className={styles.leaderboardEntry}>
-                                                <span className={styles.rank}>#{index + 1}</span>
-                                                <span className={styles.name}>{entry.name}</span>
-                                                <span className={styles.score}>{entry.score}</span>
-                                            </div>
-                                        ))}
+                        <input
+                            type="text"
+                            placeholder="Enter your name"
+                            value={gameState.playerName}
+                            onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
+                        />
+                        <button onClick={handleStartGame}>Start Game</button>
+                        {leaderboard.length > 0 && (
+                            <div className={styles.leaderboard}>
+                                <h3>Top Scores</h3>
+                                {leaderboard.map((entry, index) => (
+                                    <div key={index} className={styles.leaderboardEntry}>
+                                        <span className={styles.rank}>#{index + 1}</span>
+                                        <span className={styles.name}>{entry.name}</span>
+                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
                 {isGameOver && (
-                    <div className={`${styles.overlay} ${styles.gameOver}`}>
-                        <div className={styles.gameOverContainer}>
-                            <h2 className={styles.gameOverTitle}>Game Over!</h2>
-                            <p className={styles.finalScore}>Final Score: {score}</p>
-
-                            {showNameInput ? (
-                                <form onSubmit={handleNameSubmit} className={styles.nameInputForm}>
-                                    <p>New High Score! Enter your name:</p>
-                                    <input
-                                        type="text"
-                                        maxLength={20}
-                                        value={playerName}
-                                        onChange={(e) => setPlayerName(e.target.value)}
-                                        className={styles.nameInput}
-                                        placeholder="Your Name"
-                                        autoFocus
-                                    />
-                                    <button type="submit" className={styles.submitNameButton}>
-                                        Submit
-                                    </button>
-                                </form>
-                            ) : (
-                                <>
-                                    {mintError && (
-                                        <p className={styles.errorMessage}>{mintError}</p>
-                                    )}
-                                    {txStatus && (
-                                        <div className={`${styles.txStatus} ${styles[txStatus.status]}`}>
-                                            <p>{txStatus.message}</p>
-                                            {txStatus.hash && (
-                                                <a
-                                                    href={getExplorerLink(txStatus.hash)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={styles.txLink}
-                                                >
-                                                    View on BaseScan
-                                                </a>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className={styles.buttonGroup}>
-                                        <button
-                                            className={`${styles.mintButton} ${isMinting ? styles.minting : ''}`}
-                                            onClick={handleMintScore}
-                                            disabled={isMinting || txStatus?.status === 'mining'}
-                                        >
-                                            {getMintButtonText()}
-                                        </button>
-                                        <button
-                                            className={styles.playAgainButton}
-                                            onClick={handlePlayAgain}
-                                        >
-                                            Play Again
-                                        </button>
+                    <div className={styles.gameOverContainer}>
+                        <h2>Game Over!</h2>
+                        <p>Score: {Math.floor(gameState.score)}</p>
+                        <button onClick={handleConnect}>Connect Wallet</button>
+                        <button
+                            onClick={handleMintScore}
+                            disabled={isMinting}
+                        >
+                            {isMinting ? 'Minting...' : 'Mint Score'}
+                        </button>
+                        <button onClick={() => setGameState(prev => ({ ...prev, isPlaying: true }))}>
+                            Play Again
+                        </button>
+                        {leaderboard.length > 0 && (
+                            <div className={styles.leaderboard}>
+                                <h3>Top Scores</h3>
+                                {leaderboard.map((entry, index) => (
+                                    <div key={index} className={styles.leaderboardEntry}>
+                                        <span className={styles.rank}>#{index + 1}</span>
+                                        <span className={styles.name}>{entry.name}</span>
+                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
                                     </div>
-                                </>
-                            )}
-
-                            {!showNameInput && (
-                                <div className={styles.leaderboard}>
-                                    <h2>Top Scores</h2>
-                                    <div className={styles.leaderboardList}>
-                                        {leaderboard.map((entry, index) => (
-                                            <div key={index} className={styles.leaderboardEntry}>
-                                                <span className={styles.rank}>#{index + 1}</span>
-                                                <span className={styles.name}>{entry.name}</span>
-                                                <span className={styles.score}>{entry.score}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {isConnected && !showNameInput && (
-                                <div className={styles.walletInfo}>
-                                    <p>Connected: {address?.slice(0, 6)}...{address?.slice(-4)}</p>
-                                    <button
-                                        className={styles.disconnectButton}
-                                        onClick={handleDisconnect}
-                                    >
-                                        Disconnect
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </div>
     );
-};
-
-export default GameContainer; 
+} 
