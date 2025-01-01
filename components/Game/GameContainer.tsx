@@ -18,8 +18,9 @@ interface LeaderboardEntry {
 }
 
 const GAME_WIDTH = 1200;
+const MOBILE_GAME_WIDTH = 400;
 const GAME_HEIGHT = 650;
-const MOBILE_GAME_HEIGHT = 450;
+const MOBILE_GAME_HEIGHT = 500;
 const MAX_LEADERBOARD_ENTRIES = 100;
 
 export default function GameContainer() {
@@ -34,6 +35,7 @@ export default function GameContainer() {
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [gameWidth, setGameWidth] = useState(GAME_WIDTH);
     const [gameHeight, setGameHeight] = useState(GAME_HEIGHT);
 
     useEffect(() => {
@@ -64,10 +66,12 @@ export default function GameContainer() {
 
     useEffect(() => {
         const handleResize = () => {
-            setGameHeight(window.innerWidth <= 768 ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
+            const isMobile = window.innerWidth <= 768;
+            setGameHeight(isMobile ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
+            setGameWidth(isMobile ? Math.min(window.innerWidth - 16, MOBILE_GAME_WIDTH) : GAME_WIDTH);
         };
 
-        handleResize(); // Set initial height
+        handleResize(); // Set initial dimensions
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -175,7 +179,7 @@ export default function GameContainer() {
         <div className={styles.container}>
             <div className={styles.gameWrapper}>
                 <Canvas
-                    width={GAME_WIDTH}
+                    width={gameWidth}
                     height={gameHeight}
                     isPlaying={gameState.isPlaying}
                     onGameOver={handleGameOver}

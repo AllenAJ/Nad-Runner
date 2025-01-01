@@ -9,7 +9,7 @@ const Home: NextPage = () => {
     return (
         <div className={styles.container}>
             <Head>
-                <title>Nadrunner</title>
+                <title>NadRunner</title>
                 <meta name="description" content="An endless runner game with Molandak." />
                 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
                 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -37,7 +37,7 @@ const Home: NextPage = () => {
                     className={styles.mascotRight}
                 />
 
-                <h1 className={styles.title}>Nadrunner</h1>
+                <h1 className={styles.title}>NadRunner</h1>
                 <GameContainer />
             </main>
         </div>

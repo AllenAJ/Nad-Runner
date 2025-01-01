@@ -23,6 +23,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 0 1rem;
 }
 
 .menuContainer {
@@ -196,8 +197,7 @@
 
 @media (max-width: 768px) {
     .gameWrapper {
-        max-width: 100%;
-        padding: 0 1rem;
+        padding: 0 0.5rem;
     }
 
     .menuContainer,
