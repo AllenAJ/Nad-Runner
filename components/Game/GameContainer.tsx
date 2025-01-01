@@ -246,7 +246,7 @@ export default function GameContainer() {
                                 <p>{mintStatus.message}</p>
                                 {mintStatus.hash && (
                                     <a
-                                        href={`https://sepolia.basescan.org/tx/${mintStatus.hash}`}
+                                        href={`https://basescan.org/tx/${mintStatus.hash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className={styles.txLink}
