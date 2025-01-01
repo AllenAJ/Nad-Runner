@@ -325,6 +325,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.save();
         ctx.translate(100 + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
         ctx.rotate(state.rotation);
+
+        // Add glow effect when invincible
+        if (state.powerupEffects.invincible) {
+            ctx.shadowColor = '#6c5ce7';
+            ctx.shadowBlur = 20;
+            ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 100) * 0.2; // Pulsing effect
+        }
+
         if (characterImage && characterImage.complete) {
             ctx.drawImage(
                 characterImage,

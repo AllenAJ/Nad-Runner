@@ -1,33 +1,39 @@
 .container {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
+    height: 100vh;
+    height: 100dvh;
     padding: 0;
     display: flex;
     flex-direction: column;
-    background: white;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
     position: relative;
     overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .main {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
+    gap: 1rem;
     background: transparent;
     position: relative;
     z-index: 1;
+    overflow: hidden;
+    padding-top: 2rem;
 }
 
 .title {
     font-size: min(4rem, 15vw);
     text-align: center;
-    margin: 1rem 0;
+    margin: 0;
     background: linear-gradient(45deg, #4F46E5, #7C3AED);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     position: relative;
+    font-weight: 800;
+    letter-spacing: -0.03em;
 }
 
 .mascot {
@@ -40,14 +46,22 @@
 }
 
 .mascotLeft {
-    composes: mascot;
+    width: 80px;
+    height: 80px;
+    position: absolute;
+    z-index: 0;
+    opacity: 0.8;
     left: 5%;
     top: 20%;
     animation: floatLeft 4s ease-in-out infinite;
 }
 
 .mascotRight {
-    composes: mascot;
+    width: 80px;
+    height: 80px;
+    position: absolute;
+    z-index: 0;
+    opacity: 0.8;
     right: 5%;
     top: 30%;
     animation: floatRight 4s ease-in-out infinite;
@@ -98,7 +112,11 @@
 }
 
 .dot1 {
-    composes: decorativeDot;
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4F46E5, #7C3AED);
+    opacity: 0.1;
+    z-index: 0;
     width: 200px;
     height: 200px;
     left: -100px;
@@ -106,7 +124,11 @@
 }
 
 .dot2 {
-    composes: decorativeDot;
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4F46E5, #7C3AED);
+    opacity: 0.1;
+    z-index: 0;
     width: 150px;
     height: 150px;
     right: -50px;
@@ -114,7 +136,11 @@
 }
 
 .dot3 {
-    composes: decorativeDot;
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4F46E5, #7C3AED);
+    opacity: 0.1;
+    z-index: 0;
     width: 100px;
     height: 100px;
     left: 20%;

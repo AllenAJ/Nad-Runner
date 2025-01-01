@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
+import { mintScore, TransactionStatus } from '../../utils/web3';
 
 interface GameState {
     isPlaying: boolean;
     score: number;
     playerName: string;
+    hasEnteredName: boolean;
 }
 
 interface LeaderboardEntry {
@@ -17,18 +19,20 @@ interface LeaderboardEntry {
 
 const GAME_WIDTH = 1600;
 const GAME_HEIGHT = 800;
-const MAX_LEADERBOARD_ENTRIES = 10;
+const MAX_LEADERBOARD_ENTRIES = 100;
 
 export default function GameContainer() {
     const [gameState, setGameState] = useState<GameState>({
         isPlaying: false,
         score: 0,
-        playerName: ''
+        playerName: '',
+        hasEnteredName: false
     });
     const [isGameOver, setIsGameOver] = useState(false);
     const [isMinting, setIsMinting] = useState(false);
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         // Load leaderboard from localStorage
@@ -40,12 +44,21 @@ export default function GameContainer() {
         if (window.ethereum) {
             const web3Provider = new ethers.BrowserProvider(window.ethereum);
             setProvider(web3Provider);
+            // Check if already connected
+            web3Provider.listAccounts().then(accounts => {
+                setIsConnected(accounts.length > 0);
+            });
         }
     }, []);
 
     const handleConnect = async () => {
         if (!provider) return;
         try {
+            if (isConnected) {
+                // Disconnect logic
+                setIsConnected(false);
+                return;
+            }
             await provider.send("eth_requestAccounts", []);
             const network = await provider.getNetwork();
             if (network.chainId !== 84532n) { // Base Sepolia chainId
@@ -54,8 +67,10 @@ export default function GameContainer() {
                     params: [{ chainId: "0x14a34" }], // Base Sepolia chainId in hex
                 });
             }
+            setIsConnected(true);
         } catch (error) {
             console.error('Failed to connect:', error);
+            setIsConnected(false);
         }
     };
 
@@ -64,8 +79,13 @@ export default function GameContainer() {
         setIsMinting(true);
         try {
             const signer = await provider.getSigner();
-            // Contract interaction code here
-            // We'll add this back once the basic build works
+            const address = await signer.getAddress();
+            await mintScore(address, gameState.score, (status: TransactionStatus) => {
+                console.log('Minting status:', status);
+                if (status.status === 'error') {
+                    console.error('Minting error:', status.error);
+                }
+            });
         } catch (error) {
             console.error('Failed to mint:', error);
         } finally {
@@ -74,8 +94,13 @@ export default function GameContainer() {
     };
 
     const handleStartGame = () => {
-        if (!gameState.playerName) return;
-        setGameState(prev => ({ ...prev, isPlaying: true }));
+        setGameState(prev => ({
+            ...prev,
+            isPlaying: true,
+            score: 0,
+            hasEnteredName: false,
+            playerName: ''
+        }));
         setIsGameOver(false);
     };
 
@@ -83,12 +108,14 @@ export default function GameContainer() {
         const roundedScore = Math.floor(finalScore);
         setGameState(prev => ({ ...prev, isPlaying: false, score: roundedScore }));
         setIsGameOver(true);
+    };
 
-        // Update leaderboard if score qualifies
+    const handleNameSubmit = () => {
+        // Only add to leaderboard if name is provided
         if (gameState.playerName) {
             const newEntry: LeaderboardEntry = {
                 name: gameState.playerName,
-                score: roundedScore,
+                score: gameState.score,
                 date: new Date().toISOString()
             };
 
@@ -99,6 +126,17 @@ export default function GameContainer() {
             setLeaderboard(updatedLeaderboard);
             localStorage.setItem('monadrun_leaderboard', JSON.stringify(updatedLeaderboard));
         }
+        setGameState(prev => ({ ...prev, hasEnteredName: true }));
+    };
+
+    const handlePlayAgain = () => {
+        setGameState({
+            isPlaying: true,
+            score: 0,
+            playerName: '',
+            hasEnteredName: false
+        });
+        setIsGameOver(false);
     };
 
     return (
@@ -118,12 +156,6 @@ export default function GameContainer() {
                             <p>Collect power-ups and avoid obstacles</p>
                             <p>The longer you survive, the higher your score!</p>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Enter your name"
-                            value={gameState.playerName}
-                            onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
-                        />
                         <button onClick={handleStartGame}>Start Game</button>
                         {leaderboard.length > 0 && (
                             <div className={styles.leaderboard}>
@@ -139,18 +171,33 @@ export default function GameContainer() {
                         )}
                     </div>
                 )}
-                {isGameOver && (
+                {isGameOver && !gameState.hasEnteredName && (
                     <div className={styles.gameOverContainer}>
                         <h2>Game Over!</h2>
                         <p>Score: {Math.floor(gameState.score)}</p>
-                        <button onClick={handleConnect}>Connect Wallet</button>
+                        <input
+                            type="text"
+                            placeholder="Enter your name"
+                            value={gameState.playerName}
+                            onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
+                        />
+                        <button onClick={handleNameSubmit}>Submit Score</button>
+                    </div>
+                )}
+                {isGameOver && gameState.hasEnteredName && (
+                    <div className={styles.gameOverContainer}>
+                        <h2>Game Over!</h2>
+                        <p>Score: {Math.floor(gameState.score)}</p>
+                        <button onClick={handleConnect}>
+                            {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
+                        </button>
                         <button
                             onClick={handleMintScore}
-                            disabled={isMinting}
+                            disabled={isMinting || !isConnected}
                         >
                             {isMinting ? 'Minting...' : 'Mint Score'}
                         </button>
-                        <button onClick={() => setGameState(prev => ({ ...prev, isPlaying: true }))}>
+                        <button onClick={handlePlayAgain}>
                             Play Again
                         </button>
                         {leaderboard.length > 0 && (

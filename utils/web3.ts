@@ -16,7 +16,7 @@ export const CONTRACT_ABI = [
 ] as const;
 
 // Get projectId from WalletConnect Cloud - https://cloud.walletconnect.com/
-const projectId = 'YOUR_PROJECT_ID';
+const projectId = '4e31840d1b7a7cf9e7bfbd1ac9074fcc';
 
 export const config = createConfig({
     chains: [baseSepolia],

@@ -1,22 +1,35 @@
 {
-    "compilerOptions": {
-        "target": "es2020",
-        "module": "commonjs",
-        "esModuleInterop": true,
-        "forceConsistentCasingInFileNames": true,
-        "strict": true,
-        "skipLibCheck": true,
-        "resolveJsonModule": true,
-        "jsx": "react"
-    },
-    "include": [
-        "hardhat.config.ts",
-        "./scripts",
-        "./test",
-        "./components/**/*",
-        "./pages/**/*"
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
     ],
-    "files": [
-        "hardhat.config.ts"
-    ]
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "moduleResolution": "node",
+    "isolatedModules": true
+  },
+  "include": [
+    "hardhat.config.ts",
+    "./scripts",
+    "./test",
+    "./components/**/*",
+    "./pages/**/*"
+  ],
+  "files": [
+    "hardhat.config.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
