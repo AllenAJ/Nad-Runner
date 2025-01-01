@@ -1,17 +1,28 @@
 .container {
     width: 100%;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0;
 }
 
 .gameWrapper {
     position: relative;
     width: 100%;
-    max-width: 1600px;
+    max-width: 1200px;
+    height: 100%;
     margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .menuContainer {
@@ -21,11 +32,33 @@
     transform: translate(-50%, -50%);
     background: white;
     padding: 2rem;
-    border-radius: 1rem;
+    border-radius: 1.5rem;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
     max-width: 90%;
-    width: 400px;
+    width: 320px;
+    z-index: 10;
+}
+
+.menuContainer button {
+    width: 100%;
+    padding: 1rem 2rem;
+    margin: 1rem 0;
+    border: none;
+    border-radius: 1rem;
+    background: #6366f1;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.menuContainer button:hover {
+    background: #4f46e5;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .gameOverContainer {
@@ -34,12 +67,13 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background: white;
-    padding: 1.5rem;
-    border-radius: 1rem;
+    padding: 2rem;
+    border-radius: 1.5rem;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
     max-width: 90%;
     width: 320px;
+    z-index: 20;
 }
 
 .gameOverContainer h2 {
@@ -76,7 +110,7 @@
 
 .leaderboard {
     margin-top: 1rem;
-    max-height: 300px;
+    max-height: 220px;
     overflow-y: auto;
     padding-right: 0.5rem;
     scrollbar-width: thin;
@@ -129,11 +163,14 @@
 
 .key {
     display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background: #f3f4f6;
-    border-radius: 0.25rem;
+    padding: 0.4rem 0.8rem;
+    background: #6366f1;
+    color: white;
+    border-radius: 0.5rem;
     font-family: monospace;
     margin: 0 0.25rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
 }
 
 .gameOverContainer input {
@@ -155,4 +192,23 @@
 
 .gameOverContainer input::placeholder {
     color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+    .gameWrapper {
+        max-width: 100%;
+        padding: 0 1rem;
+    }
+
+    .menuContainer,
+    .gameOverContainer {
+        width: 90%;
+        max-width: 320px;
+        padding: 1rem;
+    }
+
+    .instructions {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
 }

@@ -86,7 +86,7 @@ const INITIAL_STATE: GameState = {
 const PLAYER_SIZE = 50;
 const OBSTACLE_SIZE = 50;
 const POWERUP_SIZE = 40;
-const GROUND_HEIGHT = 80;
+const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
 const PLAYER_OFFSET_FROM_GROUND = 0;
 const OBSTACLE_SPAWN_CHANCE = 0.02;
 const POWERUP_SPAWN_CHANCE = 0.008;
@@ -127,22 +127,24 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     }, [width, height]);
 
     const resetGame = () => {
+        const groundHeight = getGroundHeight(height);
         gameStateRef.current = {
             ...INITIAL_STATE,
-            playerY: height - GROUND_HEIGHT - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND
+            playerY: height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND
         };
     };
 
     const updatePlayer = (deltaTime: number) => {
         const state = gameStateRef.current;
+        const groundHeight = getGroundHeight(height);
 
         state.yVelocity += state.gravity * deltaTime;
         state.playerY += state.yVelocity * deltaTime;
         state.rotation += state.rotationSpeed * deltaTime;
 
-        // Ground collision with new ground height
-        if (state.playerY + PLAYER_SIZE > height - GROUND_HEIGHT - PLAYER_OFFSET_FROM_GROUND) {
-            state.playerY = height - GROUND_HEIGHT - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND;
+        // Ground collision with dynamic ground height
+        if (state.playerY + PLAYER_SIZE > height - groundHeight - PLAYER_OFFSET_FROM_GROUND) {
+            state.playerY = height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND;
             state.yVelocity = 0;
             state.isJumping = false;
             state.jumpCount = 0;
@@ -151,6 +153,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     const updateObstacles = (deltaTime: number) => {
         const state = gameStateRef.current;
+        const groundHeight = getGroundHeight(height);
 
         // Move existing obstacles
         state.obstacles = state.obstacles.filter(obstacle => {
@@ -165,8 +168,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
             const isGroundObstacle = Math.random() > 0.5;
             const obstacleY = isGroundObstacle ?
-                height - GROUND_HEIGHT - OBSTACLE_SIZE :
-                height - GROUND_HEIGHT - OBSTACLE_SIZE * 2.5;
+                height - groundHeight - OBSTACLE_SIZE :
+                height - groundHeight - OBSTACLE_SIZE * 2;
 
             state.obstacles.push({
                 x: width,
@@ -226,6 +229,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     const updatePowerups = (deltaTime: number) => {
         const state = gameStateRef.current;
+        const groundHeight = getGroundHeight(height);
 
         // Move existing powerups
         state.powerups = state.powerups.filter(powerup => {
@@ -239,7 +243,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
 
             // Position powerups at varying heights above ground
-            const powerupY = height - GROUND_HEIGHT - POWERUP_SIZE -
+            const powerupY = height - groundHeight - POWERUP_SIZE -
                 Math.random() * (PLAYER_SIZE * 3);
 
             state.powerups.push({
@@ -312,6 +316,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     const drawGame = (ctx: CanvasRenderingContext2D) => {
         const state = gameStateRef.current;
+        const groundHeight = getGroundHeight(height);
 
         // Clear canvas
         ctx.fillStyle = '#87CEEB';
@@ -319,7 +324,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Draw ground
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(0, height - GROUND_HEIGHT, width, GROUND_HEIGHT);
+        ctx.fillRect(0, height - groundHeight, width, groundHeight);
 
         // Draw player with sprite
         ctx.save();

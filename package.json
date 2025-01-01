@@ -1,15 +1,17 @@
 {
-  "name": "monad-run",
+  "name": "nadrunner",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "init-db": "ts-node scripts/init-db.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.11",
+    "@vercel/postgres": "^0.10.0",
     "@web3modal/wagmi": "^5.1.11",
     "ethers": "^6.0.0",
     "next": "14.0.4",
@@ -25,6 +27,7 @@
     "@types/react-dom": "^18",
     "dotenv": "^16.3.1",
     "hardhat": "^2.19.4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

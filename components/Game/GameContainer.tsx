@@ -17,8 +17,9 @@ interface LeaderboardEntry {
     date: string;
 }
 
-const GAME_WIDTH = 1600;
-const GAME_HEIGHT = 800;
+const GAME_WIDTH = 1200;
+const GAME_HEIGHT = 650;
+const MOBILE_GAME_HEIGHT = 450;
 const MAX_LEADERBOARD_ENTRIES = 100;
 
 export default function GameContainer() {
@@ -33,13 +34,18 @@ export default function GameContainer() {
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [gameHeight, setGameHeight] = useState(GAME_HEIGHT);
 
     useEffect(() => {
-        // Load leaderboard from localStorage
-        const savedLeaderboard = localStorage.getItem('monadrun_leaderboard');
-        if (savedLeaderboard) {
-            setLeaderboard(JSON.parse(savedLeaderboard));
-        }
+        // Load global leaderboard from API
+        fetch('/api/scores')
+            .then(res => res.json())
+            .then(scores => {
+                setLeaderboard(scores);
+            })
+            .catch(error => {
+                console.error('Error loading leaderboard:', error);
+            });
 
         if (window.ethereum) {
             const web3Provider = new ethers.BrowserProvider(window.ethereum);
@@ -49,6 +55,16 @@ export default function GameContainer() {
                 setIsConnected(accounts.length > 0);
             });
         }
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setGameHeight(window.innerWidth <= 768 ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
+        };
+
+        handleResize(); // Set initial height
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const handleConnect = async () => {
@@ -110,21 +126,32 @@ export default function GameContainer() {
         setIsGameOver(true);
     };
 
-    const handleNameSubmit = () => {
+    const handleNameSubmit = async () => {
         // Only add to leaderboard if name is provided
         if (gameState.playerName) {
-            const newEntry: LeaderboardEntry = {
-                name: gameState.playerName,
-                score: gameState.score,
-                date: new Date().toISOString()
-            };
+            try {
+                const response = await fetch('/api/scores', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: gameState.playerName,
+                        score: gameState.score,
+                        walletAddress: isConnected ? await provider?.getSigner().then(signer => signer.getAddress()) : undefined
+                    }),
+                });
 
-            const updatedLeaderboard = [...leaderboard, newEntry]
-                .sort((a, b) => b.score - a.score)
-                .slice(0, MAX_LEADERBOARD_ENTRIES);
+                if (!response.ok) {
+                    throw new Error('Failed to save score');
+                }
 
-            setLeaderboard(updatedLeaderboard);
-            localStorage.setItem('monadrun_leaderboard', JSON.stringify(updatedLeaderboard));
+                // Refresh leaderboard
+                const updatedScores = await fetch('/api/scores').then(res => res.json());
+                setLeaderboard(updatedScores);
+            } catch (error) {
+                console.error('Error saving score:', error);
+            }
         }
         setGameState(prev => ({ ...prev, hasEnteredName: true }));
     };
@@ -144,7 +171,7 @@ export default function GameContainer() {
             <div className={styles.gameWrapper}>
                 <Canvas
                     width={GAME_WIDTH}
-                    height={GAME_HEIGHT}
+                    height={gameHeight}
                     isPlaying={gameState.isPlaying}
                     onGameOver={handleGameOver}
                 />
@@ -153,7 +180,7 @@ export default function GameContainer() {
                         <div className={styles.instructions}>
                             <h3>How to Play</h3>
                             <p>Press <span className={styles.key}>Space</span> or <span className={styles.key}>Tap</span> to jump</p>
-                            <p>Collect power-ups and avoid obstacles</p>
+                            <p>Collect Moyaki for power-ups, and avoid Chog and Mooch!</p>
                             <p>The longer you survive, the higher your score!</p>
                         </div>
                         <button onClick={handleStartGame}>Start Game</button>
