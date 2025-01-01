@@ -38,9 +38,14 @@ export default function GameContainer() {
 
     useEffect(() => {
         // Load global leaderboard from API
+        console.log('Fetching leaderboard...');
         fetch('/api/scores')
-            .then(res => res.json())
+            .then(res => {
+                console.log('Leaderboard response:', res.status);
+                return res.json();
+            })
             .then(scores => {
+                console.log('Received scores:', scores);
                 setLeaderboard(scores);
             })
             .catch(error => {

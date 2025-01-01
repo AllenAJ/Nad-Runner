@@ -1,5 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { saveScore, getTopScores } from '../../lib/db';
+import { saveScore, getTopScores, createScoresTable } from '../../lib/db';
+
+// Create table on module initialization
+createScoresTable().catch(console.error);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'POST') {
