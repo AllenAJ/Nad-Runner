@@ -1,12 +1,12 @@
 import { createConfig, http } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { walletConnect } from 'wagmi/connectors';
 import { injected } from 'wagmi/connectors';
 import * as ethers from 'ethers';
 
-export const CONTRACT_ADDRESS = "0x1a25493e789Bd6bb22Ab41744e2dCA3B2806e076";
-export const BASE_SEPOLIA_RPC = "https://base-sepolia.g.alchemy.com/v2/OOkI3aa9CfL9WqO-F_guZS8Qz41cCAjl";
+export const CONTRACT_ADDRESS = "0xF507dE1de9b36eD3E98c0D4b882C6a82b8C1E2dc";
+export const BASE_RPC = "https://base-mainnet.g.alchemy.com/v2/OOkI3aa9CfL9WqO-F_guZS8Qz41cCAjl";
 
 // ABI for the mint function
 export const CONTRACT_ABI = [
@@ -15,32 +15,41 @@ export const CONTRACT_ABI = [
     "function balanceOf(address account) public view returns (uint256)"
 ] as const;
 
-// Get projectId from WalletConnect Cloud - https://cloud.walletconnect.com/
+// Get projectId from WalletConnect Cloud
 const projectId = '4e31840d1b7a7cf9e7bfbd1ac9074fcc';
 
+// Configure wagmi client
 export const config = createConfig({
-    chains: [baseSepolia],
+    chains: [base],
     transports: {
-        [baseSepolia.id]: http(BASE_SEPOLIA_RPC)
+        [base.id]: http(BASE_RPC)
     },
     connectors: [
-        injected(),
-        walletConnect({ projectId })
+        walletConnect({
+            projectId,
+            showQrModal: true
+        }),
+        injected({ shimDisconnect: true })
     ]
 });
 
+// Configure Web3Modal
 createWeb3Modal({
     wagmiConfig: config,
     projectId,
-    defaultChain: baseSepolia,
-    themeMode: 'dark'
+    defaultChain: base,
+    themeMode: 'light'
 });
 
-export const getContract = async (signer: any) => {
-    if (!signer) throw new Error("No signer available");
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const connectedSigner = await provider.getSigner();
-    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, connectedSigner);
+export const getContract = async (provider: any) => {
+    if (!provider) throw new Error("No provider available");
+    try {
+        const signer = await provider.getSigner();
+        return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    } catch (error) {
+        console.error("Error getting contract:", error);
+        throw error;
+    }
 };
 
 export type TransactionStatus = {
@@ -55,7 +64,9 @@ export const mintScore = async (
     score: number,
     onStatus: (status: TransactionStatus) => void
 ) => {
-    if (!window.ethereum) throw new Error("No Web3 Provider found");
+    if (!window.ethereum) {
+        throw new Error("No Web3 Provider found. Please install a wallet or use WalletConnect.");
+    }
 
     try {
         onStatus({
@@ -64,8 +75,7 @@ export const mintScore = async (
         });
 
         const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const contract = await getContract(signer);
+        const contract = await getContract(provider);
 
         // Convert score to a whole number and shift by 18 decimal places
         const scoreAmount = ethers.parseUnits(Math.floor(score).toString(), 18);

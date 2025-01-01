@@ -70,13 +70,10 @@ const powerupImage = typeof window !== 'undefined' ? new window.Image() : null;
 if (powerupImage) powerupImage.src = '/assets/moyaki.png';
 
 // Mobile-specific constants
-const MOBILE_SCALE = 1; // Zoom out more (was 0.85) to see even more of the game area
-const PLAYER_START_X = 20; // Move Molandak further left (was implicitly 100)
-const MOBILE_MIN_OBSTACLE_DISTANCE = 400; // Increased from 300 for more reaction time
-const MOBILE_INITIAL_GAME_SPEED = 3.5; // Slightly slower initial speed
-const MOBILE_MAX_GAME_SPEED = 10; // Lower max speed for better control
-const MOBILE_OBSTACLE_SPAWN_OFFSET = 200; // Increased from 100px
+const MOBILE_SCALE = 1;
+const PLAYER_START_X = 20;
 
+// Game constants
 const INITIAL_STATE: GameState = {
     playerY: 0,
     yVelocity: 0,
@@ -139,19 +136,18 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        // Set initial scale based on device
-        gameStateRef.current.scale = isMobileRef.current ? MOBILE_SCALE : 1;
-        gameStateRef.current.gameSpeed = isMobileRef.current ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
+        // Set initial scale and speed
+        gameStateRef.current.scale = 1;
+        gameStateRef.current.gameSpeed = INITIAL_STATE.gameSpeed;
     }, [width, height]);
 
     const resetGame = () => {
         const groundHeight = getGroundHeight(height);
-        const isMobile = width <= 768;
         gameStateRef.current = {
             ...INITIAL_STATE,
             playerY: height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND,
-            scale: isMobile ? MOBILE_SCALE : 1,
-            gameSpeed: isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed
+            scale: 1,
+            gameSpeed: INITIAL_STATE.gameSpeed
         };
     };
 

@@ -45,6 +45,10 @@ declare module "hardhat/types/runtime" {
       name: "MonadRunTestToken",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MonadRunTestToken__factory>;
+    getContractFactory(
+      name: "NadrunnerToken",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.NadrunnerToken__factory>;
 
     getContractAt(
       name: "Ownable",
@@ -86,6 +90,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.MonadRunTestToken>;
+    getContractAt(
+      name: "NadrunnerToken",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.NadrunnerToken>;
 
     deployContract(
       name: "Ownable",
@@ -119,6 +128,10 @@ declare module "hardhat/types/runtime" {
       name: "MonadRunTestToken",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MonadRunTestToken>;
+    deployContract(
+      name: "NadrunnerToken",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NadrunnerToken>;
 
     deployContract(
       name: "Ownable",
@@ -160,6 +173,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MonadRunTestToken>;
+    deployContract(
+      name: "NadrunnerToken",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.NadrunnerToken>;
 
     // default types
     getContractFactory(

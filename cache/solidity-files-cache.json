@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/cj/CodingProjects/MonadRun/contracts/TestToken.sol": {
-      "lastModificationDate": 1735633983098,
-      "contentHash": "e82588b0f8b87a6d89cc530c10de7ca2",
+      "lastModificationDate": 1735719517310,
+      "contentHash": "4bbbe95f3d4f181bdf5bf951a767e9ca",
       "sourceName": "contracts/TestToken.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -37,7 +37,7 @@
         "^0.8.20"
       ],
       "artifacts": [
-        "MonadRunTestToken"
+        "NadrunnerToken"
       ]
     },
     "/Users/cj/CodingProjects/MonadRun/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {

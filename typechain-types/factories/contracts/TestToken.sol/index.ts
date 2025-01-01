@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { MonadRunTestToken__factory } from "./MonadRunTestToken__factory";
+export { NadrunnerToken__factory } from "./NadrunnerToken__factory";

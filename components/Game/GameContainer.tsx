@@ -32,6 +32,7 @@ export default function GameContainer() {
     });
     const [isGameOver, setIsGameOver] = useState(false);
     const [isMinting, setIsMinting] = useState(false);
+    const [mintStatus, setMintStatus] = useState<TransactionStatus | null>(null);
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
@@ -86,10 +87,10 @@ export default function GameContainer() {
             }
             await provider.send("eth_requestAccounts", []);
             const network = await provider.getNetwork();
-            if (network.chainId !== 84532n) { // Base Sepolia chainId
+            if (network.chainId !== 8453n) { // Base mainnet chainId
                 await window.ethereum.request({
                     method: "wallet_switchEthereumChain",
-                    params: [{ chainId: "0x14a34" }], // Base Sepolia chainId in hex
+                    params: [{ chainId: "0x2105" }], // Base mainnet chainId in hex
                 });
             }
             setIsConnected(true);
@@ -102,17 +103,24 @@ export default function GameContainer() {
     const handleMintScore = async () => {
         if (!provider || !gameState.score) return;
         setIsMinting(true);
+        setMintStatus(null);
         try {
             const signer = await provider.getSigner();
             const address = await signer.getAddress();
             await mintScore(address, gameState.score, (status: TransactionStatus) => {
                 console.log('Minting status:', status);
+                setMintStatus(status);
                 if (status.status === 'error') {
                     console.error('Minting error:', status.error);
                 }
             });
         } catch (error) {
             console.error('Failed to mint:', error);
+            setMintStatus({
+                status: 'error',
+                message: 'Failed to mint. Please try again.',
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
         } finally {
             setIsMinting(false);
         }
@@ -233,6 +241,21 @@ export default function GameContainer() {
                         >
                             {isMinting ? 'Minting...' : 'Mint Score'}
                         </button>
+                        {mintStatus && (
+                            <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
+                                <p>{mintStatus.message}</p>
+                                {mintStatus.hash && (
+                                    <a
+                                        href={`https://sepolia.basescan.org/tx/${mintStatus.hash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={styles.txLink}
+                                    >
+                                        View Transaction
+                                    </a>
+                                )}
+                            </div>
+                        )}
                         <button onClick={handlePlayAgain}>
                             Play Again
                         </button>
