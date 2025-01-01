@@ -71,6 +71,7 @@ if (powerupImage) powerupImage.src = '/assets/moyaki.png';
 
 // Mobile-specific constants
 const MOBILE_SCALE = 1;
+const MOBILE_INITIAL_GAME_SPEED = 3; // Slower initial speed for mobile
 const PLAYER_START_X = 20;
 
 // Game constants
@@ -84,7 +85,7 @@ const INITIAL_STATE: GameState = {
     maxJumps: 2,
     rotation: 0,
     rotationSpeed: Math.PI * 5,
-    gameSpeed: 5,
+    gameSpeed: 5, // Default speed for desktop
     score: 0,
     obstacles: [],
     lastObstacleX: 0,
@@ -119,6 +120,19 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const animationFrameRef = useRef<number | undefined>(undefined);
     const isMobileRef = useRef(width <= 768);
 
+    // Update isMobileRef when width changes
+    useEffect(() => {
+        const isMobile = width <= 768;
+        isMobileRef.current = isMobile;
+        console.log('Device type:', isMobile ? 'mobile' : 'desktop', 'width:', width);
+
+        // Reset game speed if game is not playing
+        if (!isPlaying) {
+            gameStateRef.current.gameSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
+            console.log('Initial game speed set to:', gameStateRef.current.gameSpeed);
+        }
+    }, [width]);
+
     // Setup high DPI canvas with mobile scaling
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -143,11 +157,15 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     const resetGame = () => {
         const groundHeight = getGroundHeight(height);
+        const isMobile = isMobileRef.current;
+        const initialSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
+        console.log('Resetting game for:', isMobile ? 'mobile' : 'desktop', 'speed:', initialSpeed);
+
         gameStateRef.current = {
             ...INITIAL_STATE,
+            gameSpeed: initialSpeed,
             playerY: height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND,
-            scale: 1,
-            gameSpeed: INITIAL_STATE.gameSpeed
+            scale: isMobile ? MOBILE_SCALE : 1
         };
     };
 
