@@ -9,7 +9,7 @@ async function main() {
     const balance = await deployer.provider.getBalance(deployer.address);
     console.log("Account balance:", ethers.formatEther(balance), "ETH");
 
-    const Token = await ethers.getContractFactory("NadrunnerToken");
+    const Token = await ethers.getContractFactory("contracts/NadrunnerToken.sol:NadrunnerToken");
     const token = await Token.deploy();
     await token.waitForDeployment();
 

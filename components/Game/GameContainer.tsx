@@ -30,6 +30,8 @@ export default function GameContainer() {
         playerName: '',
         hasEnteredName: false
     });
+    const [gameStartTime, setGameStartTime] = useState<number>(0);
+    const [gameEndTime, setGameEndTime] = useState<number>(0);
     const [isGameOver, setIsGameOver] = useState(false);
     const [isMinting, setIsMinting] = useState(false);
     const [mintStatus, setMintStatus] = useState<TransactionStatus | null>(null);
@@ -107,13 +109,19 @@ export default function GameContainer() {
         try {
             const signer = await provider.getSigner();
             const address = await signer.getAddress();
-            await mintScore(address, gameState.score, (status: TransactionStatus) => {
-                console.log('Minting status:', status);
-                setMintStatus(status);
-                if (status.status === 'error') {
-                    console.error('Minting error:', status.error);
+            await mintScore(
+                address,
+                gameState.score,
+                gameStartTime,
+                gameEndTime,
+                (status: TransactionStatus) => {
+                    console.log('Minting status:', status);
+                    setMintStatus(status);
+                    if (status.status === 'error') {
+                        console.error('Minting error:', status.error);
+                    }
                 }
-            });
+            );
         } catch (error) {
             console.error('Failed to mint:', error);
             setMintStatus({
@@ -127,6 +135,8 @@ export default function GameContainer() {
     };
 
     const handleStartGame = () => {
+        const startTime = Date.now() / 1000;
+        setGameStartTime(startTime);
         setGameState(prev => ({
             ...prev,
             isPlaying: true,
@@ -138,6 +148,8 @@ export default function GameContainer() {
     };
 
     const handleGameOver = (finalScore: number) => {
+        const endTime = Date.now() / 1000;
+        setGameEndTime(endTime);
         const roundedScore = Math.floor(finalScore);
         setGameState(prev => ({ ...prev, isPlaying: false, score: roundedScore }));
         setIsGameOver(true);
@@ -174,6 +186,8 @@ export default function GameContainer() {
     };
 
     const handlePlayAgain = () => {
+        const startTime = Date.now() / 1000;
+        setGameStartTime(startTime);
         setGameState({
             isPlaying: true,
             score: 0,
@@ -244,6 +258,11 @@ export default function GameContainer() {
                         {mintStatus && (
                             <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
                                 <p>{mintStatus.message}</p>
+                                {mintStatus.status === 'error' && (
+                                    <p className={styles.errorDetails}>
+                                        Potential foul play detected. Please play the game normally.
+                                    </p>
+                                )}
                                 {mintStatus.hash && (
                                     <a
                                         href={`https://basescan.org/tx/${mintStatus.hash}`}

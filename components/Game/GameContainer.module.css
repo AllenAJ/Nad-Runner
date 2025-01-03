@@ -214,40 +214,39 @@
 }
 
 .mintStatus {
-    margin: 0.75rem 0;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
     text-align: center;
-    transition: all 0.3s ease;
 }
 
 .mintStatus p {
-    margin: 0;
     font-size: 0.8rem;
-}
-
-.mintStatus.pending {
-    background-color: #f3f4f6;
-    color: #4b5563;
-    border: 1px solid #e5e7eb;
-}
-
-.mintStatus.mining {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #bfdbfe;
-}
-
-.mintStatus.success {
-    background-color: #dcfce7;
-    color: #166534;
-    border: 1px solid #bbf7d0;
 }
 
 .mintStatus.error {
     background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    border: 1px solid #ef4444;
+    color: #dc2626;
+}
+
+.errorDetails {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #dc2626;
+}
+
+.mintStatus.success {
+    background-color: #dcfce7;
+    border: 1px solid #22c55e;
+    color: #16a34a;
+}
+
+.mintStatus.pending,
+.mintStatus.mining {
+    background-color: #e0f2fe;
+    border: 1px solid #0ea5e9;
+    color: #0284c7;
 }
 
 .txLink {
