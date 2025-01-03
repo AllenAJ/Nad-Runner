@@ -57,12 +57,15 @@ export default function GameContainer() {
                 console.error('Error loading leaderboard:', error);
             });
 
-        if (window.ethereum) {
+        // Check if already connected
+        if (typeof window !== 'undefined' && window.ethereum) {
             const web3Provider = new ethers.BrowserProvider(window.ethereum);
             setProvider(web3Provider);
             // Check if already connected
             web3Provider.listAccounts().then(accounts => {
                 setIsConnected(accounts.length > 0);
+            }).catch(error => {
+                console.log('Not connected to wallet:', error);
             });
         }
     }, []);
@@ -80,25 +83,46 @@ export default function GameContainer() {
     }, []);
 
     const handleConnect = async () => {
-        if (!provider) return;
         try {
             if (isConnected) {
                 // Disconnect logic
                 setIsConnected(false);
+                setProvider(null);
                 return;
             }
-            await provider.send("eth_requestAccounts", []);
-            const network = await provider.getNetwork();
+
+            // Check if MetaMask is installed
+            if (!window.ethereum) {
+                setMintStatus({
+                    status: 'error',
+                    message: 'Please open this website in your MetaMask browser or install MetaMask'
+                });
+                return;
+            }
+
+            // This will trigger Web3Modal on both desktop and mobile
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+
+            const web3Provider = new ethers.BrowserProvider(window.ethereum);
+            setProvider(web3Provider);
+
+            const network = await web3Provider.getNetwork();
             if (network.chainId !== 8453n) { // Base mainnet chainId
                 await window.ethereum.request({
                     method: "wallet_switchEthereumChain",
                     params: [{ chainId: "0x2105" }], // Base mainnet chainId in hex
                 });
             }
+
             setIsConnected(true);
         } catch (error) {
             console.error('Failed to connect:', error);
             setIsConnected(false);
+            // Show a user-friendly error message
+            setMintStatus({
+                status: 'error',
+                message: 'Please open this website in your MetaMask mobile browser'
+            });
         }
     };
 
@@ -258,11 +282,12 @@ export default function GameContainer() {
                         {mintStatus && (
                             <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
                                 <p>{mintStatus.message}</p>
-                                {mintStatus.status === 'error' && (
-                                    <p className={styles.errorDetails}>
-                                        Potential foul play detected. Please play the game normally.
-                                    </p>
-                                )}
+                                {mintStatus.status === 'error' &&
+                                    mintStatus.message.includes('foul play') && (
+                                        <p className={styles.errorDetails}>
+                                            Please play the game normally.
+                                        </p>
+                                    )}
                                 {mintStatus.hash && (
                                     <a
                                         href={`https://basescan.org/tx/${mintStatus.hash}`}
