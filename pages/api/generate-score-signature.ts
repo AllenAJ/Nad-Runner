@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Load environment variables
 const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY!;
-const CHAIN_ID = process.env.CHAIN_ID || '8453'; // Base Mainnet
+const CHAIN_ID = process.env.MONAD_CHAIN_ID || '20143'; // Fallback to Monad Devnet
 
 type RequestData = {
     playerAddress: string;

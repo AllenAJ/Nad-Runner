@@ -53,6 +53,11 @@ interface GameState {
         createdAt: number;
     }>;
     invincibilityEndTime?: number;
+    powerupTimeouts: {
+        score?: NodeJS.Timeout;
+        invincible?: NodeJS.Timeout;
+        doubleJump?: NodeJS.Timeout;
+    };
 }
 
 // Update image references to use window.Image
@@ -99,6 +104,7 @@ const INITIAL_STATE: GameState = {
     scale: 1,
     floatingTexts: [],
     invincibilityEndTime: undefined,
+    powerupTimeouts: {},
 };
 
 const PLAYER_SIZE = 50;
@@ -328,9 +334,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             doubleJump: 'Triple Jump!'
         };
 
+        // Clear any existing timeouts for this power-up type
+        if (state.powerupTimeouts?.[type]) {
+            clearTimeout(state.powerupTimeouts[type]);
+        }
+
         state.floatingTexts.push({
             text: powerupNames[type],
-            x: x + POWERUP_SIZE, // Moved right by powerup width
+            x: x + POWERUP_SIZE,
             y,
             opacity: 1,
             createdAt: Date.now()
@@ -339,25 +350,34 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         switch (type) {
             case 'score':
                 state.powerupEffects.scoreMultiplier = 2;
-                setTimeout(() => {
-                    state.powerupEffects.scoreMultiplier = 1;
-                }, 5000);
+                state.powerupTimeouts = {
+                    ...state.powerupTimeouts,
+                    score: setTimeout(() => {
+                        state.powerupEffects.scoreMultiplier = 1;
+                    }, 5000)
+                };
                 break;
             case 'invincible':
                 state.powerupEffects.invincible = true;
-                state.invincibilityEndTime = Date.now() + 3000; // Set end time
-                setTimeout(() => {
-                    state.powerupEffects.invincible = false;
-                    state.invincibilityEndTime = undefined;
-                }, 3000);
+                state.invincibilityEndTime = Date.now() + 3000;
+                state.powerupTimeouts = {
+                    ...state.powerupTimeouts,
+                    invincible: setTimeout(() => {
+                        state.powerupEffects.invincible = false;
+                        state.invincibilityEndTime = undefined;
+                    }, 3000)
+                };
                 break;
             case 'doubleJump':
                 state.powerupEffects.doubleJump = true;
                 state.maxJumps = 3;
-                setTimeout(() => {
-                    state.powerupEffects.doubleJump = false;
-                    state.maxJumps = 2;
-                }, 7000);
+                state.powerupTimeouts = {
+                    ...state.powerupTimeouts,
+                    doubleJump: setTimeout(() => {
+                        state.powerupEffects.doubleJump = false;
+                        state.maxJumps = 2;
+                    }, 7000)
+                };
                 break;
         }
     };

@@ -1,13 +1,15 @@
-import { createConfig, http } from 'wagmi';
-import { base } from 'wagmi/chains';
-import { createWeb3Modal } from '@web3modal/wagmi/react';
-import { walletConnect } from 'wagmi/connectors';
-import { injected } from 'wagmi/connectors';
+declare global {
+    interface Window {
+        ethereum?: any;
+    }
+}
+
+import { createPublicClient, createWalletClient, custom, http } from 'viem';
+import { CHAIN } from './chains';
 import * as ethers from 'ethers';
 
 // Contract deployed with signature verification
-export const CONTRACT_ADDRESS = "0xBC1994792878aed2B372E7f5a0Cc52a39CB6fBfF";
-export const BASE_RPC = "https://base-mainnet.g.alchemy.com/v2/OOkI3aa9CfL9WqO-F_guZS8Qz41cCAjl";
+export const CONTRACT_ADDRESS = "0xF507dE1de9b36eD3E98c0D4b882C6a82b8C1E2dc";
 
 // ABI for the mint function
 export const CONTRACT_ABI = [
@@ -16,31 +18,88 @@ export const CONTRACT_ABI = [
     "function balanceOf(address account) public view returns (uint256)"
 ] as const;
 
-// Get projectId from WalletConnect Cloud
-const projectId = '4e31840d1b7a7cf9e7bfbd1ac9074fcc';
-
-// Configure wagmi client
-export const config = createConfig({
-    chains: [base],
-    transports: {
-        [base.id]: http(BASE_RPC)
-    },
-    connectors: [
-        walletConnect({
-            projectId,
-            showQrModal: true
-        }),
-        injected({ shimDisconnect: true })
-    ]
+// Create Viem public client
+export const publicClient = createPublicClient({
+    chain: CHAIN,
+    transport: http(CHAIN.rpcUrls.default.http[0])
 });
 
-// Configure Web3Modal
-createWeb3Modal({
-    wagmiConfig: config,
-    projectId,
-    defaultChain: base,
-    themeMode: 'light'
-});
+// Create wallet client when needed
+export const createWallet = () => {
+    if (!window.ethereum) throw new Error("No Web3 Provider found");
+    return createWalletClient({
+        chain: CHAIN,
+        transport: custom(window.ethereum)
+    });
+};
+
+// Function to switch network
+async function switchToMonadNetwork(provider: any) {
+    const chainIdHex = `0x${CHAIN.id.toString(16)}`;
+    console.log('Attempting to switch to chain:', {
+        chainId: CHAIN.id,
+        chainIdHex,
+        name: CHAIN.name,
+        rpcUrl: CHAIN.rpcUrls.default.http[0]
+    });
+
+    try {
+        // First try to switch
+        await provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: chainIdHex }],
+        });
+    } catch (switchError: any) {
+        console.log('Switch error:', switchError);
+
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902 || switchError.code === -32603) {
+            try {
+                console.log('Adding network to wallet...');
+                await provider.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: chainIdHex,
+                        chainName: CHAIN.name,
+                        nativeCurrency: {
+                            name: CHAIN.nativeCurrency.name,
+                            symbol: CHAIN.nativeCurrency.symbol,
+                            decimals: CHAIN.nativeCurrency.decimals
+                        },
+                        rpcUrls: CHAIN.rpcUrls.default.http,
+                        blockExplorerUrls: CHAIN.blockExplorers?.default ? [CHAIN.blockExplorers.default.url] : undefined
+                    }]
+                });
+
+                // After adding, try switching again
+                console.log('Network added, attempting to switch again...');
+                await provider.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: chainIdHex }],
+                });
+            } catch (addError: any) {
+                console.error('Error adding network:', addError);
+                throw new Error(`Failed to add Monad network. Please add it manually with:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+            }
+        } else if (switchError.code === 4001) {
+            throw new Error('User rejected the network switch. Please try again and approve the network switch in your wallet.');
+        } else {
+            console.error('Error switching network:', switchError);
+            throw new Error(`Please add Monad network to your wallet manually:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+        }
+    }
+
+    // Verify we're on the correct network
+    try {
+        const currentChainId = await provider.request({ method: 'eth_chainId' });
+        if (currentChainId.toLowerCase() !== chainIdHex.toLowerCase()) {
+            throw new Error(`Network switch failed. Expected ${chainIdHex}, got ${currentChainId}`);
+        }
+    } catch (error) {
+        console.error('Error verifying network:', error);
+        throw new Error('Failed to verify network switch. Please ensure you are on the Monad network.');
+    }
+}
 
 export const getContract = async (provider: any) => {
     if (!provider) throw new Error("No provider available");
@@ -68,7 +127,7 @@ export const mintScore = async (
     onStatus: (status: TransactionStatus) => void
 ) => {
     if (!window.ethereum) {
-        throw new Error("No Web3 Provider found. Please install a wallet or use WalletConnect.");
+        throw new Error("No Web3 Provider found. Please install a wallet.");
     }
 
     try {
@@ -78,8 +137,8 @@ export const mintScore = async (
         });
 
         // Get signature from our API
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://nadrunner.vercel.app';
-        const signatureResponse = await fetch(`${apiBaseUrl}/api/generate-score-signature`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://nadrunner.vercel.app';
+        const signatureResponse = await fetch(`${apiUrl}/api/generate-score-signature`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,10 +151,14 @@ export const mintScore = async (
             })
         });
 
-        const { signature, error } = await signatureResponse.json();
+        const data = await signatureResponse.json();
 
-        if (error || !signature) {
-            throw new Error(error || 'Failed to get signature');
+        if (!signatureResponse.ok) {
+            throw new Error(data.error || 'Failed to get signature from server');
+        }
+
+        if (!data.signature) {
+            throw new Error('No signature received from server');
         }
 
         onStatus({
@@ -103,31 +166,28 @@ export const mintScore = async (
             message: 'Preparing transaction...'
         });
 
+        // First ensure we're on the right network
+        onStatus({
+            status: 'pending',
+            message: 'Checking network...'
+        });
+
+        await switchToMonadNetwork(window.ethereum);
+
         const provider = new ethers.BrowserProvider(window.ethereum);
         const contract = await getContract(provider);
 
         // Convert score to a whole number and shift by 18 decimals
         const scoreAmount = ethers.parseUnits(Math.floor(score).toString(), 18);
-        console.log('Minting with values:', {
-            score,
-            scoreAmount: scoreAmount.toString(),
-            signature
-        });
-
-        // Get the gas estimate first
-        const gasEstimate = await contract.mintGameScore.estimateGas(scoreAmount, signature);
-
-        // Add 20% buffer to gas estimate
-        const gasLimit = Math.floor(Number(gasEstimate) * 1.2);
 
         onStatus({
             status: 'pending',
             message: 'Please confirm the transaction in your wallet'
         });
 
-        // Send transaction with explicit gas limit
-        const tx = await contract.mintGameScore(scoreAmount, signature, {
-            gasLimit: gasLimit
+        // Send transaction with fixed gas limit for Monad
+        const tx = await contract.mintGameScore(scoreAmount, data.signature, {
+            gasLimit: 500000 // Fixed gas limit for Monad
         });
 
         onStatus({
@@ -136,9 +196,7 @@ export const mintScore = async (
             hash: tx.hash
         });
 
-        console.log('Transaction sent:', tx.hash);
         const receipt = await tx.wait();
-        console.log('Transaction confirmed:', receipt);
 
         onStatus({
             status: 'success',
@@ -154,7 +212,11 @@ export const mintScore = async (
 
         // Check if it's a validation error from our API
         if (error.message.includes('foul play') || error.message.includes('Invalid gameplay')) {
-            errorMessage = `${error.message}\nPlease play the game normally to mint your score.`;
+            errorMessage = error.message;
+        }
+        // Check if it's a network switching error
+        else if (error.message.includes('network')) {
+            errorMessage = error.message;
         }
         // Check if it's a revert error
         else if (error.code === 'CALL_EXCEPTION') {

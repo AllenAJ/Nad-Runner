@@ -5,31 +5,36 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
+const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "";
 
 const config: HardhatUserConfig = {
-    solidity: "0.8.20",
-    networks: {
-        base: {
-            url: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-            accounts: [PRIVATE_KEY],
-            chainId: 8453
+    solidity: {
+        version: "0.8.20",
+        settings: {
+            optimizer: {
+                enabled: true,
+                runs: 200
+            }
         }
     },
-    etherscan: {
-        apiKey: {
-            base: process.env.BASESCAN_API_KEY || ""
-        },
-        customChains: [
-            {
-                network: "base",
-                chainId: 8453,
-                urls: {
-                    apiURL: "https://api.basescan.org/api",
-                    browserURL: "https://basescan.org"
+    networks: {
+        monadDevnet: {
+            url: DEVNET_RPC_URL,
+            accounts: [PRIVATE_KEY],
+            chainId: 20143,
+            gasPrice: "auto",
+            verify: {
+                etherscan: {
+                    apiUrl: "https://brightstar-884.devnet1.monad.xyz"
                 }
             }
-        ]
+        }
+    },
+    paths: {
+        sources: "./contracts",
+        tests: "./test",
+        cache: "./cache",
+        artifacts: "./artifacts"
     }
 };
 

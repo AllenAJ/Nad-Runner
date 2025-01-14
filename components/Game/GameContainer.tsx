@@ -290,7 +290,7 @@ export default function GameContainer() {
                                     )}
                                 {mintStatus.hash && (
                                     <a
-                                        href={`https://basescan.org/tx/${mintStatus.hash}`}
+                                        href={`https://explorer.monad-devnet.devnet101.com/tx/${mintStatus.hash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className={styles.txLink}
