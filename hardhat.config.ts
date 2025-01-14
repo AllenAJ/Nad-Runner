@@ -5,7 +5,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "";
+const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "https://rpc-devnet.monadinfra.com/rpc/3fe540e310bbb6ef0b9f16cd23073b0a";
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -22,12 +22,7 @@ const config: HardhatUserConfig = {
             url: DEVNET_RPC_URL,
             accounts: [PRIVATE_KEY],
             chainId: 20143,
-            gasPrice: "auto",
-            verify: {
-                etherscan: {
-                    apiUrl: "https://brightstar-884.devnet1.monad.xyz"
-                }
-            }
+            gasPrice: "auto"
         }
     },
     paths: {
