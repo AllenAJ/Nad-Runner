@@ -11,6 +11,20 @@ const nextConfig = {
                     { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
                     { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" },
                 ]
+            },
+            {
+                // matching all pages
+                source: "/:path*",
+                headers: [
+                    {
+                        key: 'Content-Security-Policy',
+                        value: "frame-ancestors 'self' https://auth.magic.link"
+                    },
+                    {
+                        key: 'X-Frame-Options',
+                        value: 'ALLOW-FROM https://auth.magic.link'
+                    }
+                ]
             }
         ]
     }
