@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Load environment variables
 const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY!;
-const CHAIN_ID = process.env.MONAD_CHAIN_ID || '20143'; // Fallback to Monad Devnet
+const CHAIN_ID = process.env.NEXT_PUBLIC_MONAD_CHAIN_ID || '10143'; // Monad Testnet
 
 type RequestData = {
     playerAddress: string;
@@ -25,11 +25,12 @@ export default async function handler(
 ) {
     // Add CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', 'https://nadrunner.vercel.app');  // Replace with your domain
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');  // Only needed methods
+    res.setHeader('Access-Control-Allow-Origin', '*'); // For development
+    // In production, replace * with your specific domain
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Content-Type'  // Only needed headers
+        'Access-Control-Allow-Headers', 
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
     );
 
     // Handle OPTIONS request

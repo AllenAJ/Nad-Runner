@@ -8,8 +8,8 @@ import { createPublicClient, createWalletClient, custom, http } from 'viem';
 import { CHAIN } from './chains';
 import * as ethers from 'ethers';
 
-// Contract deployed with signature verification
-export const CONTRACT_ADDRESS = "0xF507dE1de9b36eD3E98c0D4b882C6a82b8C1E2dc";
+// Contract address for Monad Testnet (you'll update this after deployment)
+export const CONTRACT_ADDRESS = "0x0C847d8D9F71f1b11a708E1CB0c4d7e1C643F500"; // Replace with actual deployed contract address
 
 // ABI for the mint function
 export const CONTRACT_ABI = [
@@ -33,10 +33,10 @@ export const createWallet = () => {
     });
 };
 
-// Function to switch network
+// Function to switch to Monad Network
 async function switchToMonadNetwork(provider: any) {
     const chainIdHex = `0x${CHAIN.id.toString(16)}`;
-    console.log('Attempting to switch to chain:', {
+    console.log('Attempting to switch to Monad Testnet:', {
         chainId: CHAIN.id,
         chainIdHex,
         name: CHAIN.name,
@@ -55,7 +55,7 @@ async function switchToMonadNetwork(provider: any) {
         // This error code indicates that the chain has not been added to MetaMask
         if (switchError.code === 4902 || switchError.code === -32603) {
             try {
-                console.log('Adding network to wallet...');
+                console.log('Adding Monad Testnet to wallet...');
                 await provider.request({
                     method: 'wallet_addEthereumChain',
                     params: [{
@@ -79,13 +79,13 @@ async function switchToMonadNetwork(provider: any) {
                 });
             } catch (addError: any) {
                 console.error('Error adding network:', addError);
-                throw new Error(`Failed to add Monad network. Please add it manually with:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+                throw new Error(`Failed to add Monad Testnet. Please add it manually with:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
             }
         } else if (switchError.code === 4001) {
             throw new Error('User rejected the network switch. Please try again and approve the network switch in your wallet.');
         } else {
             console.error('Error switching network:', switchError);
-            throw new Error(`Please add Monad network to your wallet manually:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+            throw new Error(`Please add Monad Testnet to your wallet manually:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
         }
     }
 
@@ -97,9 +97,12 @@ async function switchToMonadNetwork(provider: any) {
         }
     } catch (error) {
         console.error('Error verifying network:', error);
-        throw new Error('Failed to verify network switch. Please ensure you are on the Monad network.');
+        throw new Error('Failed to verify network switch. Please ensure you are on the Monad Testnet.');
     }
 }
+
+// Export the network switch function
+export { switchToMonadNetwork };
 
 export const getContract = async (provider: any) => {
     if (!provider) throw new Error("No provider available");
@@ -137,7 +140,7 @@ export const mintScore = async (
         });
 
         // Get signature from our API
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://nadrunner.vercel.app';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://monad-run.vercel.app/';
         const signatureResponse = await fetch(`${apiUrl}/api/generate-score-signature`, {
             method: 'POST',
             headers: {

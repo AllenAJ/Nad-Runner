@@ -5,7 +5,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "https://testnet-rpc.monad.xyz";
+const MONAD_TESTNET_RPC = "https://testnet-rpc.monad.xyz";
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -18,10 +18,10 @@ const config: HardhatUserConfig = {
         }
     },
     networks: {
-        monadDevnet: {
-            url: DEVNET_RPC_URL,
+        monadTestnet: {
+            url: MONAD_TESTNET_RPC,
             accounts: [PRIVATE_KEY],
-            chainId: 20143,
+            chainId: 10143,
             gasPrice: "auto"
         }
     },
@@ -33,4 +33,4 @@ const config: HardhatUserConfig = {
     }
 };
 
-export default config; 
+export default config;

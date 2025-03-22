@@ -16,7 +16,7 @@ async function main() {
     // Get the contract
     const token = await ethers.getContractAt(
         "contracts/NadrunnerToken.sol:NadrunnerToken",
-        "0xBC1994792878aed2B372E7f5a0Cc52a39CB6fBfF"
+        "0x0C847d8D9F71f1b11a708E1CB0c4d7e1C643F500"
     );
 
     // Set the signer
