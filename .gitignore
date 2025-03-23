@@ -34,3 +34,7 @@ yarn-error.log*
 next-env.d.ts
 
 codebase.md
+/bin
+/artifacts
+/cache
+/typechain-types

@@ -5,6 +5,22 @@ import styles from './GameContainer.module.css';
 import { mintScore, TransactionStatus } from '../../utils/web3';
 import { preloadGameAssets } from '../../utils/image-preloader';
 
+// Import new components
+import { LoadingScreen } from './LoadingScreens';
+import { MainMenu } from './MainMenu';
+import { GameOverScreen } from './GameOverScreen';
+import { 
+    ShopScreen, 
+    InventoryScreen, 
+    MultiplayerScreen 
+} from './GameScreenComponents';
+
+// Constants
+const GAME_WIDTH = 1200;
+const MOBILE_GAME_WIDTH = 400;
+const GAME_HEIGHT = 650;
+const MOBILE_GAME_HEIGHT = 500;
+
 interface GameState {
     isPlaying: boolean;
     score: number;
@@ -18,12 +34,6 @@ interface LeaderboardEntry {
     score: number;
     date: string;
 }
-
-const GAME_WIDTH = 1200;
-const MOBILE_GAME_WIDTH = 400;
-const GAME_HEIGHT = 650;
-const MOBILE_GAME_HEIGHT = 500;
-const MAX_LEADERBOARD_ENTRIES = 100;
 
 export default function GameContainer() {
     const [gameState, setGameState] = useState<GameState>({
@@ -114,42 +124,14 @@ export default function GameContainer() {
     // Render loading screen
     if (gameState.currentScreen === 'loading') {
         return (
-            <div 
-                className={styles.gameWrapper} 
-                style={{ 
-                    width: gameWidth, 
-                    height: gameHeight 
-                }}
-            >
-                <div className={styles.menuContainer}>
-                    <div className={styles.versionLabel}>beta 1.9</div>
-                    
-                    <div className={styles.loadingCharacter}>
-                        <img 
-                            src="/assets/molandak.png" 
-                            alt="Molandak loading" 
-                            className={styles.spinningCharacter} 
-                        />
-                    </div>
-                                        
-                    <div className={styles.loadingBar}>
-                        <div 
-                            className={styles.loadingProgress} 
-                            style={{width: `${loadingProgress}%`}}
-                        ></div>
-                    </div>
-                    
-                    <div className={styles.loadingText}>
-                        {leaderboard.length > 0 
-                            ? 'Loading game assets...' 
-                            : 'Loading leaderboard...'}
-                    </div>
-                </div>
-            </div>
+            <LoadingScreen 
+                loadingProgress={loadingProgress} 
+                leaderboardLoaded={leaderboard.length > 0} 
+            />
         );
     }
 
-    // Rest of the existing methods remain the same as in the original implementation
+    // Connect wallet method
     const handleConnect = async () => {
         try {
             if (isConnected) {
@@ -194,6 +176,7 @@ export default function GameContainer() {
         }
     };
 
+    // Mint score method
     const handleMintScore = async () => {
         if (!provider || !gameState.score) return;
         setIsMinting(true);
@@ -226,6 +209,7 @@ export default function GameContainer() {
         }
     };
 
+    // Start game method
     const handleStartGame = () => {
         const startTime = Date.now() / 1000;
         setGameStartTime(startTime);
@@ -240,6 +224,7 @@ export default function GameContainer() {
         setIsGameOver(false);
     };
 
+    // Game over method
     const handleGameOver = (finalScore: number) => {
         const endTime = Date.now() / 1000;
         setGameEndTime(endTime);
@@ -253,6 +238,7 @@ export default function GameContainer() {
         setIsGameOver(true);
     };
 
+    // Name submission method
     const handleNameSubmit = async () => {
         // Only add to leaderboard if name is provided
         if (gameState.playerName) {
@@ -283,6 +269,7 @@ export default function GameContainer() {
         setGameState(prev => ({ ...prev, hasEnteredName: true }));
     };
 
+    // Play again method
     const handlePlayAgain = () => {
         const startTime = Date.now() / 1000;
         setGameStartTime(startTime);
@@ -296,6 +283,7 @@ export default function GameContainer() {
         setIsGameOver(false);
     };
 
+    // Navigation method
     const navigateTo = (screen: Exclude<GameState['currentScreen'], 'loading'>) => {
         setGameState(prev => ({
             ...prev,
@@ -303,128 +291,44 @@ export default function GameContainer() {
         }));
     };
 
-    // Existing render methods remain the same
-    const renderMainMenu = () => (
-        <div className={styles.menuContainer}>
-            <div className={styles.mainButtons}>
-                <button onClick={handleStartGame} className={styles.primaryButton}>
-                    PLAY
-                </button>
-                <button onClick={() => navigateTo('multiplayer')} className={styles.menuButton}>
-                    MULTIPLAYER
-                </button>
-                <button onClick={() => navigateTo('shop')} className={styles.menuButton}>
-                    SHOP
-                </button>
-                <button onClick={() => navigateTo('inventory')} className={styles.menuButton}>
-                    INVENTORY
-                </button>
-            </div>
-
-            {leaderboard.length > 0 && (
-                <div className={styles.leaderboard}>
-                    <h3>TOP PLAYERS</h3>
-                    <div className={styles.leaderboardContent}>
-                        {leaderboard.slice(0, 10).map((entry, index) => (
-                            <div key={index} className={styles.leaderboardEntry}>
-                                <span className={styles.rank}>#{index + 1}</span>
-                                <span className={styles.name}>{entry.name}</span>
-                                <span className={styles.score}>{Math.floor(entry.score)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-
-    const renderShop = () => (
-        <div className={styles.menuContainer}>
-            <h2>Shop</h2>
-            <p>Coming soon! Buy upgrades and customizations.</p>
-            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
-                Back to Menu
-            </button>
-        </div>
-    );
-
-    const renderInventory = () => (
-        <div className={styles.menuContainer}>
-            <h2>Inventory</h2>
-            <p>Your items and collectibles will appear here.</p>
-            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
-                Back to Menu
-            </button>
-        </div>
-    );
-
-    const renderMultiplayer = () => (
-        <div className={styles.menuContainer}>
-            <h2>Multiplayer</h2>
-            <p>Challenge your friends! Coming soon.</p>
-            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
-                Back to Menu
-            </button>
-        </div>
-    );
-
-    const renderGameOverScreen = () => (
-        <div className={styles.gameOverContainer}>
-            <h2>Game Over!</h2>
-            <p>Score: {Math.floor(gameState.score)}</p>
-            
-            {!gameState.hasEnteredName ? (
-                <>
-                    <input
-                        type="text"
-                        placeholder="Enter your name"
-                        value={gameState.playerName}
-                        onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
+    // Render different screens based on current state
+    const renderScreen = () => {
+        switch (gameState.currentScreen) {
+            case 'menu':
+                return (
+                    <MainMenu 
+                        leaderboard={leaderboard} 
+                        onStartGame={handleStartGame}
+                        onNavigateTo={navigateTo}
                     />
-                    <button onClick={handleNameSubmit}>Submit Score</button>
-                </>
-            ) : (
-                <>
-                    <button onClick={handleConnect}>
-                        {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
-                    </button>
-                    <button
-                        onClick={handleMintScore}
-                        disabled={isMinting || !isConnected}
-                    >
-                        {isMinting ? 'Minting...' : 'Mint Score'}
-                    </button>
-                    {mintStatus && (
-                        <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
-                            <p>{mintStatus.message}</p>
-                            {mintStatus.status === 'error' &&
-                                mintStatus.message.includes('foul play') && (
-                                    <p className={styles.errorDetails}>
-                                        Please play the game normally.
-                                    </p>
-                                )}
-                            {mintStatus.hash && (
-                                <a
-                                    href={`https://testnet.monadexplorer.com/tx/${mintStatus.hash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={styles.txLink}
-                                >
-                                    View Transaction
-                                </a>
-                            )}
-                        </div>
-                    )}
-                    <button onClick={handlePlayAgain}>
-                        Play Again
-                    </button>
-                    <button onClick={() => navigateTo('menu')}>
-                        Back to Menu
-                    </button>
-                </>
-            )}
-        </div>
-    );
+                );
+            case 'shop':
+                return <ShopScreen onBackToMenu={() => navigateTo('menu')} />;
+            case 'inventory':
+                return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
+            case 'multiplayer':
+                return <MultiplayerScreen onBackToMenu={() => navigateTo('menu')} />;
+            case 'gameOver':
+                return (
+                    <GameOverScreen 
+                        score={gameState.score}
+                        hasEnteredName={gameState.hasEnteredName}
+                        playerName={gameState.playerName}
+                        isConnected={isConnected}
+                        isMinting={isMinting}
+                        mintStatus={mintStatus}
+                        onPlayerNameChange={(name) => setGameState(prev => ({ ...prev, playerName: name }))}
+                        onNameSubmit={handleNameSubmit}
+                        onConnect={handleConnect}
+                        onMintScore={handleMintScore}
+                        onPlayAgain={handlePlayAgain}
+                        onBackToMenu={() => navigateTo('menu')}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
 
     return (
         <div className={styles.container}>
@@ -436,11 +340,7 @@ export default function GameContainer() {
                     onGameOver={handleGameOver}
                 />
                 
-                {gameState.currentScreen === 'menu' && renderMainMenu()}
-                {gameState.currentScreen === 'shop' && renderShop()}
-                {gameState.currentScreen === 'inventory' && renderInventory()}
-                {gameState.currentScreen === 'multiplayer' && renderMultiplayer()}
-                {gameState.currentScreen === 'gameOver' && renderGameOverScreen()}
+                {renderScreen()}
             </div>
         </div>
     );
