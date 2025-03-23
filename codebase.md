@@ -5,7 +5,7 @@
 /node_modules
 /.pnp
 .pnp.js
-
+/bin
 # testing
 /coverage
 
@@ -35,6 +35,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+codebase.md
 ```
 
 # components/Game/Canvas.module.css
@@ -693,27 +695,58 @@ export default Canvas;
     max-width: 90%;
     width: 320px;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.menuContainer button {
+.mainButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.primaryButton {
     width: 100%;
-    padding: 1rem 2rem;
-    margin: 1rem 0;
+    padding: 1.2rem;
     border: none;
     border-radius: 1rem;
     background: #6366f1;
     color: white;
-    font-size: 1.2rem;
-    font-weight: 600;
+    font-size: 1.4rem;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    letter-spacing: 1px;
 }
 
-.menuContainer button:hover {
+.primaryButton:hover {
     background: #4f46e5;
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+}
+
+.menuButton {
+    width: 100%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 0.8rem;
+    background: #f3f4f6;
+    color: #4b5563;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.menuButton:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    color: #1f2937;
 }
 
 .gameOverContainer {
@@ -733,12 +766,15 @@ export default Canvas;
 
 .gameOverContainer h2 {
     margin: 0 0 1rem;
+    color: #6366f1;
+    font-size: 1.8rem;
 }
 
 .gameOverContainer p {
     margin: 0 0 1rem;
     font-size: 1.5rem;
     color: #6366f1;
+    font-weight: bold;
 }
 
 .gameOverContainer button {
@@ -764,24 +800,40 @@ export default Canvas;
 }
 
 .leaderboard {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.leaderboard h3 {
+    margin: 0 0 0.5rem;
+    color: #6366f1;
+    font-size: 1.2rem;
+    text-align: center;
+    font-weight: 700;
+}
+
+.leaderboardContent {
     max-height: 220px;
     overflow-y: auto;
     padding-right: 0.5rem;
     scrollbar-width: thin;
     scrollbar-color: #6366f1 #e5e7eb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    background: #f9fafb;
 }
 
-.leaderboard::-webkit-scrollbar {
+.leaderboardContent::-webkit-scrollbar {
     width: 6px;
 }
 
-.leaderboard::-webkit-scrollbar-track {
+.leaderboardContent::-webkit-scrollbar-track {
     background: #e5e7eb;
     border-radius: 3px;
 }
 
-.leaderboard::-webkit-scrollbar-thumb {
+.leaderboardContent::-webkit-scrollbar-thumb {
     background-color: #6366f1;
     border-radius: 3px;
 }
@@ -793,6 +845,10 @@ export default Canvas;
     padding: 0.5rem 0;
     border-bottom: 1px solid #e5e7eb;
     font-size: 0.9rem;
+}
+
+.leaderboardEntry:last-child {
+    border-bottom: none;
 }
 
 .rank {
@@ -858,7 +914,17 @@ export default Canvas;
     .gameOverContainer {
         width: 90%;
         max-width: 320px;
+        padding: 1.5rem;
+    }
+
+    .primaryButton {
         padding: 1rem;
+        font-size: 1.2rem;
+    }
+
+    .menuButton {
+        padding: 0.8rem;
+        font-size: 1rem;
     }
 
     .instructions {
@@ -912,6 +978,64 @@ export default Canvas;
     font-size: 0.75rem;
     text-decoration: underline;
 }
+
+.loadingCharacter {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinningCharacter {
+    width: 50px;
+    height: 50px;
+    animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loadingBar {
+    width: 60%;
+    height: 20px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.loadingProgress {
+    width: 0%;
+    height: 100%;
+    background: #6366f1;
+    animation: loadingAnimation 2s infinite;
+}
+
+.loadingText {
+    margin-top: 10px;
+    color: #4B0082;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+}
+
+.versionLabel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+@keyframes loadingAnimation {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+}
 ```
 
 # components/Game/GameContainer.tsx
@@ -922,12 +1046,14 @@ import { ethers } from 'ethers';
 import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
 import { mintScore, TransactionStatus } from '../../utils/web3';
+import { preloadGameAssets } from '../../utils/image-preloader';
 
 interface GameState {
     isPlaying: boolean;
     score: number;
     playerName: string;
     hasEnteredName: boolean;
+    currentScreen: 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer';
 }
 
 interface LeaderboardEntry {
@@ -947,7 +1073,8 @@ export default function GameContainer() {
         isPlaying: false,
         score: 0,
         playerName: '',
-        hasEnteredName: false
+        hasEnteredName: false,
+        currentScreen: 'loading'
     });
     const [gameStartTime, setGameStartTime] = useState<number>(0);
     const [gameEndTime, setGameEndTime] = useState<number>(0);
@@ -959,48 +1086,113 @@ export default function GameContainer() {
     const [isConnected, setIsConnected] = useState(false);
     const [gameWidth, setGameWidth] = useState(GAME_WIDTH);
     const [gameHeight, setGameHeight] = useState(GAME_HEIGHT);
+    const [loadingProgress, setLoadingProgress] = useState(0);
 
     useEffect(() => {
-        // Load global leaderboard from API
-        console.log('Fetching leaderboard...');
-        fetch('/api/scores')
-            .then(res => {
-                console.log('Leaderboard response:', res.status);
-                return res.json();
-            })
-            .then(scores => {
-                console.log('Received scores:', scores);
-                setLeaderboard(scores);
-            })
-            .catch(error => {
-                console.error('Error loading leaderboard:', error);
-            });
+        const initializeGame = async () => {
+            try {
+                // Resize logic
+                const handleResize = () => {
+                    const isMobile = window.innerWidth <= 768;
+                    setGameHeight(isMobile ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
+                    setGameWidth(isMobile ? Math.min(window.innerWidth - 16, MOBILE_GAME_WIDTH) : GAME_WIDTH);
+                };
 
-        // Check if already connected
-        if (typeof window !== 'undefined' && window.ethereum) {
-            const web3Provider = new ethers.BrowserProvider(window.ethereum);
-            setProvider(web3Provider);
-            // Check if already connected
-            web3Provider.listAccounts().then(accounts => {
-                setIsConnected(accounts.length > 0);
-            }).catch(error => {
-                console.log('Not connected to wallet:', error);
-            });
-        }
-    }, []);
+                // Initial resize
+                handleResize();
+                window.addEventListener('resize', handleResize);
 
-    useEffect(() => {
-        const handleResize = () => {
-            const isMobile = window.innerWidth <= 768;
-            setGameHeight(isMobile ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
-            setGameWidth(isMobile ? Math.min(window.innerWidth - 16, MOBILE_GAME_WIDTH) : GAME_WIDTH);
+                // Simulate loading progress
+                const progressInterval = setInterval(() => {
+                    setLoadingProgress(prev => {
+                        const newProgress = prev + 10;
+                        return newProgress > 100 ? 0 : newProgress;
+                    });
+                }, 200);
+
+                // Load leaderboard
+                const leaderboardResponse = await fetch('/api/scores');
+                const leaderboardData = await leaderboardResponse.json();
+                setLeaderboard(leaderboardData);
+
+                // Preload game assets
+                await preloadGameAssets();
+
+                // Clear progress interval
+                clearInterval(progressInterval);
+
+                // Check if already connected
+                if (typeof window !== 'undefined' && window.ethereum) {
+                    const web3Provider = new ethers.BrowserProvider(window.ethereum);
+                    setProvider(web3Provider);
+                    
+                    web3Provider.listAccounts().then(accounts => {
+                        setIsConnected(accounts.length > 0);
+                    }).catch(error => {
+                        console.log('Not connected to wallet:', error);
+                    });
+                }
+
+                // Transition to menu
+                setGameState(prev => ({
+                    ...prev,
+                    currentScreen: 'menu'
+                }));
+
+                // Cleanup
+                return () => window.removeEventListener('resize', handleResize);
+            } catch (error) {
+                console.error('Game initialization failed:', error);
+                // Fallback to menu in case of error
+                setGameState(prev => ({
+                    ...prev,
+                    currentScreen: 'menu'
+                }));
+            }
         };
 
-        handleResize(); // Set initial dimensions
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        initializeGame();
     }, []);
 
+    // Render loading screen
+    if (gameState.currentScreen === 'loading') {
+        return (
+            <div 
+                className={styles.gameWrapper} 
+                style={{ 
+                    width: gameWidth, 
+                    height: gameHeight 
+                }}
+            >
+                <div className={styles.menuContainer}>
+                    <div className={styles.versionLabel}>beta 1.9</div>
+                    
+                    <div className={styles.loadingCharacter}>
+                        <img 
+                            src="/assets/molandak.png" 
+                            alt="Molandak loading" 
+                            className={styles.spinningCharacter} 
+                        />
+                    </div>
+                                        
+                    <div className={styles.loadingBar}>
+                        <div 
+                            className={styles.loadingProgress} 
+                            style={{width: `${loadingProgress}%`}}
+                        ></div>
+                    </div>
+                    
+                    <div className={styles.loadingText}>
+                        {leaderboard.length > 0 
+                            ? 'Loading game assets...' 
+                            : 'Loading leaderboard...'}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Rest of the existing methods remain the same as in the original implementation
     const handleConnect = async () => {
         try {
             if (isConnected) {
@@ -1085,7 +1277,8 @@ export default function GameContainer() {
             isPlaying: true,
             score: 0,
             hasEnteredName: false,
-            playerName: ''
+            playerName: '',
+            currentScreen: 'game'
         }));
         setIsGameOver(false);
     };
@@ -1094,7 +1287,12 @@ export default function GameContainer() {
         const endTime = Date.now() / 1000;
         setGameEndTime(endTime);
         const roundedScore = Math.floor(finalScore);
-        setGameState(prev => ({ ...prev, isPlaying: false, score: roundedScore }));
+        setGameState(prev => ({ 
+            ...prev, 
+            isPlaying: false, 
+            score: roundedScore,
+            currentScreen: 'gameOver'
+        }));
         setIsGameOver(true);
     };
 
@@ -1135,10 +1333,141 @@ export default function GameContainer() {
             isPlaying: true,
             score: 0,
             playerName: '',
-            hasEnteredName: false
+            hasEnteredName: false,
+            currentScreen: 'game'
         });
         setIsGameOver(false);
     };
+
+    const navigateTo = (screen: Exclude<GameState['currentScreen'], 'loading'>) => {
+        setGameState(prev => ({
+            ...prev,
+            currentScreen: screen
+        }));
+    };
+
+    // Existing render methods remain the same
+    const renderMainMenu = () => (
+        <div className={styles.menuContainer}>
+            <div className={styles.mainButtons}>
+                <button onClick={handleStartGame} className={styles.primaryButton}>
+                    PLAY
+                </button>
+                <button onClick={() => navigateTo('multiplayer')} className={styles.menuButton}>
+                    MULTIPLAYER
+                </button>
+                <button onClick={() => navigateTo('shop')} className={styles.menuButton}>
+                    SHOP
+                </button>
+                <button onClick={() => navigateTo('inventory')} className={styles.menuButton}>
+                    INVENTORY
+                </button>
+            </div>
+
+            {leaderboard.length > 0 && (
+                <div className={styles.leaderboard}>
+                    <h3>TOP PLAYERS</h3>
+                    <div className={styles.leaderboardContent}>
+                        {leaderboard.slice(0, 10).map((entry, index) => (
+                            <div key={index} className={styles.leaderboardEntry}>
+                                <span className={styles.rank}>#{index + 1}</span>
+                                <span className={styles.name}>{entry.name}</span>
+                                <span className={styles.score}>{Math.floor(entry.score)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderShop = () => (
+        <div className={styles.menuContainer}>
+            <h2>Shop</h2>
+            <p>Coming soon! Buy upgrades and customizations.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderInventory = () => (
+        <div className={styles.menuContainer}>
+            <h2>Inventory</h2>
+            <p>Your items and collectibles will appear here.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderMultiplayer = () => (
+        <div className={styles.menuContainer}>
+            <h2>Multiplayer</h2>
+            <p>Challenge your friends! Coming soon.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderGameOverScreen = () => (
+        <div className={styles.gameOverContainer}>
+            <h2>Game Over!</h2>
+            <p>Score: {Math.floor(gameState.score)}</p>
+            
+            {!gameState.hasEnteredName ? (
+                <>
+                    <input
+                        type="text"
+                        placeholder="Enter your name"
+                        value={gameState.playerName}
+                        onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
+                    />
+                    <button onClick={handleNameSubmit}>Submit Score</button>
+                </>
+            ) : (
+                <>
+                    <button onClick={handleConnect}>
+                        {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
+                    </button>
+                    <button
+                        onClick={handleMintScore}
+                        disabled={isMinting || !isConnected}
+                    >
+                        {isMinting ? 'Minting...' : 'Mint Score'}
+                    </button>
+                    {mintStatus && (
+                        <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
+                            <p>{mintStatus.message}</p>
+                            {mintStatus.status === 'error' &&
+                                mintStatus.message.includes('foul play') && (
+                                    <p className={styles.errorDetails}>
+                                        Please play the game normally.
+                                    </p>
+                                )}
+                            {mintStatus.hash && (
+                                <a
+                                    href={`https://testnet.monadexplorer.com/tx/${mintStatus.hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.txLink}
+                                >
+                                    View Transaction
+                                </a>
+                            )}
+                        </div>
+                    )}
+                    <button onClick={handlePlayAgain}>
+                        Play Again
+                    </button>
+                    <button onClick={() => navigateTo('menu')}>
+                        Back to Menu
+                    </button>
+                </>
+            )}
+        </div>
+    );
 
     return (
         <div className={styles.container}>
@@ -1149,97 +1478,16 @@ export default function GameContainer() {
                     isPlaying={gameState.isPlaying}
                     onGameOver={handleGameOver}
                 />
-                {!gameState.isPlaying && !isGameOver && (
-                    <div className={styles.menuContainer}>
-                        <div className={styles.instructions}>
-                            <h3>How to Play</h3>
-                            <p>Press <span className={styles.key}>Space</span> or <span className={styles.key}>Tap</span> to jump</p>
-                            <p>Collect Moyaki for power-ups, and avoid Chog and Mooch!</p>
-                            <p>The longer you survive, the higher your score!</p>
-                        </div>
-                        <button onClick={handleStartGame}>Start Game</button>
-                        {leaderboard.length > 0 && (
-                            <div className={styles.leaderboard}>
-                                <h3>Top Scores</h3>
-                                {leaderboard.map((entry, index) => (
-                                    <div key={index} className={styles.leaderboardEntry}>
-                                        <span className={styles.rank}>#{index + 1}</span>
-                                        <span className={styles.name}>{entry.name}</span>
-                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-                {isGameOver && !gameState.hasEnteredName && (
-                    <div className={styles.gameOverContainer}>
-                        <h2>Game Over!</h2>
-                        <p>Score: {Math.floor(gameState.score)}</p>
-                        <input
-                            type="text"
-                            placeholder="Enter your name"
-                            value={gameState.playerName}
-                            onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
-                        />
-                        <button onClick={handleNameSubmit}>Submit Score</button>
-                    </div>
-                )}
-                {isGameOver && gameState.hasEnteredName && (
-                    <div className={styles.gameOverContainer}>
-                        <h2>Game Over!</h2>
-                        <p>Score: {Math.floor(gameState.score)}</p>
-                        <button onClick={handleConnect}>
-                            {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
-                        </button>
-                        <button
-                            onClick={handleMintScore}
-                            disabled={isMinting || !isConnected}
-                        >
-                            {isMinting ? 'Minting...' : 'Mint Score'}
-                        </button>
-                        {mintStatus && (
-                            <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
-                                <p>{mintStatus.message}</p>
-                                {mintStatus.status === 'error' &&
-                                    mintStatus.message.includes('foul play') && (
-                                        <p className={styles.errorDetails}>
-                                            Please play the game normally.
-                                        </p>
-                                    )}
-                                {mintStatus.hash && (
-                                    <a
-                                        href={`https://explorer.monad-devnet.devnet101.com/tx/${mintStatus.hash}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={styles.txLink}
-                                    >
-                                        View Transaction
-                                    </a>
-                                )}
-                            </div>
-                        )}
-                        <button onClick={handlePlayAgain}>
-                            Play Again
-                        </button>
-                        {leaderboard.length > 0 && (
-                            <div className={styles.leaderboard}>
-                                <h3>Top Scores</h3>
-                                {leaderboard.map((entry, index) => (
-                                    <div key={index} className={styles.leaderboardEntry}>
-                                        <span className={styles.rank}>#{index + 1}</span>
-                                        <span className={styles.name}>{entry.name}</span>
-                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                
+                {gameState.currentScreen === 'menu' && renderMainMenu()}
+                {gameState.currentScreen === 'shop' && renderShop()}
+                {gameState.currentScreen === 'inventory' && renderInventory()}
+                {gameState.currentScreen === 'multiplayer' && renderMultiplayer()}
+                {gameState.currentScreen === 'gameOver' && renderGameOverScreen()}
             </div>
         </div>
     );
-} 
+}
 ```
 
 # contexts/Web3Context.tsx
@@ -1451,7 +1699,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "https://testnet-rpc.monad.xyz";
+const MONAD_TESTNET_RPC = "https://testnet-rpc.monad.xyz";
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -1464,10 +1712,10 @@ const config: HardhatUserConfig = {
         }
     },
     networks: {
-        monadDevnet: {
-            url: DEVNET_RPC_URL,
+        monadTestnet: {
+            url: MONAD_TESTNET_RPC,
             accounts: [PRIVATE_KEY],
-            chainId: 20143,
+            chainId: 10143,
             gasPrice: "auto"
         }
     },
@@ -1479,17 +1727,26 @@ const config: HardhatUserConfig = {
     }
 };
 
-export default config; 
+export default config;
 ```
 
 # lib/db.ts
 
 ```ts
-import { sql } from '@vercel/postgres';
+import { Pool } from 'pg';
+
+// Configure the database connection
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false  // Important for Neon's SSL requirement
+    }
+});
 
 export async function createScoresTable() {
+    const client = await pool.connect();
     try {
-        await sql`
+        await client.query(`
             CREATE TABLE IF NOT EXISTS scores (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -1497,53 +1754,52 @@ export async function createScoresTable() {
                 wallet_address VARCHAR(255),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        `;
+        `);
         console.log('Scores table created successfully');
     } catch (error) {
         console.error('Error creating scores table:', error);
         throw error;
+    } finally {
+        client.release();
     }
 }
 
 export async function saveScore(name: string, score: number, walletAddress?: string) {
+    const client = await pool.connect();
     try {
-        const result = await sql`
-            INSERT INTO scores (name, score, wallet_address)
-            VALUES (${name}, ${score}, ${walletAddress})
-            RETURNING *;
-        `;
+        const result = await client.query(
+            `INSERT INTO scores (name, score, wallet_address)
+             VALUES ($1, $2, $3)
+             RETURNING *;`,
+            [name, score, walletAddress]
+        );
         return result.rows[0];
     } catch (error) {
         console.error('Error saving score:', error);
         throw error;
+    } finally {
+        client.release();
     }
 }
 
 export async function getTopScores(limit = 100) {
+    const client = await pool.connect();
     try {
-        const result = await sql`
-            SELECT name, score, wallet_address, created_at
-            FROM scores
-            ORDER BY score DESC
-            LIMIT ${limit};
-        `;
+        const result = await client.query(
+            `SELECT name, score, wallet_address, created_at
+             FROM scores
+             ORDER BY score DESC
+             LIMIT $1;`,
+            [limit]
+        );
         return result.rows;
     } catch (error) {
         console.error('Error getting top scores:', error);
         throw error;
+    } finally {
+        client.release();
     }
-} 
-```
-
-# next-env.d.ts
-
-```ts
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/basic-features/typescript for more information.
-
+}
 ```
 
 # next.config.js
@@ -1599,14 +1855,16 @@ module.exports = nextConfig;
     "init-db": "ts-node scripts/init-db.ts"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.1.0",
+    "@openzeppelin/contracts": "^5.2.0",
     "@tanstack/react-query": "^5.62.11",
+    "@types/pg": "^8.11.11",
     "@vercel/postgres": "^0.10.0",
     "@web3modal/ethereum": "^2.7.1",
     "@web3modal/react": "^2.7.1",
     "@web3modal/wagmi": "^5.1.11",
     "ethers": "^6.0.0",
     "next": "14.0.4",
+    "pg": "^8.14.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "viem": "^2.22.1",
@@ -1617,12 +1875,13 @@ module.exports = nextConfig;
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.4.7",
     "hardhat": "^2.19.4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }
+
 ```
 
 # pages/_app.tsx
@@ -1684,7 +1943,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Load environment variables
 const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY!;
-const CHAIN_ID = process.env.MONAD_CHAIN_ID || '20143'; // Fallback to Monad Devnet
+const CHAIN_ID = process.env.NEXT_PUBLIC_MONAD_CHAIN_ID || '10143'; // Monad Testnet
 
 type RequestData = {
     playerAddress: string;
@@ -1706,11 +1965,12 @@ export default async function handler(
 ) {
     // Add CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', 'https://nadrunner.vercel.app');  // Replace with your domain
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');  // Only needed methods
+    res.setHeader('Access-Control-Allow-Origin', '*'); // For development
+    // In production, replace * with your specific domain
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Content-Type'  // Only needed headers
+        'Access-Control-Allow-Headers', 
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
     );
 
     // Handle OPTIONS request
@@ -1827,18 +2087,34 @@ export default async function handler(
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next';
-import { saveScore, getTopScores, createScoresTable } from '../../lib/db';
-
-// Create table on module initialization
-createScoresTable().catch(console.error);
+import { saveScore, getTopScores } from '../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+
+    // Handle OPTIONS request
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
     if (req.method === 'POST') {
         try {
             const { name, score, walletAddress } = req.body;
+            
+            // Validate input
             if (!name || typeof score !== 'number') {
                 return res.status(400).json({ error: 'Name and score are required' });
             }
+
+            // Save score
             const result = await saveScore(name, score, walletAddress);
             return res.status(200).json(result);
         } catch (error) {
@@ -1847,6 +2123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
     } else if (req.method === 'GET') {
         try {
+            // Fetch top scores
             const scores = await getTopScores();
             return res.status(200).json(scores);
         } catch (error) {
@@ -1856,13 +2133,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-} 
+}
 ```
 
 # pages/index.tsx
 
 ```tsx
-import React from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import Image from 'next/image';
@@ -1909,7 +2185,6 @@ const Home: NextPage = () => {
 };
 
 export default Home;
-
 ```
 
 # public/assets/chog.png
@@ -2018,15 +2293,15 @@ main();
 import { ethers } from "hardhat";
 
 async function main() {
-    console.log("Deploying Nadrunner Token to Base mainnet...");
+    console.log("Deploying Nadrunner Token to Monad Testnet...");
 
     const [deployer] = await ethers.getSigners();
     console.log("Deploying with account:", deployer.address);
 
     const balance = await deployer.provider.getBalance(deployer.address);
-    console.log("Account balance:", ethers.formatEther(balance), "ETH");
+    console.log("Account balance:", ethers.formatEther(balance), "MON");
 
-    const Token = await ethers.getContractFactory("contracts/NadrunnerToken.sol:NadrunnerToken");
+    const Token = await ethers.getContractFactory("NadrunnerToken");
     const token = await Token.deploy();
     await token.waitForDeployment();
 
@@ -2034,31 +2309,42 @@ async function main() {
     console.log("Token deployed to:", address);
 
     console.log("\nVerification command:");
-    console.log(`npx hardhat verify --network base ${address}`);
+    console.log(`npx hardhat verify --network monadTestnet ${address}`);
+
+    // Additional setup steps
+    console.log("\nNext steps:");
+    console.log("1. Set signer address");
+    console.log("2. Verify contract on Monad Explorer");
 }
 
 main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
-}); 
+});
 ```
 
 # scripts/init-db.ts
 
 ```ts
-import { createScoresTable } from '../lib/db';
+import {createScoresTable } from '../lib/db';
 
-async function init() {
+async function initializeDatabase() {
     try {
+        // First test the connection
+        //await testConnection();
+        
+        // Then create tables
         await createScoresTable();
+        
         console.log('Database initialized successfully');
+        process.exit(0);
     } catch (error) {
-        console.error('Error initializing database:', error);
+        console.error('Database initialization failed:', error);
         process.exit(1);
     }
 }
 
-init(); 
+initializeDatabase();
 ```
 
 # scripts/mint.ts
@@ -2126,7 +2412,7 @@ async function main() {
     // Get the contract
     const token = await ethers.getContractAt(
         "contracts/NadrunnerToken.sol:NadrunnerToken",
-        "0xBC1994792878aed2B372E7f5a0Cc52a39CB6fBfF"
+        "0x0C847d8D9F71f1b11a708E1CB0c4d7e1C643F500"
     );
 
     // Set the signer
@@ -2348,6 +2634,102 @@ export async function verify(contractAddress: string, args: any[]) {
 }
 ```
 
+# styles/Loading.module.css
+
+```css
+.loadingContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #87CEEB; /* Sky blue from game canvas */
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.loadingContent {
+    width: 100%;
+    max-width: 1200px;
+    height: 650px;
+    margin: 0 auto;
+    background: #87CEEB;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.groundLayer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 15%;
+    background: #8B4513; /* Brown ground color from game */
+}
+
+.loadingCharacter {
+    width: 50px;
+    height: 50px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 50%;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.loadingBar {
+    width: 60%;
+    height: 20px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.loadingProgress {
+    width: 0%;
+    height: 100%;
+    background: #6366f1; /* Indigo color from game UI */
+    animation: loadingAnimation 2s infinite;
+}
+
+.loadingText {
+    margin-top: 10px;
+    color: #4B0082; /* Deep indigo for text */
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+}
+
+.versionLabel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+@keyframes loadingAnimation {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+}
+
+@media (max-width: 768px) {
+    .loadingContent {
+        width: 100%;
+        height: 500px;
+        max-width: 400px;
+    }
+}
+```
+
 # tsconfig.json
 
 ```json
@@ -2394,58 +2776,76 @@ export async function verify(contractAddress: string, args: any[]) {
 ```ts
 import { defineChain } from "viem";
 
-const DEVNET_RPC_URL = process.env.NEXT_PUBLIC_DEVNET_RPC_URL!;
-const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_MONAD_CHAIN_ID || '20143');
-const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL!;
-
-export const monadDevnet = defineChain({
-    id: CHAIN_ID,
-    name: "Monad Devnet",
-    nativeCurrency: {
-        name: "DMON",
-        symbol: "DMON",
-        decimals: 18,
-    },
-    rpcUrls: {
-        default: {
-            http: [DEVNET_RPC_URL],
-        },
-    },
-    blockExplorers: {
-        default: {
-            name: "Monad Explorer",
-            url: EXPLORER_URL,
-        },
-    },
-    chainNamespace: "eip155",
-    caipNetworkId: `eip155:${CHAIN_ID}`,
-});
-
 export const monadTestnet = defineChain({
     id: 10143,
     name: "Monad Testnet",
     nativeCurrency: {
-        name: "TMON",
-        symbol: "TMON",
+        name: "MON",
+        symbol: "MON",
         decimals: 18,
     },
     rpcUrls: {
         default: {
-            http: ["https://rpc.monad-testnet.category.xyz/rpc/K1E4kI8vesB3xIk9Kh9vflrTnE7wzFL0EGbeZAYc"],
+            http: ["https://testnet-rpc.monad.xyz"],
         },
     },
     blockExplorers: {
         default: {
-            name: "Monad Testnet",
-            url: "https://explorer.monad-testnet.category.xyz",
+            name: "Monad Testnet Explorer",
+            url: "https://testnet.monadexplorer.com",
         },
     },
     chainNamespace: "eip155",
     caipNetworkId: "eip155:10143",
 });
 
-// Use devnet by default since that's where we deployed
-export const CHAIN = monadDevnet; 
+// Set Monad Testnet as the default chain
+export const CHAIN = monadTestnet;
+```
+
+# utils/image-preloader.ts
+
+```ts
+export function preloadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+    });
+}
+
+export async function preloadGameAssets() {
+    const gameAssets = [
+        '/assets/molandak.png',
+        '/assets/chog.png', 
+        '/assets/mouch.png', 
+        '/assets/moyaki.png'
+    ];
+
+    try {
+        const loadedAssets = await Promise.all(
+            gameAssets.map(src => preloadImage(src))
+        );
+        return loadedAssets;
+    } catch (error) {
+        console.error('Error preloading game assets:', error);
+        return [];
+    }
+}
+
+export async function loadLeaderboard() {
+    try {
+        const response = await fetch('/api/scores');
+        if (!response.ok) {
+            throw new Error('Failed to load leaderboard');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        return [];
+    }
+}
 ```
 
 # utils/web3.ts
@@ -2461,8 +2861,8 @@ import { createPublicClient, createWalletClient, custom, http } from 'viem';
 import { CHAIN } from './chains';
 import * as ethers from 'ethers';
 
-// Contract deployed with signature verification
-export const CONTRACT_ADDRESS = "0xF507dE1de9b36eD3E98c0D4b882C6a82b8C1E2dc";
+// Contract address for Monad Testnet (you'll update this after deployment)
+export const CONTRACT_ADDRESS = "0x0C847d8D9F71f1b11a708E1CB0c4d7e1C643F500"; // Replace with actual deployed contract address
 
 // ABI for the mint function
 export const CONTRACT_ABI = [
@@ -2486,10 +2886,10 @@ export const createWallet = () => {
     });
 };
 
-// Function to switch network
+// Function to switch to Monad Network
 async function switchToMonadNetwork(provider: any) {
     const chainIdHex = `0x${CHAIN.id.toString(16)}`;
-    console.log('Attempting to switch to chain:', {
+    console.log('Attempting to switch to Monad Testnet:', {
         chainId: CHAIN.id,
         chainIdHex,
         name: CHAIN.name,
@@ -2508,7 +2908,7 @@ async function switchToMonadNetwork(provider: any) {
         // This error code indicates that the chain has not been added to MetaMask
         if (switchError.code === 4902 || switchError.code === -32603) {
             try {
-                console.log('Adding network to wallet...');
+                console.log('Adding Monad Testnet to wallet...');
                 await provider.request({
                     method: 'wallet_addEthereumChain',
                     params: [{
@@ -2532,13 +2932,13 @@ async function switchToMonadNetwork(provider: any) {
                 });
             } catch (addError: any) {
                 console.error('Error adding network:', addError);
-                throw new Error(`Failed to add Monad network. Please add it manually with:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+                throw new Error(`Failed to add Monad Testnet. Please add it manually with:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
             }
         } else if (switchError.code === 4001) {
             throw new Error('User rejected the network switch. Please try again and approve the network switch in your wallet.');
         } else {
             console.error('Error switching network:', switchError);
-            throw new Error(`Please add Monad network to your wallet manually:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
+            throw new Error(`Please add Monad Testnet to your wallet manually:\nNetwork Name: ${CHAIN.name}\nRPC URL: ${CHAIN.rpcUrls.default.http[0]}\nChain ID: ${CHAIN.id}\nSymbol: ${CHAIN.nativeCurrency.symbol}`);
         }
     }
 
@@ -2550,9 +2950,12 @@ async function switchToMonadNetwork(provider: any) {
         }
     } catch (error) {
         console.error('Error verifying network:', error);
-        throw new Error('Failed to verify network switch. Please ensure you are on the Monad network.');
+        throw new Error('Failed to verify network switch. Please ensure you are on the Monad Testnet.');
     }
 }
+
+// Export the network switch function
+export { switchToMonadNetwork };
 
 export const getContract = async (provider: any) => {
     if (!provider) throw new Error("No provider available");
@@ -2590,7 +2993,7 @@ export const mintScore = async (
         });
 
         // Get signature from our API
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://nadrunner.vercel.app';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://monad-run.vercel.app/';
         const signatureResponse = await fetch(`${apiUrl}/api/generate-score-signature`, {
             method: 'POST',
             headers: {

@@ -1,0 +1,91 @@
+.loadingContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #87CEEB; /* Sky blue from game canvas */
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.loadingContent {
+    width: 100%;
+    max-width: 1200px;
+    height: 650px;
+    margin: 0 auto;
+    background: #87CEEB;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.groundLayer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 15%;
+    background: #8B4513; /* Brown ground color from game */
+}
+
+.loadingCharacter {
+    width: 50px;
+    height: 50px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 50%;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.loadingBar {
+    width: 60%;
+    height: 20px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.loadingProgress {
+    width: 0%;
+    height: 100%;
+    background: #6366f1; /* Indigo color from game UI */
+    animation: loadingAnimation 2s infinite;
+}
+
+.loadingText {
+    margin-top: 10px;
+    color: #4B0082; /* Deep indigo for text */
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+}
+
+.versionLabel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+@keyframes loadingAnimation {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+}
+
+@media (max-width: 768px) {
+    .loadingContent {
+        width: 100%;
+        height: 500px;
+        max-width: 400px;
+    }
+}

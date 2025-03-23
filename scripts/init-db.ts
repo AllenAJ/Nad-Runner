@@ -1,9 +1,9 @@
-import { testConnection, createScoresTable } from '../lib/db';
+import {createScoresTable } from '../lib/db';
 
 async function initializeDatabase() {
     try {
         // First test the connection
-        await testConnection();
+        //await testConnection();
         
         // Then create tables
         await createScoresTable();

@@ -3,12 +3,14 @@ import { ethers } from 'ethers';
 import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
 import { mintScore, TransactionStatus } from '../../utils/web3';
+import { preloadGameAssets } from '../../utils/image-preloader';
 
 interface GameState {
     isPlaying: boolean;
     score: number;
     playerName: string;
     hasEnteredName: boolean;
+    currentScreen: 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer';
 }
 
 interface LeaderboardEntry {
@@ -28,7 +30,8 @@ export default function GameContainer() {
         isPlaying: false,
         score: 0,
         playerName: '',
-        hasEnteredName: false
+        hasEnteredName: false,
+        currentScreen: 'loading'
     });
     const [gameStartTime, setGameStartTime] = useState<number>(0);
     const [gameEndTime, setGameEndTime] = useState<number>(0);
@@ -40,48 +43,113 @@ export default function GameContainer() {
     const [isConnected, setIsConnected] = useState(false);
     const [gameWidth, setGameWidth] = useState(GAME_WIDTH);
     const [gameHeight, setGameHeight] = useState(GAME_HEIGHT);
+    const [loadingProgress, setLoadingProgress] = useState(0);
 
     useEffect(() => {
-        // Load global leaderboard from API
-        console.log('Fetching leaderboard...');
-        fetch('/api/scores')
-            .then(res => {
-                console.log('Leaderboard response:', res.status);
-                return res.json();
-            })
-            .then(scores => {
-                console.log('Received scores:', scores);
-                setLeaderboard(scores);
-            })
-            .catch(error => {
-                console.error('Error loading leaderboard:', error);
-            });
+        const initializeGame = async () => {
+            try {
+                // Resize logic
+                const handleResize = () => {
+                    const isMobile = window.innerWidth <= 768;
+                    setGameHeight(isMobile ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
+                    setGameWidth(isMobile ? Math.min(window.innerWidth - 16, MOBILE_GAME_WIDTH) : GAME_WIDTH);
+                };
 
-        // Check if already connected
-        if (typeof window !== 'undefined' && window.ethereum) {
-            const web3Provider = new ethers.BrowserProvider(window.ethereum);
-            setProvider(web3Provider);
-            // Check if already connected
-            web3Provider.listAccounts().then(accounts => {
-                setIsConnected(accounts.length > 0);
-            }).catch(error => {
-                console.log('Not connected to wallet:', error);
-            });
-        }
-    }, []);
+                // Initial resize
+                handleResize();
+                window.addEventListener('resize', handleResize);
 
-    useEffect(() => {
-        const handleResize = () => {
-            const isMobile = window.innerWidth <= 768;
-            setGameHeight(isMobile ? MOBILE_GAME_HEIGHT : GAME_HEIGHT);
-            setGameWidth(isMobile ? Math.min(window.innerWidth - 16, MOBILE_GAME_WIDTH) : GAME_WIDTH);
+                // Simulate loading progress
+                const progressInterval = setInterval(() => {
+                    setLoadingProgress(prev => {
+                        const newProgress = prev + 10;
+                        return newProgress > 100 ? 0 : newProgress;
+                    });
+                }, 200);
+
+                // Load leaderboard
+                const leaderboardResponse = await fetch('/api/scores');
+                const leaderboardData = await leaderboardResponse.json();
+                setLeaderboard(leaderboardData);
+
+                // Preload game assets
+                await preloadGameAssets();
+
+                // Clear progress interval
+                clearInterval(progressInterval);
+
+                // Check if already connected
+                if (typeof window !== 'undefined' && window.ethereum) {
+                    const web3Provider = new ethers.BrowserProvider(window.ethereum);
+                    setProvider(web3Provider);
+                    
+                    web3Provider.listAccounts().then(accounts => {
+                        setIsConnected(accounts.length > 0);
+                    }).catch(error => {
+                        console.log('Not connected to wallet:', error);
+                    });
+                }
+
+                // Transition to menu
+                setGameState(prev => ({
+                    ...prev,
+                    currentScreen: 'menu'
+                }));
+
+                // Cleanup
+                return () => window.removeEventListener('resize', handleResize);
+            } catch (error) {
+                console.error('Game initialization failed:', error);
+                // Fallback to menu in case of error
+                setGameState(prev => ({
+                    ...prev,
+                    currentScreen: 'menu'
+                }));
+            }
         };
 
-        handleResize(); // Set initial dimensions
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        initializeGame();
     }, []);
 
+    // Render loading screen
+    if (gameState.currentScreen === 'loading') {
+        return (
+            <div 
+                className={styles.gameWrapper} 
+                style={{ 
+                    width: gameWidth, 
+                    height: gameHeight 
+                }}
+            >
+                <div className={styles.menuContainer}>
+                    <div className={styles.versionLabel}>beta 1.9</div>
+                    
+                    <div className={styles.loadingCharacter}>
+                        <img 
+                            src="/assets/molandak.png" 
+                            alt="Molandak loading" 
+                            className={styles.spinningCharacter} 
+                        />
+                    </div>
+                                        
+                    <div className={styles.loadingBar}>
+                        <div 
+                            className={styles.loadingProgress} 
+                            style={{width: `${loadingProgress}%`}}
+                        ></div>
+                    </div>
+                    
+                    <div className={styles.loadingText}>
+                        {leaderboard.length > 0 
+                            ? 'Loading game assets...' 
+                            : 'Loading leaderboard...'}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Rest of the existing methods remain the same as in the original implementation
     const handleConnect = async () => {
         try {
             if (isConnected) {
@@ -166,7 +234,8 @@ export default function GameContainer() {
             isPlaying: true,
             score: 0,
             hasEnteredName: false,
-            playerName: ''
+            playerName: '',
+            currentScreen: 'game'
         }));
         setIsGameOver(false);
     };
@@ -175,7 +244,12 @@ export default function GameContainer() {
         const endTime = Date.now() / 1000;
         setGameEndTime(endTime);
         const roundedScore = Math.floor(finalScore);
-        setGameState(prev => ({ ...prev, isPlaying: false, score: roundedScore }));
+        setGameState(prev => ({ 
+            ...prev, 
+            isPlaying: false, 
+            score: roundedScore,
+            currentScreen: 'gameOver'
+        }));
         setIsGameOver(true);
     };
 
@@ -216,10 +290,141 @@ export default function GameContainer() {
             isPlaying: true,
             score: 0,
             playerName: '',
-            hasEnteredName: false
+            hasEnteredName: false,
+            currentScreen: 'game'
         });
         setIsGameOver(false);
     };
+
+    const navigateTo = (screen: Exclude<GameState['currentScreen'], 'loading'>) => {
+        setGameState(prev => ({
+            ...prev,
+            currentScreen: screen
+        }));
+    };
+
+    // Existing render methods remain the same
+    const renderMainMenu = () => (
+        <div className={styles.menuContainer}>
+            <div className={styles.mainButtons}>
+                <button onClick={handleStartGame} className={styles.primaryButton}>
+                    PLAY
+                </button>
+                <button onClick={() => navigateTo('multiplayer')} className={styles.menuButton}>
+                    MULTIPLAYER
+                </button>
+                <button onClick={() => navigateTo('shop')} className={styles.menuButton}>
+                    SHOP
+                </button>
+                <button onClick={() => navigateTo('inventory')} className={styles.menuButton}>
+                    INVENTORY
+                </button>
+            </div>
+
+            {leaderboard.length > 0 && (
+                <div className={styles.leaderboard}>
+                    <h3>TOP PLAYERS</h3>
+                    <div className={styles.leaderboardContent}>
+                        {leaderboard.slice(0, 10).map((entry, index) => (
+                            <div key={index} className={styles.leaderboardEntry}>
+                                <span className={styles.rank}>#{index + 1}</span>
+                                <span className={styles.name}>{entry.name}</span>
+                                <span className={styles.score}>{Math.floor(entry.score)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderShop = () => (
+        <div className={styles.menuContainer}>
+            <h2>Shop</h2>
+            <p>Coming soon! Buy upgrades and customizations.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderInventory = () => (
+        <div className={styles.menuContainer}>
+            <h2>Inventory</h2>
+            <p>Your items and collectibles will appear here.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderMultiplayer = () => (
+        <div className={styles.menuContainer}>
+            <h2>Multiplayer</h2>
+            <p>Challenge your friends! Coming soon.</p>
+            <button onClick={() => navigateTo('menu')} className={styles.menuButton}>
+                Back to Menu
+            </button>
+        </div>
+    );
+
+    const renderGameOverScreen = () => (
+        <div className={styles.gameOverContainer}>
+            <h2>Game Over!</h2>
+            <p>Score: {Math.floor(gameState.score)}</p>
+            
+            {!gameState.hasEnteredName ? (
+                <>
+                    <input
+                        type="text"
+                        placeholder="Enter your name"
+                        value={gameState.playerName}
+                        onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
+                    />
+                    <button onClick={handleNameSubmit}>Submit Score</button>
+                </>
+            ) : (
+                <>
+                    <button onClick={handleConnect}>
+                        {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
+                    </button>
+                    <button
+                        onClick={handleMintScore}
+                        disabled={isMinting || !isConnected}
+                    >
+                        {isMinting ? 'Minting...' : 'Mint Score'}
+                    </button>
+                    {mintStatus && (
+                        <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
+                            <p>{mintStatus.message}</p>
+                            {mintStatus.status === 'error' &&
+                                mintStatus.message.includes('foul play') && (
+                                    <p className={styles.errorDetails}>
+                                        Please play the game normally.
+                                    </p>
+                                )}
+                            {mintStatus.hash && (
+                                <a
+                                    href={`https://testnet.monadexplorer.com/tx/${mintStatus.hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.txLink}
+                                >
+                                    View Transaction
+                                </a>
+                            )}
+                        </div>
+                    )}
+                    <button onClick={handlePlayAgain}>
+                        Play Again
+                    </button>
+                    <button onClick={() => navigateTo('menu')}>
+                        Back to Menu
+                    </button>
+                </>
+            )}
+        </div>
+    );
 
     return (
         <div className={styles.container}>
@@ -230,94 +435,13 @@ export default function GameContainer() {
                     isPlaying={gameState.isPlaying}
                     onGameOver={handleGameOver}
                 />
-                {!gameState.isPlaying && !isGameOver && (
-                    <div className={styles.menuContainer}>
-                        <div className={styles.instructions}>
-                            <h3>How to Play</h3>
-                            <p>Press <span className={styles.key}>Space</span> or <span className={styles.key}>Tap</span> to jump</p>
-                            <p>Collect Moyaki for power-ups, and avoid Chog and Mooch!</p>
-                            <p>The longer you survive, the higher your score!</p>
-                        </div>
-                        <button onClick={handleStartGame}>Start Game</button>
-                        {leaderboard.length > 0 && (
-                            <div className={styles.leaderboard}>
-                                <h3>Top Scores</h3>
-                                {leaderboard.map((entry, index) => (
-                                    <div key={index} className={styles.leaderboardEntry}>
-                                        <span className={styles.rank}>#{index + 1}</span>
-                                        <span className={styles.name}>{entry.name}</span>
-                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-                {isGameOver && !gameState.hasEnteredName && (
-                    <div className={styles.gameOverContainer}>
-                        <h2>Game Over!</h2>
-                        <p>Score: {Math.floor(gameState.score)}</p>
-                        <input
-                            type="text"
-                            placeholder="Enter your name"
-                            value={gameState.playerName}
-                            onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
-                        />
-                        <button onClick={handleNameSubmit}>Submit Score</button>
-                    </div>
-                )}
-                {isGameOver && gameState.hasEnteredName && (
-                    <div className={styles.gameOverContainer}>
-                        <h2>Game Over!</h2>
-                        <p>Score: {Math.floor(gameState.score)}</p>
-                        <button onClick={handleConnect}>
-                            {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
-                        </button>
-                        <button
-                            onClick={handleMintScore}
-                            disabled={isMinting || !isConnected}
-                        >
-                            {isMinting ? 'Minting...' : 'Mint Score'}
-                        </button>
-                        {mintStatus && (
-                            <div className={`${styles.mintStatus} ${styles[mintStatus.status]}`}>
-                                <p>{mintStatus.message}</p>
-                                {mintStatus.status === 'error' &&
-                                    mintStatus.message.includes('foul play') && (
-                                        <p className={styles.errorDetails}>
-                                            Please play the game normally.
-                                        </p>
-                                    )}
-                                {mintStatus.hash && (
-                                    <a
-                                        href={`https://testnet.monadexplorer.com/tx/${mintStatus.hash}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={styles.txLink}
-                                    >
-                                        View Transaction
-                                    </a>
-                                )}
-                            </div>
-                        )}
-                        <button onClick={handlePlayAgain}>
-                            Play Again
-                        </button>
-                        {leaderboard.length > 0 && (
-                            <div className={styles.leaderboard}>
-                                <h3>Top Scores</h3>
-                                {leaderboard.map((entry, index) => (
-                                    <div key={index} className={styles.leaderboardEntry}>
-                                        <span className={styles.rank}>#{index + 1}</span>
-                                        <span className={styles.name}>{entry.name}</span>
-                                        <span className={styles.score}>{Math.floor(entry.score)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                
+                {gameState.currentScreen === 'menu' && renderMainMenu()}
+                {gameState.currentScreen === 'shop' && renderShop()}
+                {gameState.currentScreen === 'inventory' && renderInventory()}
+                {gameState.currentScreen === 'multiplayer' && renderMultiplayer()}
+                {gameState.currentScreen === 'gameOver' && renderGameOverScreen()}
             </div>
         </div>
     );
-} 
+}
