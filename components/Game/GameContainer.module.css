@@ -1,47 +1,139 @@
 .container {
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    margin: 0 auto;
+    background: #87CEEB;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
     overflow: hidden;
-    padding: 0;
 }
 
-.gameWrapper {
-    position: relative;
+.overlayContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    max-width: 1200px;
     height: 100%;
-    margin: 0 auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0 1rem;
 }
 
 .menuContainer {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 2rem;
-    border-radius: 1.5rem;
-    text-align: center;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
-    max-width: 90%;
-    width: 320px;
-    z-index: 10;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.mainMenuLayout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 70%;
+}
+
+.characterSection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.mainMenuCharacter {
+    width: auto;
+    height: 40%;
+    max-height: 200px;
+    object-fit: contain;
+}
+
+.leaderboardSection {
+    height: 30%;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+}
+
+.walletAddressUnderCharacter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+}
+
+.walletAddressUnderCharacter .walletIndicator {
+    width: 0.75rem;
+    height: 0.75rem;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.walletAddressText {
+    color: #4b5563;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.menuActionSection {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+.menuButtonsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.secondaryMenuButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .mainMenuLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .characterSection {
+        order: -1;
+        margin-bottom: 1rem;
+    }
+
+    .mainMenuCharacter {
+        max-width: 200px;
+        max-height: 200px;
+    }
+
+    .leaderboardSection {
+        grid-column: auto;
+    }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
 }
 
 .mainButtons {
@@ -377,6 +469,648 @@
 
 @keyframes loadingAnimation {
     0% { width: 0%; }
+    25% { width: 100%; }
     50% { width: 100%; }
+    75% { width: 0%; }
     100% { width: 0%; }
+}
+
+/* Add these to your GameContainer.module.css file */
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.connectingWallet {
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 80%;
+    width: 300px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
+}
+
+.connectingWallet p {
+    margin-top: 1rem;
+    color: #6366f1;
+    font-weight: bold;
+}
+
+.walletMessage {
+    text-align: center;
+    margin-bottom: 1rem;
+    color: #4B5563;
+    font-size: 1rem;
+}
+
+.walletStatus {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.walletAddress {
+    display: block;
+    margin: 0.5rem 0;
+    font-size: 0.75rem;
+    color: #4B5563;
+    word-break: break-all;
+}
+
+/* Add these styles to your GameContainer.module.css */
+
+.walletConnectionContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 90%;
+    width: 360px;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.characterContainer {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 1.5rem;
+    animation: bounce 2s infinite;
+}
+
+.characterImage {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.connectionTitle {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #4F46E5;
+    margin: 0 0 1rem 0;
+    background: linear-gradient(45deg, #4F46E5, #7C3AED);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.connectionMessage {
+    font-size: 1.125rem;
+    color: #4B5563;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.connectWalletButton {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: white;
+    background: #6366f1;
+    border: none;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.connectWalletButton:hover {
+    background: #4F46E5;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+}
+
+.loadingContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -48%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    .walletConnectionContainer {
+        padding: 2rem;
+        width: 85%;
+    }
+    
+    .characterContainer {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .connectionTitle {
+        font-size: 1.5rem;
+    }
+    
+    .connectionMessage {
+        font-size: 1rem;
+    }
+}
+
+/* Add these to your GameContainer.module.css file */
+
+.walletBadge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.5rem 0.75rem;
+    border-radius: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem;
+}
+
+.walletIndicator {
+    width: 0.75rem;
+    height: 0.75rem;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.walletAddressText {
+    color: #4b5563;
+    font-weight: 600;
+}
+
+.walletControls {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.disconnectButton {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.disconnectButton:hover {
+    color: #4b5563;
+}
+
+.walletRequiredMessage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    gap: 0.75rem;
+}
+
+.walletRequiredMessage p {
+    margin: 0;
+    color: #4F46E5;
+    font-weight: 500;
+}
+
+.miniCharacter {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    animation: bounce 2s infinite;
+}
+
+.walletAlert {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.2);
+    max-width: 90%;
+    width: 320px;
+}
+
+.walletAlert h3 {
+    color: #ef4444;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+}
+
+.walletAlert p {
+    color: #4b5563;
+    margin-bottom: 1.25rem;
+}
+
+/* Pulse animation for wallet connection indicator */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+.inventoryContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px;
+    max-width: 95%;
+    height: 600px;
+    background-color: #FFA500;
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.inventoryHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background-color: rgba(255,255,255,0.2);
+}
+
+.inventoryHeader h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    color: red;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.inventoryTabs {
+    display: flex;
+    background-color: rgba(255,255,255,0.1);
+    padding: 0.5rem;
+    gap: 0.5rem;
+}
+
+.inventoryTabs button {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    color: white;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.inventoryTabs button.activeTab {
+    background-color: rgba(255,255,255,0.2);
+    opacity: 1;
+    border-radius: 0.5rem;
+}
+
+.inventoryContent {
+    flex-grow: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.inventoryGridSkins {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
+
+.inventoryItem {
+    aspect-ratio: 1;
+    border: 2px solid white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.inventoryGridBackgrounds {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.inventoryItemBackground {
+    aspect-ratio: 2/1;
+    background-color: rgba(255,255,255,0.2);
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    cursor: pointer;
+}
+
+.outfitInventoryContainer {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+}
+
+.outfitCategories {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.outfitCategoryButton {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    color: white;
+    text-align: left;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.outfitCategoryButton.active {
+    background-color: rgba(255,255,255,0.2);
+    opacity: 1;
+    border-radius: 0.5rem;
+}
+
+.outfitItemsGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
+
+.outfitItem {
+    aspect-ratio: 1;
+    background-color: rgba(255,255,255,0.2);
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.characterPreview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.inventoryGridPowerups {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+}
+
+.inventoryItemPowerup {
+    aspect-ratio: 1;
+    background-color: rgba(255,255,255,0.2);
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.inventoryBanner {
+    background-color: red;
+    color: white;
+    padding: 0.5rem;
+    text-align: center;
+    font-weight: bold;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+@media (max-width: 768px) {
+    .inventoryContainer {
+        width: 95%;
+        height: 90%;
+    }
+
+    .outfitInventoryContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .characterPreview {
+        display: none;
+    }
+
+    .inventoryGridSkins,
+    .inventoryGridBackgrounds,
+    .outfitItemsGrid,
+    .inventoryGridPowerups {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.customizationContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-width: 95%;
+    background: white;
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.customizationHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.customizationHeader h2 {
+    margin: 0;
+    color: #6366f1;
+    font-size: 1.25rem;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    color: #4b5563;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.closeButton:hover {
+    color: #ef4444;
+}
+
+.customizationContent {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.characterPreviewSection {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f3f4f6;
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.characterPreview {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.characterPreview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.customizationOptionsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.customizationOptionGroup {
+    background: #f9fafb;
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.customizationOptionGroup h3 {
+    margin: 0 0 0.75rem 0;
+    color: #4b5563;
+    font-size: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.customizationOptionsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.customizationOptionItem {
+    aspect-ratio: 1;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.25rem;
+}
+
+.customizationOptionItem:hover {
+    background: #f3f4f6;
+    border-color: #6366f1;
+}
+
+.customizationOptionItem.selected {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+}
+
+.customizationFooter {
+    display: flex;
+    justify-content: center;
+}
+
+.saveButton {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    width: 100%;
+}
+
+.saveButton:hover {
+    background: #4f46e5;
+}
+
+@media (max-width: 768px) {
+    .customizationContainer {
+        width: 95%;
+        padding: 1rem;
+    }
+
+    .customizationContent {
+        grid-template-columns: 1fr;
+    }
+
+    .customizationOptionsGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }

@@ -18,11 +18,11 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Content-Security-Policy',
-                        value: "frame-ancestors 'self' https://auth.magic.link"
+                        value: "frame-ancestors *"
                     },
                     {
                         key: 'X-Frame-Options',
-                        value: 'ALLOW-FROM https://auth.magic.link'
+                        value: 'ALLOWALL'
                     }
                 ]
             }
