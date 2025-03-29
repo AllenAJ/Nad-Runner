@@ -60,7 +60,7 @@ interface GameState {
     };
     boxJumps: number;
     lastBoxJumpTime: number;
-    lastObstacleType?: string;
+    lastObstacleType?: 'ground' | 'air' | 'box' | 'box2' | 'box3';
 }
 
 // Update image references to use window.Image
@@ -82,6 +82,9 @@ if (boxImage) boxImage.src = '/assets/box.png';
 
 const box2Image = typeof window !== 'undefined' ? new window.Image() : null;
 if (box2Image) box2Image.src = '/assets/box2.png';
+
+const box3Image = typeof window !== 'undefined' ? new window.Image() : null;
+if (box3Image) box3Image.src = '/assets/box3.png';
 
 // Mobile-specific constants
 const MOBILE_SCALE = 1;
@@ -124,7 +127,7 @@ const OBSTACLE_SIZE = 50;
 const POWERUP_SIZE = 40;
 const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
 const PLAYER_OFFSET_FROM_GROUND = 0;
-const OBSTACLE_SPAWN_CHANCE = 0.02;
+const OBSTACLE_SPAWN_CHANCE = 0.009;
 const POWERUP_SPAWN_CHANCE = 0.008;
 const MIN_OBSTACLE_DISTANCE = 200;
 const SPEED_INCREASE_INTERVAL = 3;
@@ -136,17 +139,20 @@ const BOX_HEIGHT = OBSTACLE_SIZE * 2.5; // Original box height (1.5x taller than
 const BOX2_HEIGHT = OBSTACLE_SIZE * 7; // Make box2 taller to accommodate the gap
 const BOX2_WIDTH = OBSTACLE_SIZE ; // Make box2 wider if needed
 
-// Add with other box constants
-const BOX3_HEIGHT = OBSTACLE_SIZE * 2.5;
-const BOX3_WIDTH = OBSTACLE_SIZE;
-const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2; // Height above ground
+// Update the box3 constants
+const BOX3_HEIGHT = OBSTACLE_SIZE ; // Height for 3 boxes stacked
+const BOX3_WIDTH = OBSTACLE_SIZE * 3;  // Width for 3 boxes side by side
+const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2; // Height above ground to make it higher
 
-// Update BOX_TYPES constant
+// First, define a type for all possible obstacle types
+type ObstacleType = 'ground' | 'air' | 'box' | 'box2' | 'box3';
+
+// Update the BOX_TYPES constant to match our types
 const BOX_TYPES = {
-    SOLID: 'box',
-    PASSABLE: 'box2',
-    FLOATING: 'box3'
-} as const;
+    SOLID: 'box' as ObstacleType,
+    PASSABLE: 'box2' as ObstacleType,
+    FLOATING: 'box3' as ObstacleType
+};
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -226,21 +232,38 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const updateObstacles = (deltaTime: number) => {
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
-        const minDistance = MIN_OBSTACLE_DISTANCE;
-
+        
         // Move existing obstacles
         state.obstacles = state.obstacles.filter(obstacle => {
             obstacle.x -= state.gameSpeed;
-            return obstacle.x + OBSTACLE_SIZE > 0;
+            const obstacleWidth = obstacle.type === BOX_TYPES.FLOATING ? BOX3_WIDTH :
+                                 obstacle.type === BOX_TYPES.PASSABLE ? BOX2_WIDTH :
+                                 OBSTACLE_SIZE;
+            return obstacle.x + obstacleWidth > 0;
         });
 
-        // Spawn new obstacles
-        if (Math.random() < OBSTACLE_SPAWN_CHANCE &&
-            (state.obstacles.length === 0 ||
-                width - state.lastObstacleX > minDistance)) {
+        // Get the rightmost obstacle's position
+        const lastObstacleX = state.obstacles.length > 0 
+            ? Math.max(...state.obstacles.map(o => o.x))
+            : -Infinity;
 
-            // Get all possible obstacle types
-            const obstacleTypes = ['ground', 'air', BOX_TYPES.SOLID, BOX_TYPES.PASSABLE, BOX_TYPES.FLOATING];
+        // Spawn new obstacles with updated distance check
+        if (Math.random() < OBSTACLE_SPAWN_CHANCE &&
+            (state.obstacles.length === 0 || 
+             width - lastObstacleX > MIN_OBSTACLE_DISTANCE)) {
+            
+            // Simplified obstacle types with equal probabilities
+            let obstacleTypes: ObstacleType[] = [
+                'ground',
+                'air',
+                BOX_TYPES.SOLID,
+                BOX_TYPES.FLOATING  // Make sure box3 is included
+            ];
+            
+            // Add box2 only if score is above 800
+            if (state.score >= 800) {
+                obstacleTypes.push(BOX_TYPES.PASSABLE);
+            }
             
             // Filter out the last used type
             const availableTypes = obstacleTypes.filter(type => type !== state.lastObstacleType);
@@ -248,9 +271,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             // Randomly select from available types
             const obstacleType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
             
-            // Store the selected type for next spawn
             state.lastObstacleType = obstacleType;
 
+            // Make sure box3 is positioned higher
             const obstacleY = obstacleType === 'ground' ? 
                 height - groundHeight - OBSTACLE_SIZE :
                 obstacleType === BOX_TYPES.SOLID ?
@@ -271,10 +294,12 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                        obstacleType === BOX_TYPES.PASSABLE ? BOX2_HEIGHT :
                        obstacleType === BOX_TYPES.FLOATING ? BOX3_HEIGHT :
                        OBSTACLE_SIZE,
-                type: obstacleType,
+                type: obstacleType as ObstacleType,
                 image: obstacleType === 'ground' ? obstacleImages.ground : 
                       obstacleType === 'air' ? obstacleImages.air : 
-                      obstacleType === BOX_TYPES.PASSABLE ? box2Image : boxImage
+                      obstacleType === BOX_TYPES.PASSABLE ? box2Image :
+                      obstacleType === BOX_TYPES.FLOATING ? box3Image :
+                      boxImage
             });
             state.lastObstacleX = width;
         }
@@ -406,12 +431,12 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                                 opacity: 1,
                                 createdAt: Date.now()
                             });
-                        } else if (playerHitbox.y < boxTop + landingZoneHeight) {
-                            // Only collide if hitting the box from above or sides
+                        } else if (playerHitbox.y < boxTop + obstacle.height &&
+                                  playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
+                            // Collision with sides or bottom of the box
                             onGameOver(state.score);
                             return;
                         }
-                        // Space below box is passable - no collision check needed
                     }
                 } else if (checkCollision(playerHitbox, obstacle)) {
                     // Normal collision with other obstacles
@@ -627,7 +652,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         state.obstacles.forEach(obstacle => {
             const image = obstacle.type === 'ground' ? obstacleImages.ground : 
                          obstacle.type === 'air' ? obstacleImages.air :
-                         obstacle.type === BOX_TYPES.PASSABLE ? box2Image : boxImage;
+                         obstacle.type === BOX_TYPES.PASSABLE ? box2Image :
+                         obstacle.type === BOX_TYPES.FLOATING ? box3Image :
+                         boxImage;
             
             if (image && image.complete) {
                 ctx.drawImage(
