@@ -1,10 +1,20 @@
 import { Pool } from 'pg';
 
 // Configure the database connection
-const pool = new Pool({
+export const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false  // Important for Neon's SSL requirement
+        rejectUnauthorized: false // Required for Neon database connection
+    }
+});
+
+// Test the connection
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('Error connecting to the database:', err.stack);
+    } else {
+        console.log('Successfully connected to database');
+        release();
     }
 });
 

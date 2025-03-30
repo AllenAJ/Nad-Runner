@@ -35,6 +35,16 @@ interface LeaderboardEntry {
     date: string;
 }
 
+interface UserData {
+    username: string;
+    level: number;
+    coins: number;
+    xp: number;
+    xp_to_next_level: number;
+    prestige: number;
+    status: string;
+}
+
 export default function GameContainer() {
     // Game state
     const [gameState, setGameState] = useState<GameState>({
@@ -67,6 +77,10 @@ export default function GameContainer() {
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [leaderboardLoaded, setLeaderboardLoaded] = useState(false);
     const [assetsLoaded, setAssetsLoaded] = useState(false);
+
+    // User data
+    const [isNewUser, setIsNewUser] = useState(false);
+    const [userData, setUserData] = useState<UserData | null>(null);
 
     // Initialize the game
     useEffect(() => {
@@ -384,6 +398,56 @@ export default function GameContainer() {
         }
     }, [isConnected, gameState.isPlaying]);
 
+    // Check if user exists
+    useEffect(() => {
+        if (isConnected && walletAddress) {
+            checkUserExists();
+        }
+    }, [isConnected, walletAddress]);
+
+    const checkUserExists = async () => {
+        try {
+            const response = await fetch(`/api/user/check?walletAddress=${walletAddress}`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                setUserData(data.user);
+                setIsNewUser(false);
+            } else {
+                setIsNewUser(true);
+            }
+        } catch (error) {
+            console.error('Error checking user:', error);
+            setIsNewUser(true);
+        }
+    };
+
+    const handleUsernameSubmit = async (username: string) => {
+        try {
+            const response = await fetch('/api/user/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    walletAddress,
+                    username,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create user');
+            }
+
+            setUserData(data.user);
+            setIsNewUser(false);
+        } catch (error) {
+            throw error;
+        }
+    };
+
     // Render different screens based on current state
     const renderScreen = () => {
         switch (gameState.currentScreen) {
@@ -407,6 +471,16 @@ export default function GameContainer() {
                         isConnected={isConnected}
                         onConnect={handleConnect}
                         walletAddress={walletAddress}
+                        isNewUser={isNewUser}
+                        onUsernameSubmit={handleUsernameSubmit}
+                        playerRank="Bronze"
+                        xp={userData?.xp || 0}
+                        maxXp={userData?.xp_to_next_level || 150}
+                        nextUpdate={{
+                            hours: 66,
+                            minutes: 43,
+                            seconds: 56
+                        }}
                     />
                 );
             case 'shop':
