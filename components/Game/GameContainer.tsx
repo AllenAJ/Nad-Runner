@@ -45,6 +45,21 @@ interface UserData {
     status: string;
 }
 
+interface PlayerData {
+    playerStats: {
+        highScore: number;
+        boxJumps: number;
+        highScoreBoxJumps: number;
+        coins: number;
+        rounds: number;
+        level: number;
+        xp: number;
+        xpToNextLevel: number;
+        status: string;
+        username: string;
+    };
+}
+
 export default function GameContainer() {
     // Game state
     const [gameState, setGameState] = useState<GameState>({
@@ -81,6 +96,12 @@ export default function GameContainer() {
     // User data
     const [isNewUser, setIsNewUser] = useState(false);
     const [userData, setUserData] = useState<UserData | null>(null);
+
+    // Player data
+    const [playerData, setPlayerData] = useState<PlayerData | null>(null);
+
+    // Add zoom check state
+    const [isZoom100, setIsZoom100] = useState(true);
 
     // Initialize the game
     useEffect(() => {
@@ -321,17 +342,57 @@ export default function GameContainer() {
     };
 
     // Game over method
-    const handleGameOver = (finalScore: number) => {
-        const endTime = Date.now() / 1000;
-        setGameEndTime(endTime);
+    const handleGameOver = async (finalScore: number, boxJumps: number) => {
         const roundedScore = Math.floor(finalScore);
-        setGameState(prev => ({ 
-            ...prev, 
-            isPlaying: false, 
+
+        setGameState(prev => ({
+            ...prev,
+            isPlaying: false,
             score: roundedScore,
             currentScreen: 'gameOver'
         }));
         setIsGameOver(true);
+        setGameEndTime(Date.now() / 1000);
+
+        if (isConnected && walletAddress) {
+            try {
+                // Update player stats
+                const response = await fetch('/api/user/update-stats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress,
+                        score: roundedScore,
+                        boxJumps
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update player stats');
+                }
+
+                // Refresh player data
+                const updatedData = await response.json();
+                setPlayerData(updatedData);
+
+                // Submit score to leaderboard using player's username
+                await fetch('/api/scores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: updatedData.playerStats.username,
+                        score: roundedScore,
+                        walletAddress
+                    }),
+                });
+
+                // Refresh leaderboard
+                const updatedScores = await fetch('/api/scores').then(res => res.json());
+                setLeaderboard(updatedScores);
+            } catch (error) {
+                console.error('Error updating game data:', error);
+            }
+        }
     };
 
     // Name submission method
@@ -448,6 +509,21 @@ export default function GameContainer() {
         }
     };
 
+    // Add zoom detection
+    useEffect(() => {
+        const checkZoom = () => {
+            const zoom = Math.round((window.outerWidth / window.innerWidth) * 100);
+            setIsZoom100(zoom === 100);
+        };
+
+        // Check initially
+        checkZoom();
+
+        // Check on resize
+        window.addEventListener('resize', checkZoom);
+        return () => window.removeEventListener('resize', checkZoom);
+    }, []);
+
     // Render different screens based on current state
     const renderScreen = () => {
         switch (gameState.currentScreen) {
@@ -460,6 +536,8 @@ export default function GameContainer() {
                         onConnect={handleConnect}
                         assetsLoaded={assetsLoaded}
                         onAssetsLoaded={handleAssetsLoaded}
+                        walletAddress={walletAddress}
+                        onPlayerDataLoaded={(data) => setPlayerData(data)}
                     />
                 );
             case 'menu':
@@ -473,13 +551,22 @@ export default function GameContainer() {
                         walletAddress={walletAddress}
                         isNewUser={isNewUser}
                         onUsernameSubmit={handleUsernameSubmit}
-                        playerRank="Bronze"
-                        xp={userData?.xp || 0}
-                        maxXp={userData?.xp_to_next_level || 150}
                         nextUpdate={{
                             hours: 66,
                             minutes: 43,
                             seconds: 56
+                        }}
+                        playerStats={playerData?.playerStats || {
+                            highScore: 0,
+                            boxJumps: 0,
+                            highScoreBoxJumps: 0,
+                            coins: 0,
+                            rounds: 0,
+                            level: 1,
+                            xp: 0,
+                            xpToNextLevel: 150,
+                            status: 'Newbie',
+                            username: ''
                         }}
                     />
                 );
@@ -488,13 +575,19 @@ export default function GameContainer() {
             case 'inventory':
                 return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
             case 'multiplayer':
-                return <MultiplayerScreen onBackToMenu={() => navigateTo('menu')} />;
+                return (
+                    <MultiplayerScreen 
+                        onBackToMenu={() => navigateTo('menu')}
+                        walletAddress={walletAddress}
+                        username={playerData?.playerStats.username || ''}
+                    />
+                );
             case 'gameOver':
                 return (
                     <GameOverScreen 
                         score={gameState.score}
-                        hasEnteredName={gameState.hasEnteredName}
-                        playerName={gameState.playerName}
+                        hasEnteredName={!!playerData}
+                        playerName={playerData?.playerStats.username || gameState.playerName}
                         isConnected={isConnected}
                         isMinting={isMinting}
                         mintStatus={mintStatus}
@@ -512,64 +605,76 @@ export default function GameContainer() {
     };
 
     return (
-        <div 
-            className={styles.container}
-            style={{
-                width: gameWidth,
-                height: gameHeight,
-                position: 'relative',
-                overflow: 'hidden'
-            }}
-        >
-            {/* Canvas as background */}
-            <Canvas
-                width={gameWidth}
-                height={gameHeight}
-                isPlaying={gameState.isPlaying}
-                onGameOver={handleGameOver}
-            />
+        <>
+            {!isZoom100 && (
+                <div className={styles.zoomWarning}>
+                    <div className={styles.zoomWarningContent}>
+                        <h2>Please set your browser zoom to 100%</h2>
+                        <p>This game requires 100% zoom level for the best experience.</p>
+                        <p>Current zoom is not 100%</p>
+                        <p>Use Ctrl + 0 (Windows) or Cmd + 0 (Mac) to reset zoom</p>
+                    </div>
+                </div>
+            )}
             
-            {/* Overlay container for UI elements */}
-            <div 
-                className={styles.overlayContainer}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: gameState.isPlaying ? 'none' : 'auto'
-                }}
-            >
-                {renderScreen()}
-                
-                {isConnectingWallet && (
-                    <div className={styles.overlay}>
-                        <div className={styles.connectingWallet}>
-                            <div className={styles.loadingCharacter}>
-                                <img 
-                                    src="/assets/molandak.png" 
-                                    alt="Molandak loading" 
-                                    className={styles.spinningCharacter} 
-                                />
+            {isZoom100 && (
+                <div 
+                    className={styles.container}
+                    style={{
+                        minHeight: '100vh',
+                        position: 'relative'
+                    }}
+                >
+                    {gameState.currentScreen === 'game' && (
+                        <div className={styles.gameWrapper}>
+                            <Canvas
+                                width={gameWidth}
+                                height={gameHeight}
+                                isPlaying={gameState.isPlaying}
+                                onGameOver={handleGameOver}
+                            />
+                        </div>
+                    )}
+                    
+                    <div className={styles.overlayContainer}>
+                        {renderScreen()}
+                        
+                        {isConnectingWallet && (
+                            <div className={styles.overlay}>
+                                <div className={styles.connectingWallet}>
+                                    <div className={styles.loadingCharacter}>
+                                        <img 
+                                            src="/assets/molandak.png" 
+                                            alt="Molandak loading" 
+                                            className={styles.spinningCharacter} 
+                                        />
+                                    </div>
+                                    <p>Connecting wallet...</p>
+                                </div>
                             </div>
-                            <p>Connecting wallet...</p>
-                        </div>
+                        )}
+                        
+                        {gameState.isPlaying && !isConnected && (
+                            <div className={styles.overlay}>
+                                <div className={styles.walletAlert}>
+                                    <h3>Wallet Disconnected</h3>
+                                    <p>Your wallet has been disconnected. Please reconnect to continue.</p>
+                                    <button onClick={handleConnect} className={styles.primaryButton}>
+                                        Reconnect Wallet
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
-                
-                {gameState.isPlaying && !isConnected && (
-                    <div className={styles.overlay}>
-                        <div className={styles.walletAlert}>
-                            <h3>Wallet Disconnected</h3>
-                            <p>Your wallet has been disconnected. Please reconnect to continue.</p>
-                            <button onClick={handleConnect} className={styles.primaryButton}>
-                                Reconnect Wallet
-                            </button>
-                        </div>
-                    </div>
-                )}
+                </div>
+            )}
+
+            {/* Add the advertisement container */}
+            <div className={styles.adContainer}>
+                Advertisement Space
+                <br />
+                (728x90 or 300x250)
             </div>
-        </div>
+        </>
     );
 }

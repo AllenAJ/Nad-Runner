@@ -1,6 +1,19 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { pool } from '../../../lib/db';
 
+// Add this interface at the top of the file
+interface PlayerProfile {
+    wallet_address: string;
+    username: string;
+    high_score: number;
+    box_jumps: number;
+    high_score_box_jumps: number;
+    coins: number;
+    rounds: number;
+    level: number;
+    xp: number;
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -16,7 +29,7 @@ export default async function handler(
     }
 
     try {
-        const result = await pool.query(
+        const result = await pool.query<PlayerProfile>(
             `SELECT u.username, p.* 
              FROM users u 
              JOIN player_profiles p ON u.wallet_address = p.wallet_address 
@@ -28,7 +41,19 @@ export default async function handler(
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.status(200).json({ user: result.rows[0] });
+        const user = result.rows[0];
+
+        res.status(200).json({
+            user: user,
+            playerStats: {
+                highScore: user.high_score,
+                boxJumps: user.box_jumps,
+                highScoreBoxJumps: user.high_score_box_jumps,
+                coins: user.coins,
+                rounds: user.rounds,
+                level: user.level
+            }
+        });
     } catch (error) {
         console.error('Error checking user:', error);
         res.status(500).json({ 

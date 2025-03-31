@@ -11,9 +11,6 @@ interface MainMenuProps {
     isConnected: boolean;
     onConnect: () => void;
     walletAddress: string;
-    playerRank?: 'Bronze' | 'Silver' | 'Gold';
-    xp?: number;
-    maxXp?: number;
     nextUpdate?: {
         hours: number;
         minutes: number;
@@ -21,6 +18,18 @@ interface MainMenuProps {
     };
     isNewUser?: boolean;
     onUsernameSubmit: (username: string) => Promise<void>;
+    playerStats?: {
+        highScore: number;
+        boxJumps: number;
+        highScoreBoxJumps: number;
+        coins: number;
+        rounds: number;
+        level: number;
+        xp: number;
+        xpToNextLevel: number;
+        status: string;
+        username: string;
+    };
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -30,12 +39,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     isConnected,
     onConnect,
     walletAddress,
-    playerRank = 'Bronze',
-    xp = 2024,
-    maxXp = 10000,
     nextUpdate = { hours: 66, minutes: 43, seconds: 56 },
     isNewUser = false,
-    onUsernameSubmit
+    onUsernameSubmit,
+    playerStats = {
+        highScore: 0,
+        boxJumps: 0,
+        highScoreBoxJumps: 0,
+        coins: 0,
+        rounds: 0,
+        level: 1,
+        xp: 0,
+        xpToNextLevel: 150,
+        status: 'Newbie',
+        username: ''
+    },
 }) => {
     const [alert, setAlert] = React.useState<{
         show: boolean;
@@ -44,11 +62,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     }>({ show: false, message: '' });
 
     const handleMultiplayerClick = () => {
-        setAlert({
-            show: true,
-            message: 'Multiplayer mode coming soon!',
-            type: 'info'
-        });
+        onNavigateTo('multiplayer');
     };
 
     const handleShopClick = () => {
@@ -103,43 +117,65 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     <div className={styles.walletAddress}>
                         {formatWalletAddress(walletAddress)}
                     </div>
-                    <h2 className={styles.rankTitle}>{playerRank} Tier</h2>
+                    <h2 className={styles.rankTitle}>
+                        {playerStats.username}
+                    </h2>
                     <div className={styles.badges}>
                         <div className={styles.bonusBadge}>
-                            Bonus: 0%
-                        </div>
-                        <div className={styles.holderBadge}>
-                            Pengu Holder
+                            {playerStats.status}
                         </div>
                     </div>
+
+                    <div className={styles.statsContainer}>
+                        <div className={styles.statRow}>
+                            <span>High Score</span>
+                            <span>{playerStats.highScore}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                            <span>Total Box Jumps</span>
+                            <span>{playerStats.boxJumps}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                            <span>Best Run Jumps</span>
+                            <span>{playerStats.highScoreBoxJumps}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                            <span>Coins</span>
+                            <span>{playerStats.coins}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                            <span>Rounds</span>
+                            <span>{playerStats.rounds}</span>
+                        </div>
+                        <div className={styles.statRow}>
+                            <span>Level</span>
+                            <span>{playerStats.level}</span>
+                        </div>
+                    </div>
+
                     <div className={styles.xpSection}>
                         <div className={styles.xpHeader}>
                             <span>XP</span>
-                            <span className={styles.xpCount}>{xp}/{maxXp}</span>
+                            <span className={styles.xpCount}>
+                                {playerStats.xp}/{playerStats.xpToNextLevel}
+                            </span>
                         </div>
                         <div className={styles.xpProgressBar}>
                             <div 
                                 className={styles.xpProgress} 
-                                style={{ width: `${(xp / maxXp) * 100}%` }}
+                                style={{ width: `${(playerStats.xp / playerStats.xpToNextLevel) * 100}%` }}
                             />
                         </div>
                     </div>
-                    <div className={styles.nextUpdate}>
-                        <span>Next XP Update in</span>
-                        <div className={styles.updateTimer}>
-                            <span className={styles.timeUnit}>{nextUpdate.hours}h</span>
-                            <span className={styles.timeUnit}>{nextUpdate.minutes}m</span>
-                            <span className={styles.timeUnit}>{nextUpdate.seconds}s</span>
-                        </div>
-                    </div>
+
                     <div className={styles.infoBox}>
                         <Image 
-                            src="/assets/Box.png" 
+                            src="/assets/salmonad.png" 
                             alt="Box" 
                             width={40} 
                             height={40}
                         />
-                        <p>Earn XP throughout the week by using Abstract, live streaming, and more!</p>
+                        <p>Earn XP and Coins by playing!</p>
                     </div>
                 </div>
 

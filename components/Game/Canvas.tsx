@@ -6,7 +6,7 @@ interface CanvasProps {
     width: number;
     height: number;
     isPlaying: boolean;
-    onGameOver: (score: number) => void;
+    onGameOver: (score: number, boxJumps: number) => void;
 }
 
 interface GameState {
@@ -347,7 +347,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             });
                         } else if (playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
                             // Collision with any part of the box except landing zone
-                            onGameOver(state.score);
+                            onGameOver(state.score, state.boxJumps);
                             return;
                         }
                     }
@@ -395,7 +395,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         } else if ((playerHitbox.y < topSection && playerHitbox.y + playerHitbox.height > sectionHeight) || 
                                   (playerHitbox.y < obstacle.y + obstacle.height && playerHitbox.y + playerHitbox.height > bottomSection)) {
                             // Collision with solid parts (top or bottom section)
-                            onGameOver(state.score);
+                            onGameOver(state.score, state.boxJumps);
                             return;
                         }
                         // Middle section is passable - no collision check needed
@@ -434,13 +434,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         } else if (playerHitbox.y < boxTop + obstacle.height &&
                                   playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
                             // Collision with sides or bottom of the box
-                            onGameOver(state.score);
+                            onGameOver(state.score, state.boxJumps);
                             return;
                         }
                     }
                 } else if (checkCollision(playerHitbox, obstacle)) {
                     // Normal collision with other obstacles
-                    onGameOver(state.score);
+                    onGameOver(state.score, state.boxJumps);
                     return;
                 }
             }

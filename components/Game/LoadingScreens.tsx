@@ -8,6 +8,8 @@ interface LoadingScreenProps {
     onConnect: () => Promise<void>;
     assetsLoaded: boolean;
     onAssetsLoaded: () => void;
+    walletAddress?: string;
+    onPlayerDataLoaded?: (data: any) => void;
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ 
@@ -16,24 +18,52 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     isConnected,
     onConnect,
     assetsLoaded,
-    onAssetsLoaded
+    onAssetsLoaded,
+    walletAddress,
+    onPlayerDataLoaded
 }) => {
     const [loadingMessage, setLoadingMessage] = useState("Checking wallet...");
+    const [playerDataLoaded, setPlayerDataLoaded] = useState(false);
+    
+    useEffect(() => {
+        async function loadPlayerData() {
+            if (isConnected && walletAddress && !playerDataLoaded) {
+                try {
+                    setLoadingMessage("Loading player data...");
+                    const response = await fetch(`/api/user/data?walletAddress=${walletAddress}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch player data');
+                    }
+                    const data = await response.json();
+                    if (onPlayerDataLoaded) {
+                        onPlayerDataLoaded(data);
+                    }
+                    setPlayerDataLoaded(true);
+                } catch (error) {
+                    console.error('Error loading player data:', error);
+                    setLoadingMessage("Error loading player data");
+                }
+            }
+        }
+
+        loadPlayerData();
+    }, [isConnected, walletAddress, playerDataLoaded, onPlayerDataLoaded]);
     
     useEffect(() => {
         if (isConnected) {
-            if (!leaderboardLoaded) {
+            if (!playerDataLoaded) {
+                setLoadingMessage("Loading player data...");
+            } else if (!leaderboardLoaded) {
                 setLoadingMessage("Loading leaderboard...");
             } else if (!assetsLoaded) {
                 setLoadingMessage("Loading game assets...");
             } else {
                 setLoadingMessage("Starting game...");
-                // Trigger the transition to main menu
                 const timer = setTimeout(onAssetsLoaded, 1000);
                 return () => clearTimeout(timer);
             }
         }
-    }, [isConnected, leaderboardLoaded, assetsLoaded, onAssetsLoaded]);
+    }, [isConnected, playerDataLoaded, leaderboardLoaded, assetsLoaded, onAssetsLoaded]);
 
     return (
         <div className={styles.loadingContainer} style={{ 

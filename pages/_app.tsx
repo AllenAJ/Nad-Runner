@@ -5,6 +5,7 @@ import { createConfig, WagmiConfig } from 'wagmi';
 import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { CHAIN } from '../utils/chains';
 import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
+import '../styles/globals.css'
 
 const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID!;
 

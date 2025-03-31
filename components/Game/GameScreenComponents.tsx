@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import styles from './GameContainer.module.css';
+import { ChatBox } from '../Chat/ChatBox';
 
 // Inventory data with customization options
 const customizationData = {
@@ -156,14 +157,36 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     );
 };
 
-export const MultiplayerScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
+interface MultiplayerScreenProps {
+    onBackToMenu: () => void;
+    walletAddress: string;
+    username: string;
+}
+
+export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({ 
+    onBackToMenu,
+    walletAddress,
+    username
+}) => {
     return (
-        <div className={styles.menuContainer}>
-            <h2>Multiplayer</h2>
-            <p>Challenge your friends! Coming soon.</p>
-            <button onClick={onBackToMenu} className={styles.menuButton}>
-                Back to Menu
-            </button>
+        <div className={styles.screenContainer}>
+            <div className={styles.multiplayerLayout}>
+                <div className={styles.header}>
+                    <h2>Multiplayer Lobby</h2>
+                    <button 
+                        onClick={onBackToMenu} 
+                        className={styles.backButton}
+                    >
+                        Back to Menu
+                    </button>
+                </div>
+                
+                <ChatBox 
+                    walletAddress={walletAddress}
+                    username={username}
+                    onBackToMenu={onBackToMenu}
+                />
+            </div>
         </div>
     );
 };
