@@ -65,7 +65,7 @@ interface GameState {
 
 // Update image references to use window.Image
 const characterImage = typeof window !== 'undefined' ? new window.Image() : null;
-if (characterImage) characterImage.src = '/assets/molandak.png';
+if (characterImage) characterImage.src = '/assets/mainchar.svg';
 
 const obstacleImages = {
     ground: typeof window !== 'undefined' ? new window.Image() : null,

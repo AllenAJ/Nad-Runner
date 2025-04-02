@@ -73,7 +73,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             width: '100%', 
             height: '100%' 
         }}>
-            <div className={styles.versionLabel}>beta 1.9</div>
 
             {!isConnected ? (
                 // Wallet connection screen (centered and prominent)

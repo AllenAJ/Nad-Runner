@@ -644,8 +644,8 @@ export default function GameContainer() {
                                 <div className={styles.connectingWallet}>
                                     <div className={styles.loadingCharacter}>
                                         <img 
-                                            src="/assets/molandak.png" 
-                                            alt="Molandak loading" 
+                                            src="/assets/mainchar.svg"
+                                            alt="Loading character" 
                                             className={styles.spinningCharacter} 
                                         />
                                     </div>

@@ -106,8 +106,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <div className={styles.characterSection}>
                     <div className={styles.characterWrapper}>
                         <Image 
-                            src="/assets/molandak.png" 
-                            alt="Molandak character" 
+                            src="/assets/mainchar.svg" 
+                            alt="Main character" 
                             width={120}
                             height={120}
                             className={styles.mainMenuCharacter}
@@ -185,12 +185,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         PLAY
                     </button>
                     <button onClick={handleMultiplayerClick} className={styles.menuButton}>
+                        <img src="/assets/multiplayer-icon.svg" alt="" />
                         MULTIPLAYER
                     </button>
                     <button onClick={handleShopClick} className={styles.menuButton}>
+                        <img src="/assets/shop-icon.svg" alt="" />
                         SHOP
                     </button>
                     <button onClick={handleInventoryClick} className={styles.menuButton}>
+                        <img src="/assets/inventory-icon.svg" alt="" />
                         INVENTORY
                     </button>
                 </div>
