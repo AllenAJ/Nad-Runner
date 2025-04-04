@@ -1,26 +1,16 @@
 services:
   - type: web
-    name: monad-run
+    name: monad-run-chat
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install
+    startCommand: ts-node server/websocket.ts
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
         sync: false
-      - key: NEXT_PUBLIC_WEBSOCKET_URL
-        sync: false
-      - key: NEXT_PUBLIC_DEVNET_RPC_URL
-        sync: false
-      - key: NEXT_PUBLIC_MONAD_CHAIN_ID
-        sync: false
-      - key: NEXT_PUBLIC_EXPLORER_URL
-        sync: false
-      - key: NEXT_PUBLIC_CONTRACT_ADDRESS
-        sync: false
-      - key: NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
-        sync: false
+      - key: PORT
+        value: "3001"
 
 databases:
   - name: monad-run-db

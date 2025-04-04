@@ -9,7 +9,7 @@ import { CHAT_CONFIG } from '../config/chat';
 // Load environment variables first with absolute path
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-console.log('WebSocket server DATABASE_URL:', process.env.DATABASE_URL ? 'Found' : 'Not found');
+console.log('WebSocket server starting...');
 
 // Create a dedicated pool for the WebSocket server
 const wsPool = new Pool({
@@ -32,8 +32,9 @@ wsPool.connect((err, client, release) => {
 const httpServer = createServer();
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-        methods: ["GET", "POST"]
+        origin: process.env.NEXT_PUBLIC_APP_URL || "*",
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
@@ -174,7 +175,7 @@ const cleanupJob = new CronJob('0 0 * * *', async () => {
 
 cleanupJob.start();
 
-const PORT = process.env.WEBSOCKET_PORT || 3001;
+const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
     console.log(`WebSocket server running on port ${PORT}`);
 });
