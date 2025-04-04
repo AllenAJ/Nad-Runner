@@ -13,6 +13,7 @@ export async function initializeDatabase() {
     try {
         await createScoresTable();
         await createPlayerProfilesTable();
+        await normalizeWalletAddresses();
         console.log('All database tables initialized successfully');
     } catch (error) {
         console.error('Error initializing database tables:', error);
@@ -63,7 +64,7 @@ export async function saveScore(name: string, score: number, walletAddress?: str
             `INSERT INTO scores (name, score, wallet_address)
              VALUES ($1, $2, $3)
              RETURNING *;`,
-            [name, score, walletAddress]
+            [name, score, walletAddress?.toLowerCase()]
         );
         return result.rows[0];
     } catch (error) {
@@ -228,7 +229,7 @@ export async function updatePlayerStats(
                  high_score_box_jumps = GREATEST(high_score_box_jumps, $3),
                  rounds = rounds + 1,
                  updated_at = CURRENT_TIMESTAMP
-             WHERE wallet_address = $1
+             WHERE wallet_address = LOWER($1)
              RETURNING *;`,
             [walletAddress, score, boxJumpsThisRound]
         );
@@ -260,7 +261,7 @@ export async function getPlayerData(walletAddress: string) {
                 u.username
             FROM player_profiles p
             JOIN users u ON p.wallet_address = u.wallet_address
-            WHERE p.wallet_address = $1
+            WHERE p.wallet_address = LOWER($1)
         `, [walletAddress]);
 
         return result.rows[0];
@@ -281,19 +282,62 @@ export async function updatePlayerGameStats(
     const client = await pool.connect();
     try {
         const result = await client.query(`
-            UPDATE player_profiles 
-            SET high_score = GREATEST(high_score, $2),
-                box_jumps = box_jumps + $3,
-                high_score_box_jumps = GREATEST(high_score_box_jumps, $3),
-                rounds = rounds + 1,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE wallet_address = $1
-            RETURNING *;
+            WITH updated_stats AS (
+                UPDATE player_profiles 
+                SET high_score = GREATEST(high_score, $2),
+                    box_jumps = box_jumps + $3,
+                    high_score_box_jumps = GREATEST(high_score_box_jumps, $3),
+                    rounds = rounds + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE wallet_address = LOWER($1)
+                RETURNING *
+            )
+            SELECT 
+                p.*,
+                u.username
+            FROM updated_stats p
+            JOIN users u ON p.wallet_address = u.wallet_address;
         `, [walletAddress, score, boxJumpsThisRound]);
         
         return result.rows[0];
     } catch (error) {
         console.error('Error updating player stats:', error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+// Add this function to normalize existing wallet addresses
+export async function normalizeWalletAddresses() {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Update scores table
+        await client.query(`
+            UPDATE scores 
+            SET wallet_address = LOWER(wallet_address) 
+            WHERE wallet_address IS NOT NULL;
+        `);
+
+        // Update player_profiles table
+        await client.query(`
+            UPDATE player_profiles 
+            SET wallet_address = LOWER(wallet_address);
+        `);
+
+        // Update users table
+        await client.query(`
+            UPDATE users 
+            SET wallet_address = LOWER(wallet_address);
+        `);
+
+        await client.query('COMMIT');
+        console.log('Successfully normalized wallet addresses');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error normalizing wallet addresses:', error);
         throw error;
     } finally {
         client.release();

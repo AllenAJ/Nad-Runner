@@ -25,12 +25,15 @@ export default async function handler(
             return res.status(400).json({ error: validationError });
         }
 
+        // Convert wallet address to lowercase
+        const normalizedWalletAddress = walletAddress.toLowerCase();
+
         const result = await withTransaction(pool, async (client) => {
             // Create user
             await client.query(
                 `INSERT INTO ${DATABASE_TABLES.USERS} (wallet_address, username) 
                  VALUES ($1, $2)`,
-                [walletAddress, username]
+                [normalizedWalletAddress, username]
             );
 
             // Create profile
@@ -44,12 +47,12 @@ export default async function handler(
                     prestige,
                     status
                 ) VALUES ($1, 1, 0, 0, $2, 0, 'Newbie')`,
-                [walletAddress, GAME_CONSTANTS.DEFAULT_XP_TO_NEXT_LEVEL]
+                [normalizedWalletAddress, GAME_CONSTANTS.DEFAULT_XP_TO_NEXT_LEVEL]
             );
 
             return {
                 username,
-                walletAddress,
+                walletAddress: normalizedWalletAddress,
                 level: 1,
                 coins: 0,
                 xp: 0,

@@ -31,17 +31,25 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                 try {
                     setLoadingMessage("Loading player data...");
                     const response = await fetch(`/api/user/data?walletAddress=${walletAddress}`);
-                    if (!response.ok) {
+                    if (response.status === 404) {
+                        // User doesn't exist yet, this is expected for new users
+                        setLoadingMessage("Welcome! Please create a username to continue.");
+                        if (onPlayerDataLoaded) {
+                            onPlayerDataLoaded(null);
+                        }
+                        setPlayerDataLoaded(true);
+                    } else if (!response.ok) {
                         throw new Error('Failed to fetch player data');
+                    } else {
+                        const data = await response.json();
+                        if (onPlayerDataLoaded) {
+                            onPlayerDataLoaded(data);
+                        }
+                        setPlayerDataLoaded(true);
                     }
-                    const data = await response.json();
-                    if (onPlayerDataLoaded) {
-                        onPlayerDataLoaded(data);
-                    }
-                    setPlayerDataLoaded(true);
                 } catch (error) {
                     console.error('Error loading player data:', error);
-                    setLoadingMessage("Error loading player data");
+                    setLoadingMessage("Error loading player data. Please try again.");
                 }
             }
         }
@@ -66,13 +74,14 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
     }, [isConnected, playerDataLoaded, leaderboardLoaded, assetsLoaded, onAssetsLoaded]);
 
     return (
-        <div className={styles.loadingContainer} style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            width: '100%', 
-            height: '100%' 
-        }}>
+        <div className={styles.loadingScreenContainer}>
+            <div className={styles.loadingBackground}>
+                <img 
+                    src="/assets/loading.svg" 
+                    alt="Loading background" 
+                    className={styles.loadingBackgroundImage}
+                />
+            </div>
 
             {!isConnected ? (
                 // Wallet connection screen (centered and prominent)

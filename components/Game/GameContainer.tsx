@@ -103,6 +103,9 @@ export default function GameContainer() {
     // Add zoom check state
     const [isZoom100, setIsZoom100] = useState(true);
 
+    // Add isUpdatingStats flag
+    const [isUpdatingStats, setIsUpdatingStats] = useState(false);
+
     // Initialize the game
     useEffect(() => {
         const handleResize = () => {
@@ -354,8 +357,9 @@ export default function GameContainer() {
         setIsGameOver(true);
         setGameEndTime(Date.now() / 1000);
 
-        if (isConnected && walletAddress) {
+        if (isConnected && walletAddress && !isUpdatingStats) {
             try {
+                setIsUpdatingStats(true);
                 // Update player stats
                 const response = await fetch('/api/user/update-stats', {
                     method: 'POST',
@@ -375,22 +379,34 @@ export default function GameContainer() {
                 const updatedData = await response.json();
                 setPlayerData(updatedData);
 
-                // Submit score to leaderboard using player's username
-                await fetch('/api/scores', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: updatedData.playerStats.username,
-                        score: roundedScore,
-                        walletAddress
-                    }),
-                });
+                // Only submit to leaderboard if we have a valid username
+                if (updatedData.playerStats && updatedData.playerStats.username) {
+                    // Submit score to leaderboard
+                    const leaderboardResponse = await fetch('/api/scores', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: updatedData.playerStats.username,
+                            score: roundedScore,
+                            walletAddress
+                        }),
+                    });
 
-                // Refresh leaderboard
-                const updatedScores = await fetch('/api/scores').then(res => res.json());
-                setLeaderboard(updatedScores);
+                    if (leaderboardResponse.ok) {
+                        // Refresh leaderboard
+                        const updatedScores = await fetch('/api/scores').then(res => res.json());
+                        setLeaderboard(updatedScores);
+                    } else {
+                        const errorData = await leaderboardResponse.json();
+                        console.error('Failed to submit score to leaderboard:', errorData.error);
+                    }
+                } else {
+                    console.error('Cannot submit to leaderboard: No username available');
+                }
             } catch (error) {
                 console.error('Error updating game data:', error);
+            } finally {
+                setIsUpdatingStats(false);
             }
         }
     };
@@ -437,6 +453,7 @@ export default function GameContainer() {
             currentScreen: 'game'
         });
         setIsGameOver(false);
+        setIsUpdatingStats(false); // Reset the flag when starting a new game
     };
 
     // Navigation method
@@ -485,7 +502,22 @@ export default function GameContainer() {
 
     const handleUsernameSubmit = async (username: string) => {
         try {
-            const response = await fetch('/api/user/create', {
+            // First check if user exists
+            const checkResponse = await fetch(`/api/user/check?walletAddress=${walletAddress}`);
+            const checkData = await checkResponse.json();
+            
+            if (checkResponse.ok) {
+                // User exists, set the data and continue
+                setUserData(checkData.user);
+                setPlayerData({
+                    playerStats: checkData.playerStats
+                });
+                setIsNewUser(false);
+                return;
+            }
+
+            // If user doesn't exist, create new user
+            const createResponse = await fetch('/api/user/create', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -496,15 +528,16 @@ export default function GameContainer() {
                 }),
             });
 
-            const data = await response.json();
+            const createData = await createResponse.json();
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create user');
+            if (!createResponse.ok) {
+                throw new Error(createData.error || 'Failed to create user');
             }
 
-            setUserData(data.user);
+            setUserData(createData.user);
             setIsNewUser(false);
         } catch (error) {
+            console.error('Error in handleUsernameSubmit:', error);
             throw error;
         }
     };
@@ -625,7 +658,8 @@ export default function GameContainer() {
                         position: 'relative'
                     }}
                 >
-                    {gameState.currentScreen === 'game' && (
+                    {/* Always show game canvas when in game or game over state */}
+                    {(gameState.currentScreen === 'game' || gameState.currentScreen === 'gameOver') && (
                         <div className={styles.gameWrapper}>
                             <Canvas
                                 width={gameWidth}

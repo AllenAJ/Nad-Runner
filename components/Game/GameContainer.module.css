@@ -17,10 +17,18 @@
 }
 
 .overlayContainer {
-    flex: 1;
-    width: 100%;
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 2;
+    pointer-events: none; /* Allow clicking through to game by default */
+}
+
+/* Make sure interactive elements can be clicked */
+.overlayContainer > * {
+    pointer-events: auto;
 }
 
 .menuContainer {
@@ -67,6 +75,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
 }
 
 .mainMenuCharacter {
@@ -74,6 +83,37 @@
     height: 100%;
     object-fit: contain;
     display: block;
+    animation: float 2s ease-in-out infinite;
+}
+
+.characterShadow {
+    position: absolute;
+    bottom: -10px;
+    width: 80%;
+    height: 20px;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 70%);
+    border-radius: 50%;
+    animation: shadowPulse 2s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes shadowPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.2;
+    }
+    50% {
+        transform: scale(0.8);
+        opacity: 0.1;
+    }
 }
 
 /* Middle Column - Buttons */
@@ -1348,4 +1388,107 @@
     margin-top: 16px;
     font-weight: 500;
     color: #6366F1;
+}
+
+/* Style the game over screen to be an overlay */
+.gameOverScreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3;
+}
+
+/* Remove the explosion sprite related styles and add particle styles */
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes explode {
+    0% {
+        transform: scale(0.3);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: fadeOut 0.5s ease-out forwards;
+}
+
+.explosion {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #FFD700, #FFA500, #FF4500);
+    animation: explode 0.3s ease-out forwards;
+    pointer-events: none;
+}
+
+.loadingScreenContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.loadingBackground {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.loadingBackgroundImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.loadingContainer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+}
+
+.walletConnectionContainer {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
 }

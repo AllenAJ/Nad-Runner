@@ -61,6 +61,52 @@ interface GameState {
     boxJumps: number;
     lastBoxJumpTime: number;
     lastObstacleType?: 'ground' | 'air' | 'box' | 'box2' | 'box3';
+    explosions: Array<{
+        x: number;
+        y: number;
+        frame: number;
+        createdAt: number;
+    }>;
+    particles: Array<{
+        x: number;
+        y: number;
+        vx: number;
+        vy: number;
+        rotation: number;
+        rotationSpeed: number;
+        size: number;
+        color: string;
+        opacity: number;
+        fadeSpeed?: number;
+    }>;
+    screenShake: {
+        intensity: number;
+        duration: number;
+        startTime: number;
+    };
+    deathAnimation: {
+        active: boolean;
+        characterPos: { x: number; y: number };
+        characterVel: { x: number; y: number };
+        characterRotation: number;
+        characterRotationSpeed: number;
+        characterOpacity: number;
+        trail: Array<{
+            x: number;
+            y: number;
+            rotation: number;
+            opacity: number;
+        }>;
+        stars: Array<{
+            x: number;
+            y: number;
+            rotation: number;
+            size: number;
+            opacity: number;
+        }>;
+        complete: boolean;
+    };
+    isColliding: boolean;
 }
 
 // Update image references to use window.Image
@@ -120,6 +166,25 @@ const INITIAL_STATE: GameState = {
     boxJumps: 0,
     lastBoxJumpTime: 0,
     lastObstacleType: undefined,
+    explosions: [],
+    particles: [],
+    screenShake: {
+        intensity: 0,
+        duration: 0,
+        startTime: 0
+    },
+    deathAnimation: {
+        active: false,
+        characterPos: { x: 0, y: 0 },
+        characterVel: { x: 0, y: 0 },
+        characterRotation: 0,
+        characterRotationSpeed: 0,
+        characterOpacity: 1,
+        trail: [],
+        stars: [],
+        complete: false
+    },
+    isColliding: false
 };
 
 const PLAYER_SIZE = 50;
@@ -153,6 +218,10 @@ const BOX_TYPES = {
     PASSABLE: 'box2' as ObstacleType,
     FLOATING: 'box3' as ObstacleType
 };
+
+// Load explosion sprite
+const explosionImage = typeof window !== 'undefined' ? new window.Image() : null;
+if (explosionImage) explosionImage.src = '/assets/explosion.png';
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -209,6 +278,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             scale: isMobile ? MOBILE_SCALE : 1,
             boxJumps: 0,
             lastBoxJumpTime: 0,
+            isColliding: false
         };
     };
 
@@ -347,7 +417,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             });
                         } else if (playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
                             // Collision with any part of the box except landing zone
-                            onGameOver(state.score, state.boxJumps);
+                            handleCollision(obstacle.x, obstacle.y);
                             return;
                         }
                     }
@@ -395,7 +465,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         } else if ((playerHitbox.y < topSection && playerHitbox.y + playerHitbox.height > sectionHeight) || 
                                   (playerHitbox.y < obstacle.y + obstacle.height && playerHitbox.y + playerHitbox.height > bottomSection)) {
                             // Collision with solid parts (top or bottom section)
-                            onGameOver(state.score, state.boxJumps);
+                            handleCollision(obstacle.x, obstacle.y);
                             return;
                         }
                         // Middle section is passable - no collision check needed
@@ -434,13 +504,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         } else if (playerHitbox.y < boxTop + obstacle.height &&
                                   playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
                             // Collision with sides or bottom of the box
-                            onGameOver(state.score, state.boxJumps);
+                            handleCollision(obstacle.x, obstacle.y);
                             return;
                         }
                     }
                 } else if (checkCollision(playerHitbox, obstacle)) {
                     // Normal collision with other obstacles
-                    onGameOver(state.score, state.boxJumps);
+                    handleCollision(obstacle.x, obstacle.y);
                     return;
                 }
             }
@@ -605,48 +675,133 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
 
+        // Calculate screen shake offset
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+        
+        if (state.screenShake.duration > 0) {
+            const elapsed = Date.now() - state.screenShake.startTime;
+            const progress = elapsed / state.screenShake.duration;
+            
+            if (progress < 1) {
+                const decreasing = state.screenShake.intensity * (1 - progress);
+                shakeOffsetX = (Math.random() - 0.5) * 2 * decreasing;
+                shakeOffsetY = (Math.random() - 0.5) * 2 * decreasing;
+            }
+        }
+
+        // Apply screen shake
+        ctx.save();
+        ctx.translate(shakeOffsetX, shakeOffsetY);
+
         // Clear canvas
         ctx.fillStyle = '#87CEEB';
         ctx.fillRect(0, 0, width, height);
 
-        // Draw ground
-        ctx.fillStyle = '#8B4513';
+        // Draw cartoon-style ground
+        ctx.save();
+
+        // Create main ground gradient with more vibrant colors
+        const groundGradient = ctx.createLinearGradient(0, height - groundHeight, 0, height);
+        groundGradient.addColorStop(0, '#9B6647');    // Lighter warm brown at top
+        groundGradient.addColorStop(0.4, '#7D4B32');  // Mid warm brown
+        groundGradient.addColorStop(1, '#5C3522');    // Dark warm brown at bottom
+
+        ctx.fillStyle = groundGradient;
         ctx.fillRect(0, height - groundHeight, width, groundHeight);
 
-        // Draw player with sprite and invincibility timer
-        ctx.save();
-        ctx.translate(PLAYER_START_X + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
-        ctx.rotate(state.rotation);
-
-        // Add glow effect when invincible
-        if (state.powerupEffects.invincible) {
-            ctx.shadowColor = '#6c5ce7';
-            ctx.shadowBlur = 20;
-            ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 100) * 0.2;
+        // Add playful wavy pattern on top
+        ctx.beginPath();
+        ctx.moveTo(0, height - groundHeight);
+        for (let x = 0; x <= width; x += 60) {
+            const waveHeight = 2;
+            const y = height - groundHeight + Math.sin(x * 0.05) * waveHeight;
+            ctx.lineTo(x, y);
         }
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.fillStyle = '#8B5E3C';
+        ctx.fill();
 
-        if (characterImage && characterImage.complete) {
-            ctx.drawImage(
-                characterImage,
-                -PLAYER_SIZE / 2,
-                -PLAYER_SIZE / 2,
-                PLAYER_SIZE,
-                PLAYER_SIZE
-            );
-
-            // Draw invincibility timer if active
-            if (state.invincibilityEndTime) {
-                const timeLeft = Math.max(0, Math.ceil((state.invincibilityEndTime - Date.now()) / 1000));
-                ctx.save();
-                ctx.rotate(-state.rotation); // Counter-rotate to keep text upright
-                ctx.font = 'bold 16px Arial';
-                ctx.fillStyle = '#6c5ce7';
-                ctx.textAlign = 'center';
-                ctx.fillText(timeLeft.toString(), 0, -PLAYER_SIZE / 2 - 5);
-                ctx.restore();
+        // Add cartoon-style dots/spots pattern with reduced density
+        ctx.fillStyle = 'rgba(123, 63, 0, 0.15)';
+        for (let x = 0; x < width; x += 40) {
+            for (let y = height - groundHeight + 10; y < height; y += 40) {
+                const spotSize = 3 + Math.random() * 3;
+                const randomOffset = Math.random() * 5;
+                ctx.beginPath();
+                ctx.arc(x + randomOffset, y + randomOffset, spotSize, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
+
+        // Add grass tufts with reduced density
+        for (let x = 0; x < width; x += 25) {
+            const grassHeight = 3 + Math.random() * 4;
+            const grassWidth = 2;
+            
+            // Draw each tuft as a small triangle
+            ctx.beginPath();
+            ctx.moveTo(x, height - groundHeight);
+            ctx.lineTo(x + grassWidth, height - groundHeight - grassHeight);
+            ctx.lineTo(x + grassWidth * 2, height - groundHeight);
+            ctx.closePath();
+            
+            // Random grass colors with reduced contrast
+            ctx.fillStyle = Math.random() > 0.5 ? '#3A7734' : '#2D5A27';
+            ctx.fill();
+        }
+
+        // Add highlight line with reduced frequency
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, height - groundHeight + 2);
+        for (let x = 0; x <= width; x += 80) {
+            const y = height - groundHeight + 2 + Math.sin(x * 0.03) * 1.5;
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
         ctx.restore();
+
+        // Draw player only if not in death animation
+        if (!state.deathAnimation.active) {
+            ctx.save();
+            ctx.translate(PLAYER_START_X + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
+            ctx.rotate(state.rotation);
+
+            // Add glow effect when invincible
+            if (state.powerupEffects.invincible) {
+                ctx.shadowColor = '#6c5ce7';
+                ctx.shadowBlur = 20;
+                ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 100) * 0.2;
+            }
+
+            if (characterImage && characterImage.complete) {
+                ctx.drawImage(
+                    characterImage,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+
+                // Draw invincibility timer if active
+                if (state.invincibilityEndTime) {
+                    const timeLeft = Math.max(0, Math.ceil((state.invincibilityEndTime - Date.now()) / 1000));
+                    ctx.save();
+                    ctx.rotate(-state.rotation);
+                    ctx.font = 'bold 16px Arial';
+                    ctx.fillStyle = '#6c5ce7';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(timeLeft.toString(), 0, -PLAYER_SIZE / 2 - 5);
+                    ctx.restore();
+                }
+            }
+            ctx.restore();
+        }
 
         // Draw obstacles with sprites
         state.obstacles.forEach(obstacle => {
@@ -726,6 +881,150 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             ctx.fillText(text.text, text.x + POWERUP_SIZE / 2, text.y);
             ctx.restore();
         });
+
+        // Draw explosions
+        state.explosions = state.explosions.filter(explosion => {
+            const frameSize = 64; // Size of each frame in the sprite sheet
+            const totalFrames = 8; // Total number of frames
+            const frameDuration = 50; // Duration of each frame in ms
+            const currentFrame = Math.floor((Date.now() - explosion.createdAt) / frameDuration);
+
+            if (currentFrame >= totalFrames) return false;
+
+            if (explosionImage && explosionImage.complete) {
+                ctx.drawImage(
+                    explosionImage,
+                    currentFrame * frameSize, 0, frameSize, frameSize,
+                    explosion.x - frameSize/2, explosion.y - frameSize/2, frameSize, frameSize
+                );
+            }
+            return true;
+        });
+
+        // Draw death animation if active
+        if (state.deathAnimation.active) {
+            // Update character position with more dramatic physics
+            state.deathAnimation.characterPos.x += state.deathAnimation.characterVel.x;
+            state.deathAnimation.characterPos.y += state.deathAnimation.characterVel.y;
+            state.deathAnimation.characterVel.y += 0.7; // Stronger gravity
+            state.deathAnimation.characterRotation += state.deathAnimation.characterRotationSpeed;
+            
+            // Add trail positions
+            state.deathAnimation.trail.unshift({
+                x: state.deathAnimation.characterPos.x,
+                y: state.deathAnimation.characterPos.y,
+                rotation: state.deathAnimation.characterRotation,
+                opacity: 0.8
+            });
+
+            // Limit trail length
+            if (state.deathAnimation.trail.length > 10) {
+                state.deathAnimation.trail.pop();
+            }
+
+            // Add spinning stars occasionally
+            if (Math.random() < 0.2) {
+                state.deathAnimation.stars.push({
+                    x: state.deathAnimation.characterPos.x + (Math.random() - 0.5) * 30,
+                    y: state.deathAnimation.characterPos.y + (Math.random() - 0.5) * 30,
+                    rotation: Math.random() * Math.PI * 2,
+                    size: 15 + Math.random() * 10,
+                    opacity: 1
+                });
+            }
+
+            // Draw trail
+            state.deathAnimation.trail.forEach((pos, index) => {
+                const opacity = pos.opacity * (1 - index / state.deathAnimation.trail.length);
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.translate(pos.x + PLAYER_SIZE / 2, pos.y + PLAYER_SIZE / 2);
+                ctx.rotate(pos.rotation);
+                
+                if (characterImage && characterImage.complete) {
+                    ctx.drawImage(
+                        characterImage,
+                        -PLAYER_SIZE / 2,
+                        -PLAYER_SIZE / 2,
+                        PLAYER_SIZE,
+                        PLAYER_SIZE
+                    );
+                }
+                ctx.restore();
+            });
+
+            // Update and draw stars
+            state.deathAnimation.stars = state.deathAnimation.stars.filter(star => {
+                star.rotation += 0.2;
+                star.opacity -= 0.05;
+                
+                if (star.opacity <= 0) return false;
+
+                ctx.save();
+                ctx.globalAlpha = star.opacity;
+                ctx.translate(star.x, star.y);
+                ctx.rotate(star.rotation);
+                
+                // Draw cartoon star
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 4 * Math.PI) / 5;
+                    const x = Math.cos(angle) * star.size;
+                    const y = Math.sin(angle) * star.size;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fillStyle = '#FFD700';
+                ctx.fill();
+                ctx.restore();
+
+                return true;
+            });
+
+            // Draw main character
+            ctx.save();
+            ctx.globalAlpha = state.deathAnimation.characterOpacity;
+            ctx.translate(
+                state.deathAnimation.characterPos.x + PLAYER_SIZE / 2,
+                state.deathAnimation.characterPos.y + PLAYER_SIZE / 2
+            );
+            ctx.rotate(state.deathAnimation.characterRotation);
+
+            if (characterImage && characterImage.complete) {
+                ctx.drawImage(
+                    characterImage,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+            }
+            ctx.restore();
+        }
+
+        // Update particle fade out with variable speeds
+        state.particles = state.particles.filter(particle => {
+            if (particle.opacity <= 0) return false;
+
+            ctx.save();
+            ctx.globalAlpha = particle.opacity;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size / 2, 0, Math.PI * 2);
+            ctx.fillStyle = particle.color;
+            ctx.fill();
+            ctx.restore();
+
+            // Update particle
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.05;
+            particle.opacity -= particle.fadeSpeed || 0.01;
+            particle.size += 0.2;
+
+            return true;
+        });
+
+        ctx.restore();
     };
 
     const gameLoop = (currentTime: number) => {
@@ -793,6 +1092,150 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             window.removeEventListener('touchstart', handleJump);
         };
     }, [isPlaying]);
+
+    const handleCollision = (x: number, y: number) => {
+        const state = gameStateRef.current;
+        
+        // Prevent multiple collisions during death animation
+        if (state.isColliding || state.deathAnimation.active) {
+            return;
+        }
+        
+        state.isColliding = true;
+        
+        // Start death animation with faster spinning
+        state.deathAnimation = {
+            active: true,
+            characterPos: { x: PLAYER_START_X, y: state.playerY },
+            characterVel: { 
+                x: 15 + Math.random() * 8,
+                y: -20 - Math.random() * 5
+            },
+            characterRotation: 0,
+            characterRotationSpeed: Math.PI * 4,
+            characterOpacity: 1,
+            trail: [],
+            stars: [],
+            complete: false
+        };
+
+        // Add more dramatic screen shake
+        state.screenShake = {
+            intensity: 30, // Increased shake intensity
+            duration: 500,
+            startTime: Date.now()
+        };
+
+        // Create main cloud puffs
+        const puffCount = 15; // Increased puff count
+        const baseSize = 35; // Slightly larger base size
+        
+        // Create central explosion first
+        state.particles.push({
+            x,
+            y,
+            vx: 0,
+            vy: -1,
+            rotation: 0,
+            rotationSpeed: 0,
+            size: baseSize * 1.5,
+            color: '#FFFFFF',
+            opacity: 1
+        });
+
+        // Create cloud formation
+        for (let i = 0; i < puffCount; i++) {
+            const angle = (Math.PI * 2 * i) / puffCount;
+            const radius = 25; // Slightly larger radius
+            const puffX = x + Math.cos(angle) * radius;
+            const puffY = y + Math.sin(angle) * radius;
+            
+            // Main puffs
+            state.particles.push({
+                x: puffX,
+                y: puffY,
+                vx: Math.cos(angle) * 1.5,
+                vy: Math.sin(angle) * 1.5 - 1.5,
+                rotation: 0,
+                rotationSpeed: 0,
+                size: baseSize + Math.random() * 15,
+                color: '#FFFFFF',
+                opacity: 0.9
+            });
+
+            // Detail puffs
+            if (Math.random() > 0.3) { // Increased chance for detail puffs
+                state.particles.push({
+                    x: puffX + (Math.random() - 0.5) * 20,
+                    y: puffY + (Math.random() - 0.5) * 20,
+                    vx: Math.cos(angle) * 0.7,
+                    vy: Math.sin(angle) * 0.7 - 0.7,
+                    rotation: 0,
+                    rotationSpeed: 0,
+                    size: baseSize * 0.5,
+                    color: '#FFFFFF',
+                    opacity: 0.8
+                });
+            }
+        }
+
+        // Add orange/yellow/red glow rings
+        const glowColors = ['#FF4500', '#FFA500', '#FFD700'];
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            const radius = 30 + Math.random() * 20;
+            state.particles.push({
+                x: x + Math.cos(angle) * radius * 0.5,
+                y: y + Math.sin(angle) * radius * 0.5,
+                vx: Math.cos(angle) * 1,
+                vy: Math.sin(angle) * 1,
+                rotation: 0,
+                rotationSpeed: 0,
+                size: baseSize * (1.5 + Math.random()),
+                color: glowColors[Math.floor(Math.random() * glowColors.length)],
+                opacity: 0.4
+            });
+        }
+
+        // Add sparks
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 4;
+            state.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                rotation: angle,
+                rotationSpeed: Math.random() * 0.5,
+                size: 3 + Math.random() * 3,
+                color: '#FFD700',
+                opacity: 1
+            });
+        }
+
+        // Add debris particles
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 3;
+            state.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1,
+                rotation: angle,
+                rotationSpeed: Math.random() * 0.2,
+                size: 5 + Math.random() * 5,
+                color: '#8B4513', // Brown debris
+                opacity: 0.8
+            });
+        }
+
+        // Show game over screen after 1.6 seconds
+        setTimeout(() => {
+            onGameOver(state.score, state.boxJumps);
+        }, 1600);
+    };
 
     return (
         <canvas
