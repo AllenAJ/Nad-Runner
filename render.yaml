@@ -2,8 +2,8 @@ services:
   - type: web
     name: monad-run-chat
     env: node
-    buildCommand: npm install
-    startCommand: ts-node server/websocket.ts
+    buildCommand: npm install --production=false && npm install typescript ts-node --save
+    startCommand: npx ts-node server/websocket.ts
     envVars:
       - key: NODE_ENV
         value: production
