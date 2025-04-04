@@ -536,6 +536,21 @@ export default function GameContainer() {
             }
 
             setUserData(createData.user);
+            // Set player data for new user
+            setPlayerData({
+                playerStats: {
+                    highScore: 0,
+                    boxJumps: 0,
+                    highScoreBoxJumps: 0,
+                    coins: 0,
+                    rounds: 0,
+                    level: 1,
+                    xp: 0,
+                    xpToNextLevel: 150,
+                    status: 'Newbie',
+                    username: username
+                }
+            });
             setIsNewUser(false);
         } catch (error) {
             console.error('Error in handleUsernameSubmit:', error);
@@ -703,13 +718,6 @@ export default function GameContainer() {
                     </div>
                 </div>
             )}
-
-            {/* Add the advertisement container */}
-            <div className={styles.adContainer}>
-                Advertisement Space
-                <br />
-                (728x90 or 300x250)
-            </div>
         </>
     );
 }

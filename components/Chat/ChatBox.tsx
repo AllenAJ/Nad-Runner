@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import styles from './ChatBox.module.css';
 
 interface ChatMessage {
-    id: number;
+    id: number | string;  // Allow both number and string IDs
     sender_address: string;
     sender_name: string;
     message: string;
@@ -25,12 +25,26 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
     const [hasMore, setHasMore] = useState(true);
     const socketRef = useRef<Socket>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const messageQueue = useRef<ChatMessage[]>([]);
-    const batchTimeout = useRef<NodeJS.Timeout>();
+
+    // Auto scroll to bottom
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Load initial messages
+    useEffect(() => {
+        fetchMessages(1);
+    }, []);
 
     // Initialize socket connection with reconnection logic
     useEffect(() => {
         const initializeSocket = () => {
+            console.log('Initializing socket connection to:', process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3001');
+            
             socketRef.current = io(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3001', {
                 reconnection: true,
                 reconnectionAttempts: 5,
@@ -60,9 +74,6 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         initializeSocket();
         return () => {
             socketRef.current?.disconnect();
-            if (batchTimeout.current) {
-                clearTimeout(batchTimeout.current);
-            }
         };
     }, [walletAddress, username]);
 
@@ -70,25 +81,21 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         if (!socketRef.current) return;
 
         socketRef.current.on('message', (message: ChatMessage) => {
-            messageQueue.current.push(message);
-            
-            // Batch message updates
-            if (!batchTimeout.current) {
-                batchTimeout.current = setTimeout(() => {
-                    setMessages(prev => [...prev, ...messageQueue.current]);
-                    messageQueue.current = [];
-                    batchTimeout.current = undefined;
-                }, 100);
+            console.log('Received message:', message);
+            // Only add the message if it's not from us (we've already added our messages optimistically)
+            if (message.sender_address.toLowerCase() !== walletAddress.toLowerCase()) {
+                setMessages(prev => [...prev, message]);
+                scrollToBottom();
             }
         });
 
         socketRef.current.on('onlineUsers', (users: string[]) => {
+            console.log('Online users updated:', users);
             setOnlineUsers(users);
         });
 
         socketRef.current.on('error', (error: string) => {
             console.error('Socket error:', error);
-            // Show error using a toast notification system instead of alert
         });
     };
 
@@ -98,13 +105,15 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
 
         try {
             setIsLoading(true);
+            console.log('Fetching messages for page:', pageNum);
             const response = await fetch(`/api/chat/messages?page=${pageNum}&limit=50`);
             const data = await response.json();
             
-            if (data.messages.length < 50) {
+            if (!data.hasMore) {
                 setHasMore(false);
             }
 
+            console.log('Received messages:', data.messages);
             setMessages(prev => 
                 pageNum === 1 ? data.messages : [...prev, ...data.messages]
             );
@@ -124,19 +133,42 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         }
     };
 
-    // Implement debounced message sending
+    // Add this helper function after the component declaration
+    const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Replace the sendMessage function
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
+        // Create optimistic message
+        const tempMessage: ChatMessage = {
+            id: generateTempId(),
+            sender_address: walletAddress.toLowerCase(),
+            sender_name: username,
+            message: newMessage,
+            created_at: new Date().toISOString()
+        };
+
+        // Add message to local state immediately
+        setMessages(prev => [...prev, tempMessage]);
+
+        // Clear input
+        setNewMessage('');
+
+        // Emit to server
+        console.log('Sending message:', {
+            walletAddress: walletAddress.toLowerCase(),
+            username,
+            message: newMessage
+        });
+
         socketRef.current?.emit('message', {
-            walletAddress,
+            walletAddress: walletAddress.toLowerCase(),
             username,
             message: newMessage,
             timestamp: new Date().toISOString(),
         });
-
-        setNewMessage('');
     };
 
     // Add new function to fetch archived messages
@@ -185,7 +217,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
                         <div 
                             key={msg.id} 
                             className={`${styles.message} ${
-                                msg.sender_address === walletAddress ? styles.ownMessage : ''
+                                msg.sender_address.toLowerCase() === walletAddress.toLowerCase() ? styles.ownMessage : ''
                             }`}
                         >
                             <span className={styles.sender}>{msg.sender_name}</span>

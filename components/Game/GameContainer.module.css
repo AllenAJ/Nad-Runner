@@ -579,9 +579,9 @@
 }
 
 .spinningCharacter {
-    width: 50px;
-    height: 50px;
-    animation: spin 1.5s linear infinite;
+    width: 100px;
+    height: 100px;
+    animation: spin 2s linear infinite;
 }
 
 @keyframes spin {
@@ -1368,7 +1368,6 @@
 .screenContainer {
     min-height: 100vh;
     width: 100%;
-    padding: 20px;
     background: transparent;
 }
 
@@ -1413,30 +1412,11 @@
 
 /* Update canvas styles */
 .canvas {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1;
-    max-width: 100%;
-    max-height: calc(100vh - 40px);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Add this new style */
-.adContainer {
-    width: 100%;
-    min-height: 250px;
-    background: white;
-    margin-top: 32px;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    color: #6B7280;
 }
 
 /* Add these styles */

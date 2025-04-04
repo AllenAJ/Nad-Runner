@@ -53,6 +53,12 @@
     max-width: 80%;
     align-self: flex-start;
     word-wrap: break-word;
+    position: relative;
+    margin: 8px 0;
+}
+
+.message p {
+    margin: 4px 0;
 }
 
 .ownMessage {
@@ -68,11 +74,21 @@
     display: block;
 }
 
+.ownMessage .sender {
+    text-align: right;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 .timestamp {
     font-size: 0.7em;
     opacity: 0.7;
     margin-top: 4px;
     display: block;
+}
+
+.ownMessage .timestamp {
+    text-align: right;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .messageForm {
