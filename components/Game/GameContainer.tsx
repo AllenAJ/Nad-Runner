@@ -121,14 +121,6 @@ export default function GameContainer() {
         // Check if wallet is already connected
         checkWalletConnection();
 
-        // Set up loading animation
-        const progressInterval = setInterval(() => {
-            setLoadingProgress(prev => {
-                const newProgress = prev + 5;
-                return newProgress > 100 ? 0 : newProgress;
-            });
-        }, 150);
-
         // Setup wallet change listeners
         if (typeof window !== 'undefined' && window.ethereum) {
             window.ethereum.on('accountsChanged', handleAccountsChanged);
@@ -138,7 +130,6 @@ export default function GameContainer() {
         // Cleanup
         return () => {
             window.removeEventListener('resize', handleResize);
-            clearInterval(progressInterval);
             
             if (window.ethereum) {
                 window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -205,14 +196,22 @@ export default function GameContainer() {
     // Load game data (leaderboard and assets)
     const loadGameData = async () => {
         try {
-            // Load leaderboard
-            const leaderboardData = await loadLeaderboard();
+            setLoadingProgress(0);
+            
+            // Start loading both leaderboard and assets in parallel
+            const [leaderboardData] = await Promise.all([
+                loadLeaderboard(),
+                preloadGameAssets((progress) => {
+                    // Asset loading is 80% of total progress, leaderboard is 20%
+                    setLoadingProgress(20 + (progress * 0.8));
+                })
+            ]);
+
+            // Update states
             setLeaderboard(leaderboardData);
             setLeaderboardLoaded(true);
-            
-            // Preload game assets
-            await preloadGameAssets();
             setAssetsLoaded(true);
+            setLoadingProgress(100);
             
             // Only transition to menu if user is still in loading state
             if (gameState.currentScreen === 'loading') {
@@ -485,7 +484,8 @@ export default function GameContainer() {
 
     const checkUserExists = async () => {
         try {
-            const response = await fetch(`/api/user/check?walletAddress=${walletAddress}`);
+            const normalizedWalletAddress = walletAddress.toLowerCase();
+            const response = await fetch(`/api/user/check?walletAddress=${normalizedWalletAddress}`);
             const data = await response.json();
             
             if (response.ok) {
@@ -502,8 +502,9 @@ export default function GameContainer() {
 
     const handleUsernameSubmit = async (username: string) => {
         try {
+            const normalizedWalletAddress = walletAddress.toLowerCase();
             // First check if user exists
-            const checkResponse = await fetch(`/api/user/check?walletAddress=${walletAddress}`);
+            const checkResponse = await fetch(`/api/user/check?walletAddress=${normalizedWalletAddress}`);
             const checkData = await checkResponse.json();
             
             if (checkResponse.ok) {
@@ -523,7 +524,7 @@ export default function GameContainer() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    walletAddress,
+                    walletAddress: normalizedWalletAddress,
                     username,
                 }),
             });

@@ -7,17 +7,36 @@ export function preloadImage(src: string): Promise<HTMLImageElement> {
     });
 }
 
-export async function preloadGameAssets() {
+export async function preloadGameAssets(onProgress?: (progress: number) => void) {
     const gameAssets = [
         '/assets/molandak.png',
         '/assets/chog.png', 
         '/assets/mouch.png', 
-        '/assets/moyaki.png'
+        '/assets/moyaki.png',
+        '/assets/mainchar.svg',
+        '/assets/box.png',
+        '/assets/box2.png',
+        '/assets/box3.png',
+        '/assets/explosion.png',
+        '/assets/loading.svg',
+        '/assets/welcome.gif',
+        '/assets/juggle.gif'
     ];
+
+    let loadedCount = 0;
+    const totalAssets = gameAssets.length;
 
     try {
         const loadedAssets = await Promise.all(
-            gameAssets.map(src => preloadImage(src))
+            gameAssets.map(src => 
+                preloadImage(src).then(img => {
+                    loadedCount++;
+                    if (onProgress) {
+                        onProgress((loadedCount / totalAssets) * 100);
+                    }
+                    return img;
+                })
+            )
         );
         return loadedAssets;
     } catch (error) {
