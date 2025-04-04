@@ -20,9 +20,6 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
     const socketRef = useRef<Socket>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -34,11 +31,6 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
-
-    // Load initial messages
-    useEffect(() => {
-        fetchMessages(1);
-    }, []);
 
     // Initialize socket connection with reconnection logic
     useEffect(() => {
@@ -99,44 +91,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         });
     };
 
-    // Implement infinite scroll
-    const fetchMessages = async (pageNum: number) => {
-        if (isLoading || !hasMore) return;
-
-        try {
-            setIsLoading(true);
-            console.log('Fetching messages for page:', pageNum);
-            const response = await fetch(`/api/chat/messages?page=${pageNum}&limit=50`);
-            const data = await response.json();
-            
-            if (!data.hasMore) {
-                setHasMore(false);
-            }
-
-            console.log('Received messages:', data.messages);
-            setMessages(prev => 
-                pageNum === 1 ? data.messages : [...prev, ...data.messages]
-            );
-            setPage(pageNum);
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Handle scroll for loading more messages
-    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        const { scrollTop } = e.currentTarget;
-        if (scrollTop === 0 && !isLoading && hasMore) {
-            fetchMessages(page + 1);
-        }
-    };
-
     // Add this helper function after the component declaration
     const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Replace the sendMessage function
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
@@ -171,23 +128,6 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         });
     };
 
-    // Add new function to fetch archived messages
-    const fetchArchivedMessages = async (startDate: Date, endDate: Date) => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(
-                `/api/chat/archived-messages?start=${startDate.toISOString()}&end=${endDate.toISOString()}`
-            );
-            const data = await response.json();
-            return data.messages;
-        } catch (error) {
-            console.error('Error fetching archived messages:', error);
-            return [];
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     // Add cleanup on back to menu
     const handleBackToMenu = () => {
         socketRef.current?.disconnect();
@@ -209,10 +149,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
             
             <div className={styles.chatBox}>
                 <div 
-                    className={styles.messages} 
-                    onScroll={handleScroll}
+                    className={styles.messages}
                 >
-                    {isLoading && <div className={styles.loading}>Loading...</div>}
                     {messages.map(msg => (
                         <div 
                             key={msg.id} 
@@ -237,12 +175,12 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Type a message..."
                         className={styles.messageInput}
-                        maxLength={500} // Add message length limit
+                        maxLength={500}
                     />
                     <button 
                         type="submit" 
                         className={styles.sendButton}
-                        disabled={!newMessage.trim()} // Disable if empty
+                        disabled={!newMessage.trim()}
                     >
                         Send
                     </button>

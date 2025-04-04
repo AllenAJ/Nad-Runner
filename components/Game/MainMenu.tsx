@@ -185,15 +185,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         PLAY
                     </button>
                     <button onClick={handleMultiplayerClick} className={styles.menuButton}>
-                        <img src="/assets/multiplayer-icon.svg" alt="" />
+                        {/* <img src="/assets/multiplayer-icon.svg" alt="" /> */}
                         MULTIPLAYER
                     </button>
                     <button onClick={handleShopClick} className={styles.menuButton}>
-                        <img src="/assets/shop-icon.svg" alt="" />
+                        {/* <img src="/assets/shop-icon.svg" alt="" /> */}
                         SHOP
                     </button>
                     <button onClick={handleInventoryClick} className={styles.menuButton}>
-                        <img src="/assets/inventory-icon.svg" alt="" />
+                        {/* <img src="/assets/inventory-icon.svg" alt="" /> */}
                         INVENTORY
                     </button>
                 </div>
