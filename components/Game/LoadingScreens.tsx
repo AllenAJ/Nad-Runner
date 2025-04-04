@@ -112,23 +112,17 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             ) : (
                 // Regular loading screen when wallet is connected
                 <div className={styles.loadingContainer}>
-                    <div className={styles.loadingCharacter}>
-                        <img 
-                            src="/assets/juggle.gif" 
-                            alt="Molandak loading" 
-                            className={styles.loadingCharacter} 
-                        />
-                    </div>
-                    
-                    <div className={styles.loadingBar}>
-                        <div 
-                            className={styles.loadingProgress} 
-                            style={{width: `${loadingProgress}%`}}
-                        ></div>
-                    </div>
-                    
-                    <div className={styles.loadingText}>
-                        {loadingMessage}
+                    <div className={styles.loadingBarContainer}>
+                        <div className={styles.loadingBar}>
+                            <div 
+                                className={styles.loadingProgress} 
+                                style={{width: `${loadingProgress}%`}}
+                            ></div>
+                        </div>
+                        
+                        <div className={styles.loadingText}>
+                            {loadingMessage}
+                        </div>
                     </div>
                 </div>
             )}

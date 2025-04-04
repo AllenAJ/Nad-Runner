@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently \"next dev\" \"ts-node server/websocket.ts\"",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently \"next start\" \"ts-node server/websocket.ts\"",
     "lint": "next lint",
     "init-db": "ts-node scripts/init-db.ts"
   },

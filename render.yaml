@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: monad-run
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: monad-run-db
+          property: connectionString
+      - key: NEXT_PUBLIC_WEBSOCKET_URL
+        sync: false
+      - key: NEXT_PUBLIC_DEVNET_RPC_URL
+        sync: false
+      - key: NEXT_PUBLIC_MONAD_CHAIN_ID
+        sync: false
+      - key: NEXT_PUBLIC_EXPLORER_URL
+        sync: false
+      - key: NEXT_PUBLIC_CONTRACT_ADDRESS
+        sync: false
+      - key: NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
+        sync: false
+
+databases:
+  - name: monad-run-db
+    databaseName: monad_run
+    user: monad_run_user
+    plan: free 
