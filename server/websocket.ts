@@ -32,10 +32,14 @@ wsPool.connect((err, client, release) => {
 const httpServer = createServer();
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL || "*",
+        origin: ["http://localhost:3000", "https://monad-run.vercel.app"],
         methods: ["GET", "POST"],
-        credentials: true
-    }
+        credentials: true,
+        allowedHeaders: ["my-custom-header"]
+    },
+    allowEIO3: true,
+    pingTimeout: 60000,
+    transports: ['websocket', 'polling']
 });
 
 interface OnlineUser {
@@ -60,21 +64,25 @@ io.on('connection', (socket) => {
     }
 
     socket.on('join', async ({ walletAddress, username }) => {
-        onlineUsers.set(socket.id, { walletAddress, username, socketId: socket.id });
+        const normalizedWalletAddress = walletAddress.toLowerCase();
+        onlineUsers.set(socket.id, { walletAddress: normalizedWalletAddress, username, socketId: socket.id });
         io.emit('onlineUsers', Array.from(onlineUsers.values()).map(u => u.username));
     });
 
     socket.on('message', async ({ walletAddress, username, message }) => {
+        const normalizedWalletAddress = walletAddress.toLowerCase();
+        console.log('Attempting to save message for wallet:', normalizedWalletAddress);
+        
         // Check rate limit
         const now = Date.now();
-        const userLastMessage = messageRateLimit.get(walletAddress) || 0;
+        const userLastMessage = messageRateLimit.get(normalizedWalletAddress) || 0;
         
         if (now - userLastMessage < RATE_LIMIT_WINDOW) {
             socket.emit('error', 'Please wait before sending another message');
             return;
         }
         
-        messageRateLimit.set(walletAddress, now);
+        messageRateLimit.set(normalizedWalletAddress, now);
 
         // Validate message
         if (!message || message.length > 500) {
@@ -86,22 +94,41 @@ io.on('connection', (socket) => {
         try {
             client = await wsPool.connect();
             
+            // Check if user exists
+            const userExists = await client.query(
+                'SELECT wallet_address FROM users WHERE wallet_address = LOWER($1)',
+                [normalizedWalletAddress]
+            );
+
+            console.log('User exists check result:', userExists.rows.length);
+
+            if (userExists.rows.length === 0) {
+                // Create user if they don't exist
+                console.log('Creating new user:', normalizedWalletAddress);
+                await client.query(
+                    'INSERT INTO users (wallet_address, username) VALUES (LOWER($1), $2) ON CONFLICT (wallet_address) DO UPDATE SET username = $2',
+                    [normalizedWalletAddress, username]
+                );
+            }
+            
+            console.log('Inserting message into chat_messages');
             const result = await client.query(
                 `INSERT INTO chat_messages (sender_address, message)
-                 VALUES ($1, $2)
+                 VALUES (LOWER($1), $2)
                  RETURNING id, created_at;`,
-                [walletAddress, message]
+                [normalizedWalletAddress, message]
             );
 
             const newMessage = {
                 id: result.rows[0].id,
-                sender_address: walletAddress,
+                sender_address: normalizedWalletAddress,
                 sender_name: username,
                 message,
                 created_at: result.rows[0].created_at
             };
 
             io.emit('message', newMessage);
+            console.log('Message saved and emitted successfully');
         } catch (error) {
             console.error('Database error:', error);
             socket.emit('error', 'Failed to save message');

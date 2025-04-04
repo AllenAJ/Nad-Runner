@@ -35,6 +35,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
                 reconnection: true,
                 reconnectionAttempts: 5,
                 reconnectionDelay: 1000,
+                transports: ['websocket', 'polling'],
+                timeout: 10000,
+                forceNew: true
             });
 
             socketRef.current.on('connect', () => {
@@ -44,6 +47,11 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
 
             socketRef.current.on('connect_error', (error) => {
                 console.error('Connection error:', error);
+                // Attempt to reconnect after 5 seconds
+                setTimeout(() => {
+                    console.log('Attempting to reconnect...');
+                    socketRef.current?.connect();
+                }, 5000);
             });
 
             setupSocketListeners();
