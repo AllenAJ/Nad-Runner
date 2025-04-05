@@ -32,6 +32,20 @@ interface MainMenuProps {
     };
 }
 
+// Add button sounds at the top
+const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
+const buttonClickSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnclick.mp3') : null;
+
+// Helper function to play sounds
+const playSound = (sound: HTMLAudioElement | null) => {
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(error => {
+            console.log('Sound playback failed:', error);
+        });
+    }
+};
+
 export const MainMenu: React.FC<MainMenuProps> = ({ 
     leaderboard, 
     onStartGame, 
@@ -85,6 +99,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     const formatWalletAddress = (address: string) => {
         if (!address) return '';
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+    };
+
+    const handleButtonClick = (callback: () => void) => {
+        playSound(buttonClickSound);
+        callback();
     };
 
     if (isConnected && isNewUser) {
@@ -181,21 +200,47 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
                 {/* Middle Column - Buttons */}
                 <div className={styles.menuActionSection}>
-                    <button onClick={onStartGame} className={styles.primaryButton}>
-                        PLAY
-                    </button>
-                    <button onClick={handleMultiplayerClick} className={styles.menuButton}>
-                        {/* <img src="/assets/multiplayer-icon.svg" alt="" /> */}
-                        MULTIPLAYER
-                    </button>
-                    <button onClick={handleShopClick} className={styles.menuButton}>
-                        {/* <img src="/assets/shop-icon.svg" alt="" /> */}
-                        SHOP
-                    </button>
-                    <button onClick={handleInventoryClick} className={styles.menuButton}>
-                        {/* <img src="/assets/inventory-icon.svg" alt="" /> */}
-                        INVENTORY
-                    </button>
+                    {isNewUser ? (
+                        <UsernamePrompt onSubmit={onUsernameSubmit} />
+                    ) : (
+                        <>
+                            <button
+                                className={styles.primaryButton}
+                                onClick={() => handleButtonClick(onStartGame)}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                            >
+                                PLAY
+                            </button>
+                            <button
+                                className={styles.menuButton}
+                                onClick={() => handleButtonClick(() => onNavigateTo('shop'))}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                            >
+                                SHOP
+                            </button>
+                            <button
+                                className={styles.menuButton}
+                                onClick={() => handleButtonClick(() => onNavigateTo('inventory'))}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                            >
+                                INVENTORY
+                            </button>
+                            <button
+                                className={styles.menuButton}
+                                onClick={() => handleButtonClick(() => onNavigateTo('multiplayer'))}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                            >
+                                MULTIPLAYER
+                            </button>
+                            <button
+                                className={styles.connectButton}
+                                onClick={() => handleButtonClick(onConnect)}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                            >
+                                {isConnected ? `Connected: ${formatWalletAddress(walletAddress)}` : 'Connect Wallet'}
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 {/* Right Column - Leaderboard */}

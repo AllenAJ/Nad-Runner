@@ -16,6 +16,9 @@ interface ChatBoxProps {
     onBackToMenu: () => void;
 }
 
+// Add chat sound at the top with other imports
+const chatSound = typeof window !== 'undefined' ? new Audio('/assets/audio/sendchatsound.mp3') : null;
+
 export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBackToMenu }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -98,6 +101,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         e.preventDefault();
         if (!newMessage.trim()) return;
 
+        // Play chat sound
+        if (chatSound) {
+            chatSound.currentTime = 0; // Reset sound to start
+            chatSound.play().catch(error => {
+                console.log('Chat sound playback failed:', error);
+            });
+        }
+
         // Create optimistic message
         const tempMessage: ChatMessage = {
             id: generateTempId(),
@@ -117,7 +128,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBac
         console.log('Sending message:', {
             walletAddress: walletAddress.toLowerCase(),
             username,
-            message: newMessage
+            message: newMessage,
+            timestamp: new Date().toISOString(),
         });
 
         socketRef.current?.emit('message', {

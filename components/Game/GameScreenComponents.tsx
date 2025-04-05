@@ -36,6 +36,20 @@ const customizationData = {
     }
 };
 
+// Add button sounds at the top
+const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
+const buttonClickSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnclick.mp3') : null;
+
+// Helper function to play sounds
+const playSound = (sound: HTMLAudioElement | null) => {
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(error => {
+            console.log('Sound playback failed:', error);
+        });
+    }
+};
+
 export const CustomizationScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
     const [selectedSkin, setSelectedSkin] = useState('default');
     const [selectedBackground, setSelectedBackground] = useState('default');
@@ -138,13 +152,21 @@ export const CustomizationScreen: React.FC<{ onBackToMenu: () => void }> = ({ on
     );
 };
 
-// Update other screens to use the new Customization screen
 export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
+    const handleButtonClick = (callback: () => void) => {
+        playSound(buttonClickSound);
+        callback();
+    };
+
     return (
-        <div className={styles.menuContainer}>
+        <div className={styles.shopScreen}>
             <h2>Shop</h2>
-            <p>Coming soon! Buy upgrades and customizations.</p>
-            <button onClick={onBackToMenu} className={styles.menuButton}>
+            <p>Coming soon...</p>
+            <button 
+                onClick={() => handleButtonClick(onBackToMenu)}
+                onMouseEnter={() => playSound(buttonHoverSound)}
+                className={styles.backButton}
+            >
                 Back to Menu
             </button>
         </div>
@@ -152,8 +174,23 @@ export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMen
 };
 
 export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
+    const handleButtonClick = (callback: () => void) => {
+        playSound(buttonClickSound);
+        callback();
+    };
+
     return (
-        <CustomizationScreen onBackToMenu={onBackToMenu} />
+        <div className={styles.inventoryScreen}>
+            <h2>Inventory</h2>
+            <p>Coming soon...</p>
+            <button 
+                onClick={() => handleButtonClick(onBackToMenu)}
+                onMouseEnter={() => playSound(buttonHoverSound)}
+                className={styles.backButton}
+            >
+                Back to Menu
+            </button>
+        </div>
     );
 };
 
@@ -168,25 +205,27 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
     walletAddress,
     username
 }) => {
+    const handleButtonClick = (callback: () => void) => {
+        playSound(buttonClickSound);
+        callback();
+    };
+
     return (
-        <div className={styles.screenContainer}>
-            <div className={styles.multiplayerLayout}>
-                <div className={styles.header}>
-                    <h2>Multiplayer Lobby</h2>
-                    <button 
-                        onClick={onBackToMenu} 
-                        className={styles.backButton}
-                    >
-                        Back to Menu
-                    </button>
-                </div>
-                
+        <div className={styles.multiplayerScreen}>
+            <div className={styles.chatSection}>
                 <ChatBox 
-                    walletAddress={walletAddress}
-                    username={username}
+                    walletAddress={walletAddress} 
+                    username={username} 
                     onBackToMenu={onBackToMenu}
                 />
             </div>
+            <button 
+                onClick={() => handleButtonClick(onBackToMenu)}
+                onMouseEnter={() => playSound(buttonHoverSound)}
+                className={styles.backButton}
+            >
+                Back to Menu
+            </button>
         </div>
     );
 };

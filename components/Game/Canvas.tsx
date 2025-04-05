@@ -21,6 +21,7 @@ interface GameState {
     isJumping: boolean;
     isMovingLeft: boolean;
     isMovingRight: boolean;
+    jumpDirection: 'none' | 'left' | 'right';
     jumpCount: number;
     maxJumps: number;
     rotation: number;
@@ -165,11 +166,12 @@ const INITIAL_STATE: GameState = {
     isJumping: false,
     isMovingLeft: false,
     isMovingRight: false,
+    jumpDirection: 'none',
     jumpCount: 0,
     maxJumps: 2,
     rotation: 0,
     rotationSpeed: Math.PI * 5,
-    gameSpeed: 5, // Default speed for desktop
+    gameSpeed: 5,
     score: 0,
     obstacles: [],
     lastObstacleX: 0,
@@ -213,9 +215,9 @@ const OBSTACLE_SIZE = 50;
 const POWERUP_SIZE = 40;
 const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
 const PLAYER_OFFSET_FROM_GROUND = 0;
-const OBSTACLE_SPAWN_CHANCE = 0.009;
+const OBSTACLE_SPAWN_CHANCE = 0.1;
 const POWERUP_SPAWN_CHANCE = 0.008;
-const MIN_OBSTACLE_DISTANCE = 200;
+const MIN_OBSTACLE_DISTANCE = 50;
 const SPEED_INCREASE_INTERVAL = 3;
 const SPEED_INCREASE_AMOUNT = 0.5;
 const MAX_GAME_SPEED = 15;
@@ -239,6 +241,9 @@ if (explosionImage) explosionImage.src = '/assets/explosion.png';
 
 // Update box size constant
 const BOX_SIZE = 50; // New box size (was 41)
+
+// Add jump sound at the top with other assets
+const jumpSound = typeof window !== 'undefined' ? new Audio('/assets/audio/jumpsound.mp3') : null;
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -307,15 +312,29 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         state.yVelocity += state.gravity * deltaTime;
         state.playerY += state.yVelocity * deltaTime;
 
-        // Update horizontal movement with reduced speed while jumping
-        const currentMoveSpeed = state.isJumping ? state.moveSpeed * 0.8 : state.moveSpeed; // 80% speed while jumping
-        
-        if (state.isMovingLeft) {
-            state.xVelocity = -currentMoveSpeed;
-        } else if (state.isMovingRight) {
-            state.xVelocity = currentMoveSpeed;
+        // Update horizontal movement based on jump state
+        if (state.isJumping) {
+            // Use the captured jump direction
+            switch (state.jumpDirection) {
+                case 'left':
+                    state.xVelocity = -state.moveSpeed;
+                    break;
+                case 'right':
+                    state.xVelocity = state.moveSpeed;
+                    break;
+                case 'none':
+                    state.xVelocity = 0;
+                    break;
+            }
         } else {
-            state.xVelocity = 0;
+            // Normal ground movement
+            if (state.isMovingLeft) {
+                state.xVelocity = -state.moveSpeed;
+            } else if (state.isMovingRight) {
+                state.xVelocity = state.moveSpeed;
+            } else {
+                state.xVelocity = 0;
+            }
         }
         
         // Update horizontal position with bounds checking
@@ -330,6 +349,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.yVelocity = 0;
             state.isJumping = false;
             state.jumpCount = 0;
+            state.jumpDirection = 'none'; // Reset jump direction when landing
         }
 
         // Continuous spinning rotation
@@ -1076,6 +1096,25 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const handleJump = () => {
             const state = gameStateRef.current;
             if (!state.isJumping || (state.jumpCount < state.maxJumps)) {
+                // Play jump sound
+                if (jumpSound) {
+                    jumpSound.currentTime = 0;
+                    jumpSound.play().catch(error => {
+                        console.log('Jump sound playback failed:', error);
+                    });
+                }
+
+                // Capture the direction at the start of the jump
+                if (!state.isJumping) {
+                    if (state.isMovingLeft) {
+                        state.jumpDirection = 'left';
+                    } else if (state.isMovingRight) {
+                        state.jumpDirection = 'right';
+                    } else {
+                        state.jumpDirection = 'none';
+                    }
+                }
+
                 state.yVelocity = state.jumpStrength;
                 state.isJumping = true;
                 state.jumpCount++;
