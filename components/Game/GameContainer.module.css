@@ -591,67 +591,65 @@
 
 .loadingContainer {
     position: absolute;
-    bottom: 40px;
+    top: 40px;
     right: 40px;
     z-index: 1;
     display: flex;
+    flex-direction: column;
     align-items: flex-end;
-    justify-content: flex-end;
     width: auto;
 }
 
 .loadingBarContainer {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 0.75rem;
-    width: 400px;
+    width: 300px;
 }
 
 .loadingBar {
     width: 100%;
     height: 30px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 15px;
+    background: #000;
+    border-radius: 0;
     overflow: hidden;
-    border: 4px solid #000;
+    border: 4px solid #fff;
+    position: relative;
     box-shadow: 
-        0 0 0 2px #fff,
         0 0 0 4px #000,
-        inset 0 0 10px rgba(0,0,0,0.2);
+        inset 0 0 0 2px #000;
 }
 
 .loadingProgress {
     width: 0%;
     height: 100%;
-    background: linear-gradient(
+    background: repeating-linear-gradient(
         45deg,
-        #4a90e2 25%,
-        #357abd 25%,
-        #357abd 50%,
-        #4a90e2 50%,
-        #4a90e2 75%,
-        #357abd 75%
+        #ffd700 0px,
+        #ffd700 20px,
+        #ff8c00 20px,
+        #ff8c00 40px
     );
-    background-size: 40px 40px;
-    animation: progressAnimation 1s linear infinite;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
     transition: width 0.3s ease-out;
+    animation: moveStripes 1s linear infinite;
 }
 
 .loadingText {
-    color: #000;
-    font-family: 'Press Start 2P', 'Inter', sans-serif;
+    color: #fff;
+    font-family: 'Press Start 2P', monospace;
     font-size: 14px;
     text-shadow: 
-        2px 2px 0 #fff,
-        -2px -2px 0 #fff,
-        2px -2px 0 #fff,
-        -2px 2px 0 #fff;
+        2px 2px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000;
     letter-spacing: 1px;
-    text-align: left;
+    margin-top: 12px;
 }
 
-@keyframes progressAnimation {
+@keyframes moveStripes {
     0% {
         background-position: 0 0;
     }
@@ -661,23 +659,27 @@
 }
 
 .loadingTitle {
-    font-family: 'Press Start 2P', 'Inter', sans-serif;
-    font-size: 32px;
-    color: #FFD700;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: #ffd700;
     text-shadow: 
-        4px 4px 0 #000,
-        -4px -4px 0 #000,
-        4px -4px 0 #000,
-        -4px 4px 0 #000;
-    margin-bottom: 30px;
+        3px 3px 0 #000,
+        -3px -3px 0 #000,
+        3px -3px 0 #000,
+        -3px 3px 0 #000;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
-/* Add responsive styles */
+/* Update mobile styles */
 @media (max-width: 768px) {
     .loadingContainer {
-        bottom: 20px;
+        top: 20px;
         right: 20px;
-        left: 20px;
+        width: 90%;
+        max-width: 280px;
+        padding: 0 10px;
     }
 
     .loadingBarContainer {
@@ -779,20 +781,18 @@
 /* Add these styles to your GameContainer.module.css */
 
 .walletConnectionContainer {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: relative;
+    z-index: 1;
     background: white;
-    border-radius: 1.5rem;
     padding: 2.5rem;
+    border: 4px solid #000;
+    border-radius: 0;
+    box-shadow: 
+        0 0 0 4px #000,
+        4px 4px 0 4px #000;
+    width: 90%;
+    max-width: 400px;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: 90%;
-    width: 360px;
-    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
     animation: fadeIn 0.5s ease-out;
 }
 
@@ -811,19 +811,18 @@
 }
 
 .connectionTitle {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #4F46E5;
-    margin: 0 0 1rem 0;
-    background: linear-gradient(45deg, #4F46E5, #7C3AED);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: #6366f1;
+    margin: 0 0 1.5rem 0;
+    text-shadow: none;
 }
 
 .connectionMessage {
-    font-size: 1.125rem;
-    color: #4B5563;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px;
+    color: #4b5563;
     margin-bottom: 1.5rem;
     line-height: 1.5;
 }
@@ -831,64 +830,53 @@
 .connectWalletButton {
     width: 100%;
     padding: 1rem 1.5rem;
-    font-size: 1.125rem;
+    font-size: 16px;
     font-weight: 600;
+    font-family: 'Press Start 2P', monospace;
     color: white;
-    background: #6366f1;
-    border: none;
-    border-radius: 0.75rem;
+    background: #000;
+    border: 4px solid #fff;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    box-shadow: 
+        0 0 0 4px #000,
+        4px 4px 0 4px #000;
+    position: relative;
 }
 
 .connectWalletButton:hover {
-    background: #4F46E5;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+    transform: translate(-2px, -2px);
+    box-shadow: 
+        0 0 0 4px #000,
+        6px 6px 0 4px #000;
 }
 
-.loadingContainer {
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 400px;
-    padding: 2rem;
+.connectWalletButton:active {
+    transform: translate(2px, 2px);
+    box-shadow: 
+        0 0 0 4px #000,
+        2px 2px 0 4px #000;
 }
 
-/* Animation keyframes */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translate(-50%, -48%); }
-    to { opacity: 1; transform: translate(-50%, -50%); }
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-/* Mobile adjustments */
+/* Update mobile styles */
 @media (max-width: 480px) {
     .walletConnectionContainer {
         padding: 2rem;
         width: 85%;
     }
     
-    .characterContainer {
-        width: 100px;
-        height: 100px;
-    }
-    
     .connectionTitle {
-        font-size: 1.5rem;
+        font-size: 24px;
     }
     
     .connectionMessage {
-        font-size: 1rem;
+        font-size: 14px;
+    }
+
+    .connectWalletButton {
+        padding: 0.75rem 1rem;
+        font-size: 14px;
     }
 }
 
@@ -1555,12 +1543,55 @@
 .walletConnectionContainer {
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.95);
+    background: white;
     padding: 2.5rem;
-    border-radius: 1rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 4px solid #000;
+    border-radius: 0;
+    box-shadow: 
+        0 0 0 4px #000,
+        4px 4px 0 4px #000;
     width: 90%;
     max-width: 400px;
     text-align: center;
     animation: fadeIn 0.5s ease-out;
+}
+
+.audioControl {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border: 3px solid #000;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 
+        0 0 0 3px #000,
+        3px 3px 0 3px #000;
+    transition: all 0.2s ease;
+}
+
+.audioControl:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 
+        0 0 0 3px #000,
+        5px 5px 0 3px #000;
+}
+
+.audioControl:active {
+    transform: translate(2px, 2px);
+    box-shadow: 
+        0 0 0 3px #000,
+        1px 1px 0 3px #000;
+}
+
+.audioControl svg {
+    width: 24px;
+    height: 24px;
+    color: #000;
 }

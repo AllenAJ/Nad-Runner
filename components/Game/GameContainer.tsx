@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ethers } from 'ethers';
 import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
@@ -105,6 +105,11 @@ export default function GameContainer() {
 
     // Add isUpdatingStats flag
     const [isUpdatingStats, setIsUpdatingStats] = useState(false);
+
+    // Audio state - default to false (unmuted)
+    const [isMuted, setIsMuted] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const gameOverSoundRef = useRef<HTMLAudioElement | null>(null);
 
     // Initialize the game
     useEffect(() => {
@@ -347,6 +352,14 @@ export default function GameContainer() {
     const handleGameOver = async (finalScore: number, boxJumps: number) => {
         const roundedScore = Math.floor(finalScore);
 
+        // Play game over sound if not muted
+        if (gameOverSoundRef.current && !isMuted) {
+            gameOverSoundRef.current.currentTime = 0; // Reset to start
+            gameOverSoundRef.current.play().catch(error => {
+                console.log('Game over sound playback failed:', error);
+            });
+        }
+
         setGameState(prev => ({
             ...prev,
             isPlaying: false,
@@ -573,6 +586,61 @@ export default function GameContainer() {
         return () => window.removeEventListener('resize', checkZoom);
     }, []);
 
+    // Initialize audio and check localStorage on mount
+    useEffect(() => {
+        // Create audio elements
+        const audio = new Audio('/assets/audio/menuMusic.mp3');
+        const gameOverSound = new Audio('/assets/audio/gameover.wav');
+        audio.loop = true;
+        audioRef.current = audio;
+        gameOverSoundRef.current = gameOverSound;
+
+        // Check localStorage for mute preference
+        const storedMute = localStorage.getItem('nadrunner_muted');
+        const shouldBeMuted = storedMute ? storedMute === 'true' : false; // Default to unmuted
+        setIsMuted(shouldBeMuted);
+
+        // Cleanup
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            if (gameOverSoundRef.current) {
+                gameOverSoundRef.current.pause();
+                gameOverSoundRef.current = null;
+            }
+        };
+    }, []);
+
+    // Handle mute/unmute for all audio
+    useEffect(() => {
+        if (audioRef.current && gameOverSoundRef.current) {
+            if (!isMuted) {
+                audioRef.current.play().catch(error => {
+                    console.log('Audio playback failed:', error);
+                });
+            } else {
+                audioRef.current.pause();
+            }
+            localStorage.setItem('nadrunner_muted', isMuted.toString());
+        }
+    }, [isMuted]);
+
+    // Restart music when entering play area
+    useEffect(() => {
+        if (gameState.currentScreen === 'game' && audioRef.current && !isMuted) {
+            audioRef.current.currentTime = 0; // Reset to start
+            audioRef.current.play().catch(error => {
+                console.log('Audio playback failed:', error);
+            });
+        }
+    }, [gameState.currentScreen, isMuted]);
+
+    const toggleMute = () => {
+        setIsMuted(!isMuted);
+    };
+
     // Render different screens based on current state
     const renderScreen = () => {
         switch (gameState.currentScreen) {
@@ -716,6 +784,26 @@ export default function GameContainer() {
                             </div>
                         )}
                     </div>
+
+                    {/* Add audio control button */}
+                    <button 
+                        className={styles.audioControl}
+                        onClick={toggleMute}
+                        aria-label={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                        {isMuted ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                <line x1="23" y1="9" x2="17" y2="15" />
+                                <line x1="17" y1="9" x2="23" y2="15" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            </svg>
+                        )}
+                    </button>
                 </div>
             )}
         </>

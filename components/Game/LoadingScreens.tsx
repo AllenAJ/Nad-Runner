@@ -77,7 +77,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         <div className={styles.loadingScreenContainer}>
             <div className={styles.loadingBackground}>
                 <img 
-                    src="/assets/loading.svg" 
+                    src="/assets/loading2.webp" 
                     alt="Loading background" 
                     className={styles.loadingBackgroundImage}
                 />
@@ -86,13 +86,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             {!isConnected ? (
                 // Wallet connection screen (centered and prominent)
                 <div className={styles.walletConnectionContainer}>
-                    <div className={styles.characterContainer}>
-                        <img 
-                            src="/assets/welcome.gif" 
-                            alt="Molandak character" 
-                            className={styles.characterImage}
-                        />
-                    </div>
+
                     
                     <h2 className={styles.connectionTitle}>
                         Welcome to NadRunner!

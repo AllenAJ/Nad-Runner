@@ -1,0 +1,29 @@
+.boxGroup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vertical {
+    flex-direction: column;
+}
+
+.horizontal {
+    flex-direction: row;
+}
+
+.boxWrapper {
+    transform: scale(var(--scale, 1));
+    transition: transform 0.2s ease;
+}
+
+.box {
+    width: 41px;  /* Match the original SVG dimensions */
+    height: 41px;
+    display: block;
+}
+
+/* Optional hover effect */
+.boxWrapper:hover {
+    transform: scale(calc(var(--scale, 1) * 1.1));
+} 
