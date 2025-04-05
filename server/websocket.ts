@@ -7,6 +7,7 @@ import { CronJob } from 'cron';
 import { CHAT_CONFIG } from '../config/chat';
 import express from 'express';
 import https from 'https';
+import http from 'http';
 
 // Load environment variables first with absolute path
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -45,13 +46,13 @@ const pingServer = () => {
     // Use https or http depending on the URL
     const requester = serverUrl.startsWith('https') ? https : require('http');
     
-    requester.get(`${serverUrl}/health`, (res) => {
+    requester.get(`${serverUrl}/health`, (res: http.IncomingMessage) => {
         if (res.statusCode === 200) {
             console.log('Server pinged successfully');
         } else {
             console.error('Server ping failed with status:', res.statusCode);
         }
-    }).on('error', (err) => {
+    }).on('error', (err: Error) => {
         console.error('Error pinging server:', err);
     });
 };
