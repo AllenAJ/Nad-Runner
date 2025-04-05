@@ -5,11 +5,19 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { CronJob } from 'cron';
 import { CHAT_CONFIG } from '../config/chat';
+import express from 'express';
+import https from 'https';
 
 // Load environment variables first with absolute path
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 console.log('WebSocket server starting...');
+
+// Create Express app
+const app = express();
+
+// Create HTTP server with Express
+const httpServer = createServer(app);
 
 // Create a dedicated pool for the WebSocket server
 const wsPool = new Pool({
@@ -29,7 +37,55 @@ wsPool.connect((err, client, release) => {
     }
 });
 
-const httpServer = createServer();
+// Self-ping function to keep the server awake
+const pingServer = () => {
+    const serverUrl = process.env.SERVER_URL || 'http://localhost:3001';
+    console.log('Pinging server:', serverUrl);
+    
+    // Use https or http depending on the URL
+    const requester = serverUrl.startsWith('https') ? https : require('http');
+    
+    requester.get(`${serverUrl}/health`, (res) => {
+        if (res.statusCode === 200) {
+            console.log('Server pinged successfully');
+        } else {
+            console.error('Server ping failed with status:', res.statusCode);
+        }
+    }).on('error', (err) => {
+        console.error('Error pinging server:', err);
+    });
+};
+
+// Set up periodic ping every 14 minutes (before Render's 15-minute sleep)
+const pingJob = new CronJob('*/14 * * * *', pingServer);
+pingJob.start();
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+    try {
+        // Test database connection
+        const client = await wsPool.connect();
+        await client.query('SELECT 1');
+        client.release();
+
+        // Return health status
+        res.json({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            database: 'connected',
+            lastPing: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: 'Database connection failed',
+            uptime: process.uptime()
+        });
+    }
+});
+
 const io = new Server(httpServer, {
     cors: {
         origin: ["http://localhost:3000", "https://monad-run.vercel.app"],
