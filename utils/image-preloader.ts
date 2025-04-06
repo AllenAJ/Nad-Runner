@@ -17,7 +17,6 @@ export async function preloadGameAssets(onProgress?: (progress: number) => void)
         '/assets/box.png',
         '/assets/box2.png',
         '/assets/box3.png',
-        '/assets/loading.webp',
         '/assets/welcome.gif',
         '/assets/juggle.gif'
     ];

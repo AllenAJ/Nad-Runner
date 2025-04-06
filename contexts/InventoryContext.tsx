@@ -25,6 +25,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     useEffect(() => {
         const fetchInventory = async () => {
             if (!address) {
+                console.log('No wallet address found, clearing inventory');
                 setItems({});
                 setInventoryItems([]);
                 setIsLoading(false);
@@ -32,14 +33,49 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             try {
-                // Convert wallet address to lowercase for consistency
+                console.log('=== INVENTORY FETCH START ===');
+                console.log('Fetching inventory for address:', address);
                 const normalizedAddress = address.toLowerCase();
+                console.log('Normalized address:', normalizedAddress);
+                
                 const response = await fetch(`/api/inventory/items?walletAddress=${normalizedAddress}`);
+                console.log('API Response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error('Failed to fetch inventory');
+                    throw new Error(`Failed to fetch inventory: ${response.status}`);
                 }
 
                 const data = await response.json();
+                console.log('\n=== INVENTORY ITEMS ===');
+                if (data.items && data.items.length > 0) {
+                    console.log(`Found ${data.items.length} items in inventory:`);
+                    data.items.forEach((item: any, index: number) => {
+                        console.log(`\nItem ${index + 1}:`);
+                        console.log('- ID:', item.id);
+                        console.log('- Name:', item.name);
+                        console.log('- Category:', item.category);
+                        console.log('- Sub-category:', item.sub_category);
+                        console.log('- Rarity:', item.rarity);
+                        console.log('- Quantity:', item.quantity);
+                        console.log('- Equipped:', item.equipped);
+                        if (item.color) console.log('- Color:', item.color);
+                    });
+                } else {
+                    console.log('No items found in inventory');
+                }
+
+                console.log('\n=== LOADOUTS ===');
+                if (data.loadouts && data.loadouts.length > 0) {
+                    console.log(`Found ${data.loadouts.length} loadouts:`);
+                    data.loadouts.forEach((loadout: any, index: number) => {
+                        console.log(`\nLoadout ${index + 1}:`);
+                        console.log('- Name:', loadout.name);
+                        console.log('- Active:', loadout.is_active);
+                    });
+                } else {
+                    console.log('No loadouts found');
+                }
+
                 const newItems: { [key: string]: number } = {};
                 data.items.forEach((item: any) => {
                     newItems[item.id] = item.quantity;
@@ -47,6 +83,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
                 setItems(newItems);
                 setInventoryItems(data.items);
+                console.log('\n=== INVENTORY FETCH COMPLETE ===\n');
             } catch (error) {
                 console.error('Error fetching inventory:', error);
             } finally {
@@ -87,7 +124,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, [items]);
 
     const getItemsByCategory = useCallback((category: ItemCategory): Item[] => {
-        return inventoryItems.filter(item => item.subCategory === category);
+        return inventoryItems.filter(item => 
+            // Check both camelCase and snake_case versions of the field
+            (item.subCategory === category || item.sub_category === category) &&
+            // Only include items with quantity > 0
+            (item.quantity || 0) > 0
+        );
     }, [inventoryItems]);
 
     const countItem = useCallback((itemId: string): number => {

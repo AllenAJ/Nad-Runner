@@ -193,14 +193,17 @@ async function initializeDatabase() {
             CREATE OR REPLACE FUNCTION give_default_items()
             RETURNS TRIGGER AS $$
             BEGIN
-                -- Insert the 4 color skins into player's inventory
+                -- Insert default items into player's inventory
                 INSERT INTO player_inventories (wallet_address, item_id, quantity, equipped)
                 VALUES
                     (NEW.wallet_address, 'red_skin', 1, false),
                     (NEW.wallet_address, 'blue_skin', 1, false),
                     (NEW.wallet_address, 'green_skin', 1, false),
                     (NEW.wallet_address, 'yellow_skin', 1, false)
-                ON CONFLICT (wallet_address, item_id) DO NOTHING;
+                ON CONFLICT (wallet_address, item_id) 
+                DO UPDATE SET 
+                    quantity = player_inventories.quantity + 1
+                WHERE player_inventories.wallet_address = NEW.wallet_address;
                 
                 RETURN NEW;
             END;

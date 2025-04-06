@@ -19,14 +19,18 @@ export interface Item {
     description: string;
     category: Category;
     subCategory: SubCategory;
+    sub_category?: string; // For database compatibility
     rarity: Rarity;
     imageUrl?: string;
+    image_url?: string; // For database compatibility
     price: number;
     effects?: {
         [key: string]: number;
     };
     purchaseDate?: Date;
     color?: string;
+    quantity?: number;
+    equipped?: boolean;
 }
 
 export interface ShopItem {
