@@ -58,7 +58,8 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         items,
         itemCounts,
         getItemsByCategory,
-        countItem
+        countItem,
+        isLoading
     } = useInventory();
 
     const [selectedCategory, setSelectedCategory] = useState<Category>('outfits');
@@ -112,7 +113,11 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                     <div className={inventoryStyles.noItem}></div>
                 </div>
             </div>
-            {items.map((item) => (
+            {isLoading ? (
+                <div className={inventoryStyles.loadingContainer}>
+                    Loading items...
+                </div>
+            ) : items.map((item) => (
                 <div 
                     key={item.id} 
                     className={`${inventoryStyles.itemCard} ${equippedItems[category] === item.id ? inventoryStyles.selected : ''}`}

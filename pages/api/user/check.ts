@@ -14,6 +14,12 @@ interface PlayerProfile {
     xp: number;
 }
 
+interface InventoryStats {
+    total_items: number;
+    equipped_items: number;
+    loadouts: number;
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -29,6 +35,7 @@ export default async function handler(
     }
 
     try {
+        // Get user and profile data
         const result = await pool.query<PlayerProfile>(
             `SELECT u.username, p.* 
              FROM users u 
@@ -43,6 +50,17 @@ export default async function handler(
 
         const user = result.rows[0];
 
+        // Get inventory stats
+        const inventoryStats = await pool.query<InventoryStats>(`
+            SELECT 
+                COUNT(DISTINCT pi.item_id) as total_items,
+                COUNT(DISTINCT CASE WHEN pi.equipped THEN pi.item_id END) as equipped_items,
+                COUNT(DISTINCT ol.loadout_id) as loadouts
+            FROM player_inventories pi
+            LEFT JOIN outfit_loadouts ol ON pi.wallet_address = ol.wallet_address
+            WHERE pi.wallet_address = $1
+        `, [walletAddress]);
+
         res.status(200).json({
             user: user,
             playerStats: {
@@ -52,6 +70,11 @@ export default async function handler(
                 coins: user.coins,
                 rounds: user.rounds,
                 level: user.level
+            },
+            inventoryStats: inventoryStats.rows[0] || {
+                total_items: 0,
+                equipped_items: 0,
+                loadouts: 0
             }
         });
     } catch (error) {

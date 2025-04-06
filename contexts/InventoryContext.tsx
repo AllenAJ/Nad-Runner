@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { INITIAL_ITEMS, ITEM_CATEGORIES } from '../constants/inventory';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Item, ItemCategory, Rarity, ItemCounts, OutfitLoadout, InventoryContextType } from '../types/inventory';
+import { useAccount } from 'wagmi';
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
@@ -13,25 +13,49 @@ export const useInventory = () => {
 };
 
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Initialize with INITIAL_ITEMS mapped to counts
-    const [items, setItems] = useState<{ [key: string]: number }>(() => {
-        const initialCounts: { [key: string]: number } = {
-            'red_skin': 1,
-            'blue_skin': 1,
-            'green_skin': 1,
-            'yellow_skin': 1
-        };
-        INITIAL_ITEMS.forEach(item => {
-            if (!initialCounts[item.id]) {
-                initialCounts[item.id] = 1;
-            }
-        });
-        return initialCounts;
-    });
-
+    const { address } = useAccount();
+    const [items, setItems] = useState<{ [key: string]: number }>({});
+    const [inventoryItems, setInventoryItems] = useState<Item[]>([]);
     const [outfitLoadouts, setOutfitLoadouts] = useState<OutfitLoadout[]>([]);
     const [activeLoadoutId, setActiveLoadoutId] = useState<string>();
     const [equippedPowerups, setEquippedPowerups] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch inventory items from the database
+    useEffect(() => {
+        const fetchInventory = async () => {
+            if (!address) {
+                setItems({});
+                setInventoryItems([]);
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                // Convert wallet address to lowercase for consistency
+                const normalizedAddress = address.toLowerCase();
+                const response = await fetch(`/api/inventory/items?walletAddress=${normalizedAddress}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch inventory');
+                }
+
+                const data = await response.json();
+                const newItems: { [key: string]: number } = {};
+                data.items.forEach((item: any) => {
+                    newItems[item.id] = item.quantity;
+                });
+
+                setItems(newItems);
+                setInventoryItems(data.items);
+            } catch (error) {
+                console.error('Error fetching inventory:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchInventory();
+    }, [address]);
 
     const addItem = useCallback((itemId: string, count: number = 1) => {
         setItems(prev => ({
@@ -63,17 +87,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, [items]);
 
     const getItemsByCategory = useCallback((category: ItemCategory): Item[] => {
-        console.log('Getting items for category:', category);
-        console.log('Current items:', items);
-        console.log('INITIAL_ITEMS:', INITIAL_ITEMS);
-        const filteredItems = INITIAL_ITEMS.filter(item => {
-            const hasItem = item.subCategory === category && items[item.id];
-            console.log(`Item ${item.id}: subCategory=${item.subCategory}, hasItem=${hasItem}`);
-            return hasItem;
-        });
-        console.log('Filtered items:', filteredItems);
-        return filteredItems;
-    }, [items]);
+        return inventoryItems.filter(item => item.subCategory === category);
+    }, [inventoryItems]);
 
     const countItem = useCallback((itemId: string): number => {
         return items[itemId] || 0;
@@ -110,11 +125,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, []);
 
     // Calculate item counts by rarity
-    const itemCounts = Object.entries(items).reduce((counts: ItemCounts, [itemId, count]) => {
-        const item = INITIAL_ITEMS.find(i => i.id === itemId);
-        if (item) {
-            counts[item.rarity] = (counts[item.rarity] || 0) + count;
-        }
+    const itemCounts = inventoryItems.reduce((counts: ItemCounts, item) => {
+        counts[item.rarity] = (counts[item.rarity] || 0) + (items[item.id] || 0);
         return counts;
     }, {});
 
@@ -135,7 +147,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         equipPowerup,
         unequipPowerup,
         getItemsByCategory,
-        countItem
+        countItem,
+        isLoading
     };
 
     return (

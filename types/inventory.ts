@@ -76,4 +76,5 @@ export interface InventoryContextType {
     unequipPowerup: (itemId: string) => void;
     getItemsByCategory: (category: ItemCategory) => Item[];
     countItem: (itemId: string) => number;
+    isLoading: boolean;
 } 

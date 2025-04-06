@@ -73,36 +73,150 @@ async function initializeDatabase() {
         await client.query(`
             DO $$ 
             BEGIN 
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'player_profiles' AND column_name = 'high_score_box_jumps'
-                ) THEN 
-                    ALTER TABLE player_profiles ADD COLUMN high_score_box_jumps INTEGER DEFAULT 0;
-                END IF;
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS xp_to_next_level INTEGER DEFAULT 150;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
 
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'player_profiles' AND column_name = 'box_jumps'
-                ) THEN 
-                    ALTER TABLE player_profiles ADD COLUMN box_jumps INTEGER DEFAULT 0;
-                END IF;
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS high_score_box_jumps INTEGER DEFAULT 0;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
 
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'player_profiles' AND column_name = 'high_score'
-                ) THEN 
-                    ALTER TABLE player_profiles ADD COLUMN high_score INTEGER DEFAULT 0;
-                END IF;
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS box_jumps INTEGER DEFAULT 0;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
 
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns 
-                    WHERE table_name = 'player_profiles' AND column_name = 'rounds'
-                ) THEN 
-                    ALTER TABLE player_profiles ADD COLUMN rounds INTEGER DEFAULT 0;
-                END IF;
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS high_score INTEGER DEFAULT 0;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS rounds INTEGER DEFAULT 0;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
             END $$;
         `);
         console.log('Player profiles table created successfully');
+
+        // Create items table
+        console.log('Creating items table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS items (
+                id VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                category VARCHAR(50) NOT NULL,
+                sub_category VARCHAR(50) NOT NULL,
+                rarity VARCHAR(20) NOT NULL,
+                price INTEGER DEFAULT 0,
+                image_url TEXT,
+                color VARCHAR(7),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log('Items table created successfully');
+
+        // Create player_inventories table
+        console.log('Creating player_inventories table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS player_inventories (
+                inventory_id SERIAL PRIMARY KEY,
+                wallet_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                item_id VARCHAR(50) NOT NULL REFERENCES items(id),
+                quantity INTEGER DEFAULT 1,
+                equipped BOOLEAN DEFAULT FALSE,
+                acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(wallet_address, item_id)
+            );
+        `);
+        console.log('Player inventories table created successfully');
+
+        // Create outfit_loadouts table
+        console.log('Creating outfit_loadouts table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS outfit_loadouts (
+                loadout_id SERIAL PRIMARY KEY,
+                wallet_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                name VARCHAR(100) NOT NULL,
+                head_item VARCHAR(50) REFERENCES items(id),
+                body_item VARCHAR(50) REFERENCES items(id),
+                legs_item VARCHAR(50) REFERENCES items(id),
+                feet_item VARCHAR(50) REFERENCES items(id),
+                skin_item VARCHAR(50) REFERENCES items(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT FALSE
+            );
+        `);
+        console.log('Outfit loadouts table created successfully');
+
+        // Create initial items
+        console.log('Creating initial items...');
+        await client.query(`
+            INSERT INTO items (id, name, description, category, sub_category, rarity, price, image_url, color)
+            VALUES 
+                ('red_skin', 'Red Skin', 'A vibrant red character skin', 'outfits', 'skin', 'normal', 0, '/items/red_skin.svg', '#ff0000'),
+                ('blue_skin', 'Blue Skin', 'A cool blue character skin', 'outfits', 'skin', 'normal', 0, '/items/blue_skin.svg', '#0000ff'),
+                ('green_skin', 'Green Skin', 'A fresh green character skin', 'outfits', 'skin', 'normal', 0, '/items/green_skin.svg', '#00ff00'),
+                ('yellow_skin', 'Yellow Skin', 'A bright yellow character skin', 'outfits', 'skin', 'normal', 0, '/items/yellow_skin.svg', '#ffff00')
+            ON CONFLICT (id) DO UPDATE 
+            SET 
+                name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                image_url = EXCLUDED.image_url,
+                color = EXCLUDED.color;
+        `);
+        console.log('Initial items created successfully');
+
+        // Create function to give default items to new players
+        console.log('Creating function for default items...');
+        await client.query(`
+            CREATE OR REPLACE FUNCTION give_default_items()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                -- Insert the 4 color skins into player's inventory
+                INSERT INTO player_inventories (wallet_address, item_id, quantity, equipped)
+                VALUES
+                    (NEW.wallet_address, 'red_skin', 1, false),
+                    (NEW.wallet_address, 'blue_skin', 1, false),
+                    (NEW.wallet_address, 'green_skin', 1, false),
+                    (NEW.wallet_address, 'yellow_skin', 1, false)
+                ON CONFLICT (wallet_address, item_id) DO NOTHING;
+                
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        `);
+
+        // Create trigger to automatically give default items to new players
+        console.log('Creating trigger for default items...');
+        await client.query(`
+            DROP TRIGGER IF EXISTS give_default_items_trigger ON player_profiles;
+            CREATE TRIGGER give_default_items_trigger
+            AFTER INSERT ON player_profiles
+            FOR EACH ROW
+            EXECUTE FUNCTION give_default_items();
+        `);
+        console.log('Default items trigger created successfully');
 
         // Create chat_messages table
         console.log('Creating chat_messages table...');
