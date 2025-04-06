@@ -33,7 +33,7 @@ interface GameState {
         y: number;
         width: number;
         height: number;
-        type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap';
+        type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap' | 'chog_between';
         image?: HTMLImageElement | null;
         config?: BoxConfig;
     }>;
@@ -115,6 +115,39 @@ interface GameState {
         complete: boolean;
     };
     isColliding: boolean;
+    glass: {
+        isBroken: boolean;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        breakStartTime?: number;
+        opacity: number;
+        particles: Array<{
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            rotation: number;
+            size: number;
+            opacity: number;
+        }>;
+    };
+    debug: {
+        enabled: boolean;
+        showHitboxes: boolean;
+    };
+    chogRotation: number;
+    isOnBox: boolean;
+    currentBoxTop: number;
+    justJumped: boolean;
+    canBoxJump: boolean;
+    currentBox: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    } | null;
 }
 
 interface Obstacle {
@@ -122,7 +155,7 @@ interface Obstacle {
     y: number;
     width: number;
     height: number;
-    type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap';
+    type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap' | 'chog_between';
     config?: BoxConfig;
 }
 
@@ -207,7 +240,26 @@ const INITIAL_STATE: GameState = {
         stars: [],
         complete: false
     },
-    isColliding: false
+    isColliding: false,
+    glass: {
+        isBroken: false,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        opacity: 1,
+        particles: []
+    },
+    debug: {
+        enabled: false,
+        showHitboxes: false
+    },
+    chogRotation: 0,
+    isOnBox: false,
+    currentBoxTop: 0,
+    justJumped: false,
+    canBoxJump: false,
+    currentBox: null,
 };
 
 const PLAYER_SIZE = 50;
@@ -236,14 +288,23 @@ const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2; // Height above ground to make it h
 type ObstacleType = 'ground' | 'air' | 'box' | 'box2' | 'box3';
 
 // Load explosion sprite
-const explosionImage = typeof window !== 'undefined' ? new window.Image() : null;
-if (explosionImage) explosionImage.src = '/assets/explosion.png';
+// const explosionImage = typeof window !== 'undefined' ? new window.Image() : null;
+// if (explosionImage) explosionImage.src = '/assets/explosion.png';
 
 // Update box size constant
 const BOX_SIZE = 50; // New box size (was 41)
 
 // Add jump sound at the top with other assets
 const jumpSound = typeof window !== 'undefined' ? new Audio('/assets/audio/jumpsound.mp3') : null;
+
+const CHOG_ROTATION_SPEED = Math.PI; // Rotate 180 degrees per second
+
+// Adjust physics constants for snappier movement
+const DIRECTIONAL_JUMP_HORIZONTAL_BOOST = 600; // Increased from 400 for faster horizontal movement
+const DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER = 1.3; // Increased from 1.2 for stronger directional jumps
+const AIR_RESISTANCE = 0.95; // Increased from 0.99 for less floaty feel
+const AIR_CONTROL_MULTIPLIER = 2.5; // New constant for stronger air control
+const INITIAL_MOVE_SPEED = 400; // Base movement speed
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -300,7 +361,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             scale: isMobile ? MOBILE_SCALE : 1,
             boxJumps: 0,
             lastBoxJumpTime: 0,
-            isColliding: false
+            isColliding: false,
+            canBoxJump: false,
+            currentBox: null,
         };
     };
 
@@ -312,50 +375,64 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         state.yVelocity += state.gravity * deltaTime;
         state.playerY += state.yVelocity * deltaTime;
 
-        // Update horizontal movement based on jump state
+        // Update horizontal movement
         if (state.isJumping) {
-            // Use the captured jump direction
-            switch (state.jumpDirection) {
-                case 'left':
-                    state.xVelocity = -state.moveSpeed;
-                    break;
-                case 'right':
-                    state.xVelocity = state.moveSpeed;
-                    break;
-                case 'none':
-                    state.xVelocity = 0;
-                    break;
+            state.playerX += state.xVelocity * deltaTime;
+            state.xVelocity *= AIR_RESISTANCE;
+
+            if (state.isMovingLeft) {
+                state.xVelocity = Math.max(
+                    state.xVelocity - (INITIAL_MOVE_SPEED * AIR_CONTROL_MULTIPLIER * deltaTime),
+                    -DIRECTIONAL_JUMP_HORIZONTAL_BOOST
+                );
+            } else if (state.isMovingRight) {
+                state.xVelocity = Math.min(
+                    state.xVelocity + (INITIAL_MOVE_SPEED * AIR_CONTROL_MULTIPLIER * deltaTime),
+                    DIRECTIONAL_JUMP_HORIZONTAL_BOOST
+                );
             }
         } else {
-            // Normal ground movement
             if (state.isMovingLeft) {
-                state.xVelocity = -state.moveSpeed;
+                state.xVelocity = -INITIAL_MOVE_SPEED;
             } else if (state.isMovingRight) {
-                state.xVelocity = state.moveSpeed;
+                state.xVelocity = INITIAL_MOVE_SPEED;
             } else {
                 state.xVelocity = 0;
             }
+            state.playerX += state.xVelocity * deltaTime;
         }
-        
-        // Update horizontal position with bounds checking
-        const newX = state.playerX + state.xVelocity;
-        const minX = 0;
-        const maxX = width - PLAYER_SIZE;
-        state.playerX = Math.max(minX, Math.min(maxX, newX));
 
-        // Ground collision with dynamic ground height
-        if (state.playerY + PLAYER_SIZE > height - groundHeight - PLAYER_OFFSET_FROM_GROUND) {
-            state.playerY = height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND;
+        // Ground collision
+        const groundY = height - groundHeight - PLAYER_SIZE - PLAYER_OFFSET_FROM_GROUND;
+        if (state.playerY > groundY) {
+            state.playerY = groundY;
             state.yVelocity = 0;
             state.isJumping = false;
             state.jumpCount = 0;
-            state.jumpDirection = 'none'; // Reset jump direction when landing
+            state.currentBox = null;
+            state.xVelocity = 0;
         }
 
-        // Continuous spinning rotation
+        // Check if player has fallen off current box
+        if (state.currentBox) {
+            const boxRight = state.currentBox.x + state.currentBox.width;
+            const boxLeft = state.currentBox.x;
+            
+            if (state.playerX < boxLeft || 
+                state.playerX + PLAYER_SIZE > boxRight || 
+                state.playerY > state.currentBox.y - PLAYER_SIZE) {
+                console.log('Falling off box');
+                state.currentBox = null;
+            }
+        }
+
+        // Horizontal bounds
+        const minX = 0;
+        const maxX = width - PLAYER_SIZE;
+        state.playerX = Math.max(minX, Math.min(maxX, state.playerX));
+
+        // Update rotation
         state.rotation += state.rotationSpeed * deltaTime;
-        
-        // Keep rotation between 0 and 2π
         if (state.rotation > Math.PI * 2) {
             state.rotation -= Math.PI * 2;
         }
@@ -390,14 +467,32 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             const obstacleY = height - groundHeight - 
                 (boxConfig.arrangement === 'vertical' ? BOX_SIZE * boxConfig.count : BOX_SIZE);
 
-            state.obstacles.push({
+            const newObstacle = {
                 x: width + 100,
                 y: obstacleY,
-                width: BOX_SIZE * (boxConfig.arrangement === 'horizontal' ? boxConfig.count : 1),
+                width: boxConfig.arrangement === 'horizontal' && boxConfig.hasChog ? 
+                    BOX_SIZE * 3 : // Width for two boxes plus chog
+                    BOX_SIZE * (boxConfig.arrangement === 'horizontal' ? boxConfig.count : 1),
                 height: BOX_SIZE * (boxConfig.arrangement === 'vertical' ? boxConfig.count : 1),
-                type: boxConfig.type,
+                type: boxConfig.type as Obstacle['type'], // Explicitly cast to Obstacle type
                 config: boxConfig
-            });
+            };
+
+            state.obstacles.push(newObstacle);
+            
+            // Update glass position for split_gap obstacles
+            if (boxConfig.arrangement === 'split_gap' && boxConfig.gapSize && boxConfig.bottomCount) {
+                const glassY = height - groundHeight - BOX_SIZE - (boxConfig.bottomCount * BOX_SIZE);
+                state.glass = {
+                    isBroken: false,
+                    x: width + 100,
+                    y: glassY - BOX_SIZE, // Position glass one box height above the gap
+                    width: BOX_SIZE,
+                    height: BOX_SIZE,
+                    opacity: 1,
+                    particles: []
+                };
+            }
             
             state.lastObstacleX = width;
         }
@@ -413,34 +508,116 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
             for (const obstacle of state.obstacles) {
                 if (obstacle.config) {
-                    const { arrangement, count } = obstacle.config;
+                    const { arrangement, count, hasChog } = obstacle.config;
 
-                    if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
-                        // Bottom boxes
+                    if (arrangement === 'horizontal' && hasChog) {
+                        // Check collision with first box
+                        const box1Hitbox = {
+                            x: obstacle.x,
+                            y: obstacle.y,
+                            width: BOX_SIZE,
+                            height: BOX_SIZE
+                        };
+                        if (checkCollisionWithBox(playerHitbox, box1Hitbox)) {
+                            handleCollision(obstacle.x, obstacle.y);
+                            return true;
+                        }
+
+                        // Check collision with chog (middle)
+                        const chogHitbox = {
+                            x: obstacle.x + BOX_SIZE,
+                            y: obstacle.y,
+                            width: BOX_SIZE,
+                            height: BOX_SIZE
+                        };
+                        if (checkCollisionWithBox(playerHitbox, chogHitbox)) {
+                            handleCollision(obstacle.x + BOX_SIZE, obstacle.y);
+                            return true;
+                        }
+
+                        // Check collision with second box
+                        const box2Hitbox = {
+                            x: obstacle.x + BOX_SIZE * 2,
+                            y: obstacle.y,
+                            width: BOX_SIZE,
+                            height: BOX_SIZE
+                        };
+                        if (checkCollisionWithBox(playerHitbox, box2Hitbox)) {
+                            handleCollision(obstacle.x + BOX_SIZE * 2, obstacle.y);
+                            return true;
+                        }
+                    } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
+                        // Bottom boxes collision
                         for (let i = 0; i < obstacle.config.bottomCount; i++) {
-                            const boxY = height - groundHeight - (i * BOX_SIZE);
-                            const hitbox = {
+                            const boxY = height - groundHeight - ((i + 1) * BOX_SIZE); // Adjusted Y position
+                            const boxHitbox = {
                                 x: obstacle.x,
                                 y: boxY,
                                 width: BOX_SIZE,
                                 height: BOX_SIZE
                             };
-                            if (checkCollisionWithBox(playerHitbox, hitbox)) {
+                            
+                            if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
                                 handleCollision(obstacle.x, boxY);
                                 return true;
                             }
                         }
 
-                        // Top boxes
+                        // Check glass collision
+                        const glassY = height - groundHeight - BOX_SIZE - (obstacle.config.bottomCount * BOX_SIZE);
+                        const glassHitbox = {
+                            x: obstacle.x,
+                            y: glassY - BOX_SIZE,
+                            width: BOX_SIZE,
+                            height: BOX_SIZE
+                        };
+
+                        if (!state.glass.isBroken && checkCollision(playerHitbox, glassHitbox)) {
+                            // Break the glass
+                            state.glass.isBroken = true;
+                            state.glass.breakStartTime = Date.now();
+                            
+                            // Create glass breaking particles with improved variety
+                            const centerX = glassHitbox.x + BOX_SIZE / 2;
+                            const centerY = glassHitbox.y + BOX_SIZE / 2;
+                            const particleCount = 30;
+                            
+                            for (let i = 0; i < particleCount; i++) {
+                                const angle = (Math.PI * 2 * i) / particleCount;
+                                const speed = 5 + Math.random() * 7;
+                                const distance = Math.random() * BOX_SIZE * 0.5;
+                                
+                                state.glass.particles.push({
+                                    x: centerX + Math.cos(angle) * distance,
+                                    y: centerY + Math.sin(angle) * distance,
+                                    vx: Math.cos(angle) * speed,
+                                    vy: Math.sin(angle) * speed - 2, // Add upward boost
+                                    rotation: Math.random() * Math.PI * 2,
+                                    size: 3 + Math.random() * 5,
+                                    opacity: 1
+                                });
+                            }
+                            
+                            // Add breaking sound effect
+                            if (typeof window !== 'undefined') {
+                                const breakSound = new Audio('/assets/audio/glass-break.mp3');
+                                breakSound.play().catch(error => {
+                                    console.log('Glass break sound playback failed:', error);
+                                });
+                            }
+                        }
+
+                        // Top boxes collision
                         for (let i = 0; i < obstacle.config.topCount; i++) {
-                            const boxY = height - groundHeight - ((i + obstacle.config.bottomCount) * BOX_SIZE) - obstacle.config.gapSize;
-                            const hitbox = {
+                            const boxY = height - groundHeight - ((i + obstacle.config.bottomCount + 2) * BOX_SIZE) - obstacle.config.gapSize;
+                            const boxHitbox = {
                                 x: obstacle.x,
                                 y: boxY,
                                 width: BOX_SIZE,
                                 height: BOX_SIZE
                             };
-                            if (checkCollisionWithBox(playerHitbox, hitbox)) {
+                            
+                            if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
                                 handleCollision(obstacle.x, boxY);
                                 return true;
                             }
@@ -482,61 +659,71 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                rect1.y + rect1.height > rect2.y;
     };
 
-    // More complex collision check for boxes with landing zones
+    // More complex collision check for boxes with landing zones and directional jumping
     const checkCollisionWithBox = (playerHitbox: any, boxHitbox: any) => {
-        // Add padding to make hitbox smaller than visual sprite
-        const hitbox1 = {
-            x: playerHitbox.x + HITBOX_PADDING,
-            y: playerHitbox.y + HITBOX_PADDING,
-            width: playerHitbox.width - (HITBOX_PADDING * 2),
-            height: playerHitbox.height - (HITBOX_PADDING * 2)
-        };
+        const state = gameStateRef.current;
+        
+        // Check if player is above the box
+        const playerBottom = playerHitbox.y + playerHitbox.height;
+        const boxTop = boxHitbox.y;
+        const landingZoneHeight = boxHitbox.height * 0.2;
+        
+        // Check if player is within the box's horizontal bounds
+        const isOverlappingX = playerHitbox.x < boxHitbox.x + boxHitbox.width &&
+                              playerHitbox.x + playerHitbox.width > boxHitbox.x;
+        
+        // Check if player is in the landing zone
+        const isInLandingZone = playerBottom >= boxTop && 
+                               playerBottom <= boxTop + landingZoneHeight &&
+                               state.yVelocity > 0;
 
-        const hitbox2 = {
-            x: boxHitbox.x + HITBOX_PADDING,
-            y: boxHitbox.y + HITBOX_PADDING,
-            width: boxHitbox.width - (HITBOX_PADDING * 2),
-            height: boxHitbox.height - (HITBOX_PADDING * 2)
-        };
+        if (isOverlappingX && isInLandingZone) {
+            console.log('Landing on box:', {
+                playerY: state.playerY,
+                boxTop,
+                yVelocity: state.yVelocity
+            });
 
-        // Check horizontal overlap
-        const isOverlappingX = hitbox1.x < hitbox2.x + hitbox2.width &&
-                              hitbox1.x + hitbox1.width > hitbox2.x;
+            // Set the current box
+            state.currentBox = {
+                x: boxHitbox.x,
+                y: boxHitbox.y,
+                width: boxHitbox.width,
+                height: boxHitbox.height
+            };
 
-        if (isOverlappingX) {
-            const playerBottom = hitbox1.y + hitbox1.height;
-            const boxTop = hitbox2.y;
-            
-            // Define landing zone (top 20% of box)
-            const landingZoneHeight = hitbox2.height * 0.2;
-            const isInLandingZone = playerBottom >= boxTop && 
-                                  playerBottom <= boxTop + landingZoneHeight &&
-                                  gameStateRef.current.yVelocity > 0;
+            // Position player on top of box
+            state.playerY = boxTop - PLAYER_SIZE;
+            state.yVelocity = 0;
+            state.isJumping = false;
+            state.jumpCount = 0;
 
-            if (isInLandingZone) {
-                // Successful landing on box
-                gameStateRef.current.playerY = boxTop - PLAYER_SIZE;
-                gameStateRef.current.yVelocity = gameStateRef.current.jumpStrength * 1.5;
-                gameStateRef.current.isJumping = true;
-                gameStateRef.current.jumpCount = 0;
-                
-                // Increment box jumps and add floating text
-                gameStateRef.current.boxJumps++;
-                gameStateRef.current.lastBoxJumpTime = Date.now();
-                gameStateRef.current.floatingTexts.push({
-                    text: `+1 Box Jump`,
-                    x: boxHitbox.x,
-                    y: boxHitbox.y - 30,
-                    opacity: 1,
-                    createdAt: Date.now()
+            // Add landing particles
+            for (let i = 0; i < 5; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 2;
+                state.particles.push({
+                    x: state.playerX + PLAYER_SIZE / 2,
+                    y: state.playerY + PLAYER_SIZE,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: Math.random() * 0.2,
+                    size: 2 + Math.random() * 2,
+                    color: '#FFFFFF',
+                    opacity: 0.8,
+                    fadeSpeed: 0.02
                 });
-                return false; // Not a collision, successful landing
-            } else if (hitbox1.y < boxTop + hitbox2.height &&
-                      hitbox1.y + hitbox1.height > boxTop + landingZoneHeight) {
-                // Collision with sides or bottom of the box
-                return true; // Actual collision
             }
+
+            return false;
+        } else if (isOverlappingX && 
+                   playerHitbox.y < boxTop + boxHitbox.height &&
+                   playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
+            // Collision with sides or bottom of box
+            return true;
         }
+
         return false;
     };
 
@@ -662,34 +849,174 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT, MAX_GAME_SPEED);
         }
 
+        // Update chog rotation
+        state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
+        if (state.chogRotation > Math.PI * 2) {
+            state.chogRotation -= Math.PI * 2;
+        }
+
+        // Update glass breaking animation
+        if (state.glass.isBroken && state.glass.breakStartTime) {
+            const breakDuration = 0.5; // Duration of break animation in seconds
+            const elapsed = (Date.now() - state.glass.breakStartTime) / 1000;
+            if (elapsed < breakDuration) {
+                // Smooth fade out
+                state.glass.opacity = 1 - (elapsed / breakDuration);
+            } else {
+                state.glass.opacity = 0;
+            }
+        }
+
         updatePlayer(deltaTime);
         updateObstacles(deltaTime);
         updatePowerups(deltaTime);
     };
 
+    const drawGlass = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, isBroken: boolean, opacity: number) => {
+        if (opacity <= 0) return;
+        
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        
+        // Draw glass background with gradient for more realistic look
+        const glassGradient = ctx.createLinearGradient(x, y, x + width, y + height);
+        glassGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        glassGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+        glassGradient.addColorStop(1, 'rgba(255, 255, 255, 0.4)');
+        ctx.fillStyle = glassGradient;
+        ctx.fillRect(x, y, width, height);
+        
+        // Draw glass border with gradient
+        const borderGradient = ctx.createLinearGradient(x, y, x + width, y);
+        borderGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+        borderGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        borderGradient.addColorStop(1, 'rgba(255, 255, 255, 0.8)');
+        ctx.strokeStyle = borderGradient;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+        
+        // Draw glass reflections
+        ctx.beginPath();
+        ctx.moveTo(x + width * 0.1, y);
+        ctx.lineTo(x + width * 0.3, y + height * 0.3);
+        ctx.lineTo(x + width * 0.7, y + height * 0.3);
+        ctx.lineTo(x + width * 0.9, y);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.stroke();
+        
+        if (isBroken) {
+            // Draw crack pattern
+            ctx.beginPath();
+            const centerX = x + width / 2;
+            const centerY = y + height / 2;
+            
+            // Create a radial crack pattern
+            for (let i = 0; i < 8; i++) {
+                const angle = (Math.PI * 2 * i) / 8;
+                const length = Math.min(width, height) * 0.4;
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(
+                    centerX + Math.cos(angle) * length,
+                    centerY + Math.sin(angle) * length
+                );
+            }
+            
+            // Add some random connecting cracks
+            for (let i = 0; i < 5; i++) {
+                const angle1 = Math.random() * Math.PI * 2;
+                const angle2 = Math.random() * Math.PI * 2;
+                const radius = Math.min(width, height) * 0.3;
+                const x1 = centerX + Math.cos(angle1) * radius;
+                const y1 = centerY + Math.sin(angle1) * radius;
+                const x2 = centerX + Math.cos(angle2) * radius;
+                const y2 = centerY + Math.sin(angle2) * radius;
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    };
+
     const drawObstacle = (ctx: CanvasRenderingContext2D, obstacle: Obstacle) => {
         if (obstacle.config && boxImage && boxImage.complete) {
-            const { arrangement, count, topCount = 0, bottomCount = 0, gapSize } = obstacle.config;
+            const { arrangement, count, hasChog } = obstacle.config;
             const groundHeight = getGroundHeight(height);
 
-            if (arrangement === 'split_gap' && gapSize && bottomCount > 0 && topCount > 0) {
+            if (arrangement === 'horizontal' && hasChog) {
+                // Draw first box
+                ctx.drawImage(
+                    boxImage,
+                    obstacle.x,
+                    obstacle.y,
+                    BOX_SIZE,
+                    BOX_SIZE
+                );
+
+                // Draw rotating chog in the middle
+                if (obstacleImages.ground && obstacleImages.ground.complete) {
+                    ctx.save();
+                    // Set rotation center to middle of the chog
+                    ctx.translate(
+                        obstacle.x + BOX_SIZE + BOX_SIZE / 2,
+                        obstacle.y + BOX_SIZE / 2
+                    );
+                    ctx.rotate(gameStateRef.current.chogRotation);
+                    ctx.drawImage(
+                        obstacleImages.ground,
+                        -BOX_SIZE / 2, // Adjust x position for centered rotation
+                        -BOX_SIZE / 2, // Adjust y position for centered rotation
+                        BOX_SIZE,
+                        BOX_SIZE
+                    );
+                    ctx.restore();
+                }
+
+                // Draw second box
+                ctx.drawImage(
+                    boxImage,
+                    obstacle.x + BOX_SIZE * 2,
+                    obstacle.y,
+                    BOX_SIZE,
+                    BOX_SIZE
+                );
+            } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
                 // Draw bottom boxes vertically stacked from ground level
-                for (let i = 0; i < bottomCount; i++) {
+                for (let i = 0; i < obstacle.config.bottomCount; i++) {
+                    const boxY = height - groundHeight - ((i + 1) * BOX_SIZE); // Adjusted Y position
                     ctx.drawImage(
                         boxImage,
                         obstacle.x,
-                        height - groundHeight - BOX_SIZE - (i * BOX_SIZE), // Stack from bottom up
+                        boxY,
                         BOX_SIZE,
                         BOX_SIZE
                     );
                 }
 
+                // Draw glass in the gap
+                const glassY = height - groundHeight - BOX_SIZE - (obstacle.config.bottomCount * BOX_SIZE);
+                const glassHeight = BOX_SIZE;
+                drawGlass(
+                    ctx,
+                    obstacle.x,
+                    glassY - glassHeight,
+                    BOX_SIZE,
+                    glassHeight,
+                    gameStateRef.current.glass.isBroken,
+                    gameStateRef.current.glass.opacity
+                );
+
                 // Draw top boxes vertically stacked
-                for (let i = 0; i < topCount; i++) {
+                for (let i = 0; i < obstacle.config.topCount; i++) {
+                    const boxY = height - groundHeight - ((i + obstacle.config.bottomCount + 2) * BOX_SIZE) - obstacle.config.gapSize;
                     ctx.drawImage(
                         boxImage,
                         obstacle.x,
-                        height - groundHeight - BOX_SIZE - gapSize - ((i + bottomCount) * BOX_SIZE), // Stack from gap up
+                        boxY,
                         BOX_SIZE,
                         BOX_SIZE
                     );
@@ -710,6 +1037,129 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 }
             }
         }
+    };
+
+    const drawDebugInfo = (ctx: CanvasRenderingContext2D, state: GameState) => {
+        if (!state.debug.enabled) return;
+
+        ctx.save();
+        
+        // Set debug drawing style
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+        ctx.lineWidth = 2;
+
+        // Draw player hitbox
+        const playerHitbox = {
+            x: state.playerX + HITBOX_PADDING,
+            y: state.playerY + HITBOX_PADDING,
+            width: PLAYER_SIZE - (HITBOX_PADDING * 2),
+            height: PLAYER_SIZE - (HITBOX_PADDING * 2)
+        };
+        
+        ctx.strokeRect(playerHitbox.x, playerHitbox.y, playerHitbox.width, playerHitbox.height);
+        ctx.fillRect(playerHitbox.x, playerHitbox.y, playerHitbox.width, playerHitbox.height);
+
+        // Draw obstacles hitboxes
+        state.obstacles.forEach(obstacle => {
+            if (obstacle.config) {
+                const { arrangement, count, hasChog } = obstacle.config;
+
+                if (arrangement === 'horizontal' && hasChog) {
+                    // Draw first box hitbox
+                    const box1Hitbox = {
+                        x: obstacle.x + HITBOX_PADDING,
+                        y: obstacle.y + HITBOX_PADDING,
+                        width: BOX_SIZE - (HITBOX_PADDING * 2),
+                        height: BOX_SIZE - (HITBOX_PADDING * 2)
+                    };
+                    ctx.strokeRect(box1Hitbox.x, box1Hitbox.y, box1Hitbox.width, box1Hitbox.height);
+                    ctx.fillRect(box1Hitbox.x, box1Hitbox.y, box1Hitbox.width, box1Hitbox.height);
+
+                    // Draw chog hitbox
+                    const chogHitbox = {
+                        x: obstacle.x + BOX_SIZE + HITBOX_PADDING,
+                        y: obstacle.y + HITBOX_PADDING,
+                        width: BOX_SIZE - (HITBOX_PADDING * 2),
+                        height: BOX_SIZE - (HITBOX_PADDING * 2)
+                    };
+                    ctx.strokeRect(chogHitbox.x, chogHitbox.y, chogHitbox.width, chogHitbox.height);
+                    ctx.fillRect(chogHitbox.x, chogHitbox.y, chogHitbox.width, chogHitbox.height);
+
+                    // Draw second box hitbox
+                    const box2Hitbox = {
+                        x: obstacle.x + BOX_SIZE * 2 + HITBOX_PADDING,
+                        y: obstacle.y + HITBOX_PADDING,
+                        width: BOX_SIZE - (HITBOX_PADDING * 2),
+                        height: BOX_SIZE - (HITBOX_PADDING * 2)
+                    };
+                    ctx.strokeRect(box2Hitbox.x, box2Hitbox.y, box2Hitbox.width, box2Hitbox.height);
+                    ctx.fillRect(box2Hitbox.x, box2Hitbox.y, box2Hitbox.width, box2Hitbox.height);
+                } else if (obstacle.type === 'split_gap') {
+                    // Draw bottom boxes hitboxes
+                    for (let i = 0; i < (obstacle.config.bottomCount || 0); i++) {
+                        const boxY = height - getGroundHeight(height) - BOX_SIZE - (i * BOX_SIZE);
+                        ctx.strokeRect(
+                            obstacle.x + HITBOX_PADDING,
+                            boxY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                        ctx.fillRect(
+                            obstacle.x + HITBOX_PADDING,
+                            boxY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                    }
+
+                    // Draw top boxes hitboxes
+                    for (let i = 0; i < (obstacle.config.topCount || 0); i++) {
+                        const boxY = height - getGroundHeight(height) - BOX_SIZE - 
+                            (obstacle.config.gapSize || 0) - 
+                            ((i + (obstacle.config.bottomCount || 0)) * BOX_SIZE);
+                        ctx.strokeRect(
+                            obstacle.x + HITBOX_PADDING,
+                            boxY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                        ctx.fillRect(
+                            obstacle.x + HITBOX_PADDING,
+                            boxY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                    }
+                } else {
+                    // Draw regular arrangement hitboxes
+                    for (let i = 0; i < count; i++) {
+                        const offsetX = arrangement === 'horizontal' ? i * BOX_SIZE : 0;
+                        const offsetY = arrangement === 'vertical' ? i * BOX_SIZE : 0;
+                        
+                        ctx.strokeRect(
+                            obstacle.x + offsetX + HITBOX_PADDING,
+                            obstacle.y + offsetY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                        ctx.fillRect(
+                            obstacle.x + offsetX + HITBOX_PADDING,
+                            obstacle.y + offsetY + HITBOX_PADDING,
+                            BOX_SIZE - (HITBOX_PADDING * 2),
+                            BOX_SIZE - (HITBOX_PADDING * 2)
+                        );
+                    }
+                }
+            }
+        });
+
+        // Draw debug text
+        ctx.font = '14px Arial';
+        ctx.fillStyle = 'red';
+        ctx.fillText('Debug Mode: ON', 10, height - 10);
+        
+        ctx.restore();
     };
 
     const drawGame = (ctx: CanvasRenderingContext2D) => {
@@ -806,6 +1256,47 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.stroke();
 
         ctx.restore();
+
+        // Draw obstacles
+        state.obstacles.forEach(obstacle => {
+            drawObstacle(ctx, obstacle);
+        });
+
+        // Update and draw glass particles
+        if (state.glass.isBroken) {
+            state.glass.particles = state.glass.particles.filter(particle => {
+                if (particle.opacity <= 0) return false;
+
+                ctx.save();
+                ctx.globalAlpha = particle.opacity;
+                ctx.translate(particle.x, particle.y);
+                ctx.rotate(particle.rotation);
+                
+                // Draw glass shard
+                ctx.beginPath();
+                ctx.moveTo(0, -particle.size);
+                ctx.lineTo(particle.size, 0);
+                ctx.lineTo(0, particle.size);
+                ctx.lineTo(-particle.size, 0);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.stroke();
+                
+                ctx.restore();
+
+                // Update particle
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vy += 0.5; // Add gravity
+                particle.rotation += 0.1;
+                particle.opacity -= 0.02;
+                particle.size *= 0.99;
+
+                return true;
+            });
+        }
 
         // Draw player only if not in death animation
         if (!state.deathAnimation.active) {
@@ -918,13 +1409,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
             if (currentFrame >= totalFrames) return false;
 
-            if (explosionImage && explosionImage.complete) {
-                ctx.drawImage(
-                    explosionImage,
-                    currentFrame * frameSize, 0, frameSize, frameSize,
-                    explosion.x - frameSize/2, explosion.y - frameSize/2, frameSize, frameSize
-                );
-            }
+            // if (explosionImage && explosionImage.complete) {
+            //     ctx.drawImage(
+            //         explosionImage,
+            //         currentFrame * frameSize, 0, frameSize, frameSize,
+            //         explosion.x - frameSize/2, explosion.y - frameSize/2, frameSize, frameSize
+            //     );
+            // }
             return true;
         });
 
@@ -1051,6 +1542,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             return true;
         });
 
+        // Add debug visualization at the end
+        drawDebugInfo(ctx, state);
+
         ctx.restore();
     };
 
@@ -1095,7 +1589,16 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     useEffect(() => {
         const handleJump = () => {
             const state = gameStateRef.current;
-            if (!state.isJumping || (state.jumpCount < state.maxJumps)) {
+            console.log('Jump triggered:', {
+                currentBox: state.currentBox,
+                isJumping: state.isJumping,
+                jumpCount: state.jumpCount
+            });
+
+            // Check if we're on a box
+            if (state.currentBox && !state.isJumping) {
+                console.log('Performing box jump');
+                
                 // Play jump sound
                 if (jumpSound) {
                     jumpSound.currentTime = 0;
@@ -1104,17 +1607,57 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     });
                 }
 
-                // Capture the direction at the start of the jump
-                if (!state.isJumping) {
-                    if (state.isMovingLeft) {
-                        state.jumpDirection = 'left';
-                    } else if (state.isMovingRight) {
-                        state.jumpDirection = 'right';
-                    } else {
-                        state.jumpDirection = 'none';
-                    }
+                // Calculate jump direction and strength
+                let jumpStrength = state.jumpStrength * 1.2;
+                let horizontalBoost = 0;
+
+                if (state.isMovingLeft) {
+                    horizontalBoost = -DIRECTIONAL_JUMP_HORIZONTAL_BOOST;
+                    jumpStrength *= DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER;
+                } else if (state.isMovingRight) {
+                    horizontalBoost = DIRECTIONAL_JUMP_HORIZONTAL_BOOST;
+                    jumpStrength *= DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER;
                 }
 
+                // Apply jump forces
+                state.yVelocity = jumpStrength;
+                state.xVelocity = horizontalBoost;
+                state.isJumping = true;
+                state.jumpCount = 0;
+                state.currentBox = null;
+
+                // Increment box jumps counter
+                state.boxJumps++;
+                state.lastBoxJumpTime = Date.now();
+
+                // Add visual feedback
+                state.floatingTexts.push({
+                    text: `+1 Box Jump`,
+                    x: state.playerX,
+                    y: state.playerY - 30,
+                    opacity: 1,
+                    createdAt: Date.now()
+                });
+
+                // Add particles
+                for (let i = 0; i < 10; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 3;
+                    state.particles.push({
+                        x: state.playerX + PLAYER_SIZE / 2,
+                        y: state.playerY + PLAYER_SIZE / 2,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 2,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotationSpeed: Math.random() * 0.2,
+                        size: 3 + Math.random() * 3,
+                        color: '#FFD700',
+                        opacity: 1,
+                        fadeSpeed: 0.02
+                    });
+                }
+            } else if (!state.isJumping || state.jumpCount < state.maxJumps) {
+                // Normal jump
                 state.yVelocity = state.jumpStrength;
                 state.isJumping = true;
                 state.jumpCount++;
@@ -1126,23 +1669,23 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             switch (e.code) {
                 case 'Space':
                     e.preventDefault();
+                    state.justJumped = true;
                     handleJump();
                     break;
                 case 'ArrowLeft':
                 case 'KeyA':
                     e.preventDefault();
-                    // Only allow movement if not jumping
-                    if (!state.isJumping) {
-                        state.isMovingLeft = true;
-                    }
+                    state.isMovingLeft = true;
                     break;
                 case 'ArrowRight':
                 case 'KeyD':
                     e.preventDefault();
-                    // Only allow movement if not jumping
-                    if (!state.isJumping) {
-                        state.isMovingRight = true;
-                    }
+                    state.isMovingRight = true;
+                    break;
+                case 'KeyP':
+                    e.preventDefault();
+                    state.debug.enabled = !state.debug.enabled;
+                    console.log('Debug mode:', state.debug.enabled ? 'ON' : 'OFF');
                     break;
             }
         };
@@ -1150,6 +1693,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const handleKeyUp = (e: KeyboardEvent) => {
             const state = gameStateRef.current;
             switch (e.code) {
+                case 'Space':
+                    state.justJumped = false;
+                    break;
                 case 'ArrowLeft':
                 case 'KeyA':
                     state.isMovingLeft = false;

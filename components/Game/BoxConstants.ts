@@ -2,7 +2,8 @@ export const BOX_TYPES = {
     SOLID: 'box',
     PASSABLE: 'box2',
     FLOATING: 'box3',
-    SPLIT_GAP: 'split_gap'
+    SPLIT_GAP: 'split_gap',
+    CHOG_BETWEEN: 'chog_between'
 } as const;
 
 export type BoxType = typeof BOX_TYPES[keyof typeof BOX_TYPES];
@@ -16,6 +17,7 @@ export interface BoxConfig {
     gapSize?: number;  // Optional gap size for split arrangements
     topCount?: number; // Number of boxes on top
     bottomCount?: number; // Number of boxes on bottom
+    hasChog?: boolean;  // Optional chog presence
 }
 
 // Box dimensions updated to 50x50
@@ -58,5 +60,13 @@ export const BOX_ARRANGEMENTS: BoxConfig[] = [
         gapSize: 150, // Gap size in pixels
         topCount: 3, // Three boxes stacked vertically at top
         bottomCount: 2 // Two boxes stacked vertically at bottom
+    },
+    {
+        type: BOX_TYPES.CHOG_BETWEEN,
+        width: 50,
+        height: 50,
+        arrangement: 'horizontal',
+        count: 2,
+        hasChog: true  // New property to indicate chog presence
     }
 ]; 
