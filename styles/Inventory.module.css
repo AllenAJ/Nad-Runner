@@ -1,0 +1,387 @@
+/* Updated Inventory.module.css */
+.inventoryContainer {
+    width: 100%;
+    height: 100vh;
+    padding: 0.5rem;
+    background: url('/bg/1.svg') no-repeat center center;
+    background-size: cover;
+    /* color: #fff; */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box; /* Ensure padding is included in width calculation */
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+    padding: 0 0.5rem;
+}
+
+.title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.backButton {
+    width: 20%;
+    padding: 14px;
+    border: 3px solid #000000;
+    border-radius: 12px;
+    background: white;
+    color: #000000;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 4px 4px 0px #000000;
+    margin-bottom: 4px;
+}
+
+.backButton:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000000;
+}
+
+.backButton:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000000;
+}
+
+.mainContent {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    gap: 0.5rem;
+    height: calc(100% - 3rem);
+    min-height: 0; /* Important for nested scrolling */
+    overflow: hidden;
+    width: 100%; /* Ensure full width */
+    margin: 0; /* Remove any default margins */
+    padding: 0 0.25rem; /* Small horizontal padding to prevent edge clipping */
+}
+
+.characterPreview {
+    /* background: rgba(255, 255, 255, 0.1); */
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.characterModel {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    position: relative;
+    margin: 0;
+    padding-bottom: 2rem;
+    min-height: 0;
+}
+
+.characterModel::after {
+    content: '';
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    filter: blur(8px);
+    animation: shadowPulse 3s ease-in-out infinite;
+}
+
+.characterModel img {
+    filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.15));
+    transform-origin: bottom center;
+    animation: float 3s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes shadowPulse {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 0.2;
+    }
+    50% {
+        transform: translateX(-50%) scale(0.8);
+        opacity: 0.1;
+    }
+}
+
+.sectionTitle {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 0.75rem;
+    padding-left: 0.5rem;
+}
+
+.itemsContainer {
+    background: url('/bg/dashboard.svg') center center;
+    background-size: 100% 100%;
+    padding: 1rem 1.25rem;
+    border-radius: 0.5rem;
+    overflow-y: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    color: #fff;
+    gap: 0.5rem;
+}
+
+.skinSection, .categorySection {
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+}
+
+.sectionTitle, .categoryTitle {
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 0.25rem;
+    padding-left: 0.5rem;
+}
+
+.sectionTitle {
+    font-size: 1.25rem;
+}
+
+.categoryTitle {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.itemGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+    gap: 1.25rem;
+    padding: 0 0.5rem;
+}
+
+.itemCard {
+    background: #00000047;
+    border: 2px solid #363232;
+    border-radius: 8px;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    width: 42px;
+    height: 42px;
+    transform-origin: center center;
+}
+
+.itemCard:hover {
+    transform: translateY(-1px) rotate(15deg);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-color: #7a0000;
+    border-width: 3px;
+}
+
+.itemCard.selected {
+    border-color: #4834d4;
+    box-shadow: 0 0 0 2px #4834d4;
+}
+
+.itemImage {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.itemCard:hover .itemImage {
+    opacity: 0.8;
+}
+
+.placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f0f0f0;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: #666;
+    font-weight: bold;
+}
+
+.noItem {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.noItem::before,
+.noItem::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 3px;
+    background-color: #7a0000;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.noItem::before {
+    transform: rotate(45deg);
+}
+
+.noItem::after {
+    transform: rotate(-45deg);
+}
+
+.itemCard:hover .noItem::before,
+.itemCard:hover .noItem::after {
+    background-color: #7a0000;
+    box-shadow: 0 0 8px rgba(43, 0, 185, 0.4);
+}
+
+.itemCount {
+    position: absolute;
+    bottom: -0.25rem;
+    right: -0.25rem;
+    background: #4834d4;
+    color: white;
+    padding: 0 0.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.625rem;
+    min-width: 1rem;
+    text-align: center;
+    line-height: 1rem;
+}
+
+.rarityIndicator {
+    position: absolute;
+    top: -0.125rem;
+    right: -0.125rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 0;
+    transition: transform 0.3s ease;
+    border: 1px solid #363232;
+}
+
+/* Keep the existing rarity color classes */
+.normal {
+    background: #363232;
+    box-shadow: none;
+}
+
+.premium {
+    background: #363232;
+    box-shadow: none;
+}
+
+.rare {
+    background: #363232;
+    box-shadow: none;
+}
+
+.event_rare {
+    background: #363232;
+    box-shadow: none;
+}
+
+.ultra_rare {
+    background: #363232;
+    box-shadow: none;
+}
+
+.trade_cash {
+    background: #363232;
+    box-shadow: none;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .inventoryContainer {
+        padding: 0.25rem;
+        width: 100vw; /* Use viewport width */
+        left: 0;
+        right: 0;
+    }
+    
+    .header {
+        padding: 0.25rem;
+    }
+    
+    .mainContent {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        padding: 0;
+        width: 100%;
+    }
+    
+    .characterPreview {
+        height: auto;
+        max-height: 90vh;
+        padding: 0.5rem;
+    }
+    
+    .characterModel {
+        margin: 0;
+    }
+    
+    .itemsContainer {
+        padding: 0.5rem;
+    }
+    
+    .itemGrid {
+        grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    }
+    
+    .itemCard {
+        max-width: 36px;
+        max-height: 36px;
+    }
+    
+    .categorySection {
+        margin-bottom: 0.5rem;
+    }
+}
+
+.inventoryContent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}

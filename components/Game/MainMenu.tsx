@@ -88,11 +88,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleInventoryClick = () => {
-        setAlert({
-            show: true,
-            message: 'Inventory coming soon!',
-            type: 'info'
-        });
+        onNavigateTo('inventory');
     };
 
     // Format the wallet address for display
@@ -213,32 +209,32 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             </button>
                             <button
                                 className={styles.menuButton}
-                                onClick={() => handleButtonClick(() => onNavigateTo('shop'))}
+                                onClick={() => handleButtonClick(handleShopClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 SHOP
                             </button>
                             <button
                                 className={styles.menuButton}
-                                onClick={() => handleButtonClick(() => onNavigateTo('inventory'))}
+                                onClick={() => handleButtonClick(handleInventoryClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 INVENTORY
                             </button>
                             <button
                                 className={styles.menuButton}
-                                onClick={() => handleButtonClick(() => onNavigateTo('multiplayer'))}
+                                onClick={() => handleButtonClick(handleMultiplayerClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 MULTIPLAYER
                             </button>
-                            <button
+                            {/* <button
                                 className={styles.connectButton}
                                 onClick={() => handleButtonClick(onConnect)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 {isConnected ? `Connected: ${formatWalletAddress(walletAddress)}` : 'Connect Wallet'}
-                            </button>
+                            </button> */}
                         </>
                     )}
                 </div>

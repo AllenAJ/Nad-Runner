@@ -5,6 +5,7 @@ import { createConfig, WagmiConfig } from 'wagmi';
 import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { CHAIN } from '../utils/chains';
 import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
+import { InventoryProvider } from '../contexts/InventoryContext';
 import '../styles/globals.css'
 
 const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID!;
@@ -37,7 +38,9 @@ function MyApp({ Component, pageProps }: AppProps) {
     return (
         <WagmiConfig config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
-                <Component {...pageProps} />
+                <InventoryProvider>
+                    <Component {...pageProps} />
+                </InventoryProvider>
             </QueryClientProvider>
         </WagmiConfig>
     );

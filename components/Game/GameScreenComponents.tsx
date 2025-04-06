@@ -2,39 +2,11 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import styles from './GameContainer.module.css';
 import { ChatBox } from '../Chat/ChatBox';
+import { useInventory } from '../../contexts/InventoryContext';
+import inventoryStyles from '../../styles/Inventory.module.css';
+import { Category, ItemCategory } from '../../types/inventory';
 
-// Inventory data with customization options
-const customizationData = {
-    character: {
-        skins: [
-            { id: 'default', color: '#FFFFFF', name: 'Default' },
-            { id: 'red', color: '#FF0000', name: 'Red' },
-            { id: 'blue', color: '#0000FF', name: 'Blue' },
-            { id: 'green', color: '#00FF00', name: 'Green' },
-            { id: 'purple', color: '#800080', name: 'Purple' },
-            { id: 'yellow', color: '#FFFF00', name: 'Yellow' }
-        ]
-    },
-    backgrounds: [
-        { id: 'default', name: 'Default Sky', color: '#87CEEB' },
-        { id: 'sunset', name: 'Sunset', color: '#FF7F50' },
-        { id: 'night', name: 'Night', color: '#191970' },
-        { id: 'forest', name: 'Forest', color: '#228B22' }
-    ],
-    accessories: {
-        hats: [
-            { id: 'none', name: 'No Hat', icon: '❌' },
-            { id: 'baseball', name: 'Baseball Cap', icon: '🧢' },
-            { id: 'crown', name: 'Crown', icon: '👑' },
-            { id: 'beanie', name: 'Beanie', icon: '🧶' }
-        ],
-        eyes: [
-            { id: 'default', name: 'Default', icon: '👀' },
-            { id: 'cool', name: 'Cool Shades', icon: '😎' },
-            { id: 'glasses', name: 'Nerd Glasses', icon: '🤓' }
-        ]
-    }
-};
+
 
 // Add button sounds at the top
 const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
@@ -50,107 +22,6 @@ const playSound = (sound: HTMLAudioElement | null) => {
     }
 };
 
-export const CustomizationScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
-    const [selectedSkin, setSelectedSkin] = useState('default');
-    const [selectedBackground, setSelectedBackground] = useState('default');
-    const [selectedHat, setSelectedHat] = useState('none');
-    const [selectedEyes, setSelectedEyes] = useState('default');
-
-    return (
-        <div className={styles.customizationContainer}>
-            <div className={styles.customizationHeader}>
-                <h2>Customize Your Character</h2>
-                <button onClick={onBackToMenu} className={styles.closeButton}>
-                    ✖
-                </button>
-            </div>
-
-            <div className={styles.customizationContent}>
-                <div className={styles.characterPreview}>
-                    <Image 
-                        src="/assets/molandak.png" 
-                        alt="Character Preview" 
-                        width={200} 
-                        height={200} 
-                        style={{ 
-                            backgroundColor: customizationData.character.skins.find(s => s.id === selectedSkin)?.color 
-                        }}
-                    />
-                </div>
-
-                <div className={styles.customizationOptions}>
-                    <div className={styles.customizationSection}>
-                        <h3>Character Skin</h3>
-                        <div className={styles.optionsGrid}>
-                            {customizationData.character.skins.map((skin) => (
-                                <button 
-                                    key={skin.id}
-                                    className={`${styles.customizationItem} ${selectedSkin === skin.id ? styles.selected : ''}`}
-                                    style={{ backgroundColor: skin.color }}
-                                    onClick={() => setSelectedSkin(skin.id)}
-                                >
-                                    {skin.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className={styles.customizationSection}>
-                        <h3>Background</h3>
-                        <div className={styles.optionsGrid}>
-                            {customizationData.backgrounds.map((bg) => (
-                                <button 
-                                    key={bg.id}
-                                    className={`${styles.customizationItem} ${selectedBackground === bg.id ? styles.selected : ''}`}
-                                    style={{ backgroundColor: bg.color }}
-                                    onClick={() => setSelectedBackground(bg.id)}
-                                >
-                                    {bg.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className={styles.customizationSection}>
-                        <h3>Hat</h3>
-                        <div className={styles.optionsGrid}>
-                            {customizationData.accessories.hats.map((hat) => (
-                                <button 
-                                    key={hat.id}
-                                    className={`${styles.customizationItem} ${selectedHat === hat.id ? styles.selected : ''}`}
-                                    onClick={() => setSelectedHat(hat.id)}
-                                >
-                                    {hat.icon} {hat.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className={styles.customizationSection}>
-                        <h3>Eyes</h3>
-                        <div className={styles.optionsGrid}>
-                            {customizationData.accessories.eyes.map((eye) => (
-                                <button 
-                                    key={eye.id}
-                                    className={`${styles.customizationItem} ${selectedEyes === eye.id ? styles.selected : ''}`}
-                                    onClick={() => setSelectedEyes(eye.id)}
-                                >
-                                    {eye.icon} {eye.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className={styles.customizationFooter}>
-                <button className={styles.saveButton}>
-                    Save Customization
-                </button>
-            </div>
-        </div>
-    );
-};
 
 export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
     const handleButtonClick = (callback: () => void) => {
@@ -173,23 +44,149 @@ export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMen
     );
 };
 
+type EquippedItems = {
+    head: string | null;
+    eyes: string | null;
+    mouth: string | null;
+    hands: string | null;
+    feet: string | null;
+    skin: string | null;
+};
+
 export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
+    const {
+        items,
+        itemCounts,
+        getItemsByCategory,
+        countItem
+    } = useInventory();
+
+    const [selectedCategory, setSelectedCategory] = useState<Category>('outfits');
+    const [equippedItems, setEquippedItems] = useState<EquippedItems>({
+        head: null,
+        eyes: null,
+        mouth: null,
+        hands: null,
+        feet: null,
+        skin: null
+    });
+
     const handleButtonClick = (callback: () => void) => {
         playSound(buttonClickSound);
         callback();
     };
 
-    return (
-        <div className={styles.inventoryScreen}>
-            <h2>Inventory</h2>
-            <p>Coming soon...</p>
-            <button 
-                onClick={() => handleButtonClick(onBackToMenu)}
-                onMouseEnter={() => playSound(buttonHoverSound)}
-                className={styles.backButton}
+    const handleBackToMenu = () => {
+        handleButtonClick(onBackToMenu);
+    };
+
+    const handleEquipItem = (slot: keyof EquippedItems, itemId: string | null) => {
+        playSound(buttonClickSound);
+        setEquippedItems(prev => ({
+            ...prev,
+            [slot]: itemId
+        }));
+    };
+
+    const renderCharacterPreview = () => (
+        <div className={inventoryStyles.characterPreview}>
+            <div className={inventoryStyles.characterModel}>
+                <Image 
+                    src="/assets/mainchar.svg"
+                    alt="Character"
+                    width={150}
+                    height={150}
+                    priority
+                />
+            </div>
+        </div>
+    );
+
+    const renderItemGrid = (items: any[], category: keyof EquippedItems) => (
+        <div className={inventoryStyles.itemGrid}>
+            <div 
+                className={`${inventoryStyles.itemCard} ${!equippedItems[category] ? inventoryStyles.selected : ''}`}
+                onClick={() => handleEquipItem(category, null)}
             >
-                Back to Menu
-            </button>
+                <div className={inventoryStyles.itemImage}>
+                    <div className={inventoryStyles.noItem}></div>
+                </div>
+            </div>
+            {items.map((item) => (
+                <div 
+                    key={item.id} 
+                    className={`${inventoryStyles.itemCard} ${equippedItems[category] === item.id ? inventoryStyles.selected : ''}`}
+                    onClick={() => handleEquipItem(category, item.id)}
+                >
+                    <div 
+                        className={inventoryStyles.itemImage}
+                        style={item.color ? { background: item.color } : undefined}
+                    >
+                        {item.imageUrl ? (
+                            <Image 
+                                src={item.imageUrl} 
+                                alt={item.name} 
+                                width={32} 
+                                height={32}
+                                layout="responsive"
+                            />
+                        ) : (
+                            <div className={inventoryStyles.placeholder}>{item.name.substring(0, 2)}</div>
+                        )}
+                    </div>
+                    {countItem(item.id) > 1 && (
+                        <div className={inventoryStyles.itemCount}>x{countItem(item.id)}</div>
+                    )}
+                    <div className={`${inventoryStyles.rarityIndicator} ${inventoryStyles[item.rarity]}`} />
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderCategorySection = (category: keyof EquippedItems, items: any[]) => (
+        <div className={inventoryStyles.categorySection}>
+            <h3 className={inventoryStyles.categoryTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}</h3>
+            {renderItemGrid(items, category)}
+        </div>
+    );
+
+    const renderInventoryContent = () => {
+        const categories = ['head', 'eyes', 'mouth', 'hands', 'feet'];
+        return (
+            <div className={inventoryStyles.inventoryContent}>
+                {categories.map(category => 
+                    renderCategorySection(
+                        category as keyof EquippedItems,
+                        getItemsByCategory(category as ItemCategory)
+                    )
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className={inventoryStyles.inventoryContainer}>
+            <div className={inventoryStyles.header}>
+                <h1 className={inventoryStyles.title}>Inventory</h1>
+                <button
+                    onClick={handleBackToMenu}
+                    onMouseEnter={() => playSound(buttonHoverSound)}
+                    className={inventoryStyles.backButton}
+                    style={{ whiteSpace: 'nowrap' }}
+                >
+                    Back to Menu
+                </button>
+            </div>
+            <div className={inventoryStyles.mainContent}>
+                {renderCharacterPreview()}
+                <div className={inventoryStyles.itemsContainer}>
+                    <div className={inventoryStyles.skinSection}>
+                        <h2 className={inventoryStyles.sectionTitle}>Skins</h2>
+                        {renderItemGrid(getItemsByCategory('skin'), 'skin')}
+                    </div>
+                    {renderInventoryContent()}
+                </div>
+            </div>
         </div>
     );
 };
