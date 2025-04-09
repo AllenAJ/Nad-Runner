@@ -5,6 +5,7 @@ import { ChatBox } from '../Chat/ChatBox';
 import { useInventory } from '../../contexts/InventoryContext';
 import inventoryStyles from '../../styles/Inventory.module.css';
 import { Category, ItemCategory } from '../../types/inventory';
+import { LayeredCharacter } from '../Character/LayeredCharacter';
 
 
 
@@ -92,13 +93,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     const renderCharacterPreview = () => (
         <div className={inventoryStyles.characterPreview}>
             <div className={inventoryStyles.characterModel}>
-                <Image 
-                    src="/assets/mainchar.svg"
-                    alt="Character"
-                    width={150}
-                    height={150}
-                    priority
-                />
+                <LayeredCharacter width={150} height={150} />
             </div>
         </div>
     );

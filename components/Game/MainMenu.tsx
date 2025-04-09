@@ -3,6 +3,7 @@ import Image from 'next/image';
 import styles from './GameContainer.module.css';
 import { Alert } from './Alert';
 import { UsernamePrompt } from './UsernamePrompt';
+import { LayeredCharacter } from '../Character/LayeredCharacter';
 
 interface MainMenuProps {
     leaderboard: Array<{name: string, score: number}>;
@@ -120,14 +121,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {/* Left Column - Player Card */}
                 <div className={styles.characterSection}>
                     <div className={styles.characterWrapper}>
-                        <Image 
-                            src="/assets/mainchar.svg" 
-                            alt="Main character" 
+                        <LayeredCharacter 
                             width={120}
                             height={120}
                             className={styles.mainMenuCharacter}
-                            priority
                         />
+                        <div className={styles.characterShadow} />
                     </div>
                     <div className={styles.walletAddress}>
                         {formatWalletAddress(walletAddress)}

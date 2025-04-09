@@ -4,6 +4,7 @@ import Canvas from './Canvas';
 import styles from './GameContainer.module.css';
 import { mintScore, TransactionStatus, switchToMonadNetwork } from '../../utils/web3';
 import { preloadGameAssets, loadLeaderboard } from '../../utils/image-preloader';
+import { LayeredCharacter } from '../Character/LayeredCharacter';
 
 // Import components
 import { LoadingScreen } from './LoadingScreens';
@@ -761,10 +762,10 @@ export default function GameContainer() {
                             <div className={styles.overlay}>
                                 <div className={styles.connectingWallet}>
                                     <div className={styles.loadingCharacter}>
-                                        <img 
-                                            src="/assets/mainchar.svg"
-                                            alt="Loading character" 
-                                            className={styles.spinningCharacter} 
+                                        <LayeredCharacter 
+                                            width={100}
+                                            height={100}
+                                            className={styles.spinningCharacter}
                                         />
                                     </div>
                                     <p>Connecting wallet...</p>

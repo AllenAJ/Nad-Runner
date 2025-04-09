@@ -89,6 +89,7 @@
     object-fit: contain;
     display: block;
     animation: float 2s ease-in-out infinite;
+    transform-origin: center center;
 }
 
 .characterShadow {
@@ -587,6 +588,7 @@
     width: 100px;
     height: 100px;
     animation: spin 2s linear infinite;
+    transform-origin: center center;
 }
 
 @keyframes spin {

@@ -160,8 +160,19 @@ interface Obstacle {
 }
 
 // Update image references to use window.Image
-const characterImage = typeof window !== 'undefined' ? new window.Image() : null;
-if (characterImage) characterImage.src = '/assets/mainchar.svg';
+const characterImages = {
+    body: typeof window !== 'undefined' ? new window.Image() : null,
+    fur: typeof window !== 'undefined' ? new window.Image() : null,
+    eyes: typeof window !== 'undefined' ? new window.Image() : null,
+    nose: typeof window !== 'undefined' ? new window.Image() : null,
+    mouth: typeof window !== 'undefined' ? new window.Image() : null
+};
+
+if (characterImages.body) characterImages.body.src = '/Char_layers/Body.png';
+if (characterImages.fur) characterImages.fur.src = '/Char_layers/Fur.png';
+if (characterImages.eyes) characterImages.eyes.src = '/Char_layers/Eyes.png';
+if (characterImages.nose) characterImages.nose.src = '/Char_layers/Nose.png';
+if (characterImages.mouth) characterImages.mouth.src = '/Char_layers/Mouth.png';
 
 const obstacleImages = {
     ground: typeof window !== 'undefined' ? new window.Image() : null,
@@ -1311,9 +1322,48 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 100) * 0.2;
             }
 
-            if (characterImage && characterImage.complete) {
+            // Draw layered character
+            if (characterImages.body?.complete && 
+                characterImages.fur?.complete && 
+                characterImages.eyes?.complete && 
+                characterImages.nose?.complete && 
+                characterImages.mouth?.complete) {
+                
+                // Draw each layer
                 ctx.drawImage(
-                    characterImage,
+                    characterImages.body,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.fur,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.eyes,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.nose,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.mouth,
                     -PLAYER_SIZE / 2,
                     -PLAYER_SIZE / 2,
                     PLAYER_SIZE,
@@ -1427,90 +1477,55 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.deathAnimation.characterVel.y += 0.7; // Stronger gravity
             state.deathAnimation.characterRotation += state.deathAnimation.characterRotationSpeed;
             
-            // Add trail positions
-            state.deathAnimation.trail.unshift({
-                x: state.deathAnimation.characterPos.x,
-                y: state.deathAnimation.characterPos.y,
-                rotation: state.deathAnimation.characterRotation,
-                opacity: 0.8
-            });
-
-            // Limit trail length
-            if (state.deathAnimation.trail.length > 10) {
-                state.deathAnimation.trail.pop();
-            }
-
-            // Add spinning stars occasionally
-            if (Math.random() < 0.2) {
-                state.deathAnimation.stars.push({
-                    x: state.deathAnimation.characterPos.x + (Math.random() - 0.5) * 30,
-                    y: state.deathAnimation.characterPos.y + (Math.random() - 0.5) * 30,
-                    rotation: Math.random() * Math.PI * 2,
-                    size: 15 + Math.random() * 10,
-                    opacity: 1
-                });
-            }
-
-            // Draw trail
-            state.deathAnimation.trail.forEach((pos, index) => {
-                const opacity = pos.opacity * (1 - index / state.deathAnimation.trail.length);
-                ctx.save();
-                ctx.globalAlpha = opacity;
-                ctx.translate(pos.x + PLAYER_SIZE / 2, pos.y + PLAYER_SIZE / 2);
-                ctx.rotate(pos.rotation);
-                
-                if (characterImage && characterImage.complete) {
-                    ctx.drawImage(
-                        characterImage,
-                        -PLAYER_SIZE / 2,
-                        -PLAYER_SIZE / 2,
-                        PLAYER_SIZE,
-                        PLAYER_SIZE
-                    );
-                }
-                ctx.restore();
-            });
-
-            // Update and draw stars
-            state.deathAnimation.stars = state.deathAnimation.stars.filter(star => {
-                star.rotation += 0.2;
-                star.opacity -= 0.05;
-                
-                if (star.opacity <= 0) return false;
-
-                ctx.save();
-                ctx.globalAlpha = star.opacity;
-                ctx.translate(star.x, star.y);
-                ctx.rotate(star.rotation);
-                
-                // Draw cartoon star
-                ctx.beginPath();
-                for (let i = 0; i < 5; i++) {
-                    const angle = (i * 4 * Math.PI) / 5;
-                    const x = Math.cos(angle) * star.size;
-                    const y = Math.sin(angle) * star.size;
-                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-                }
-                ctx.closePath();
-                ctx.fillStyle = '#FFD700';
-                ctx.fill();
-                ctx.restore();
-
-                return true;
-            });
-
-            // Draw main character
+            // Draw the character
             ctx.save();
-            ctx.globalAlpha = state.deathAnimation.characterOpacity;
             ctx.translate(
                 state.deathAnimation.characterPos.x + PLAYER_SIZE / 2,
                 state.deathAnimation.characterPos.y + PLAYER_SIZE / 2
             );
             ctx.rotate(state.deathAnimation.characterRotation);
 
-            if (characterImage && characterImage.complete) {
+            if (characterImages.body?.complete && 
+                characterImages.fur?.complete && 
+                characterImages.eyes?.complete && 
+                characterImages.nose?.complete && 
+                characterImages.mouth?.complete) {
+                
+                // Draw each layer
                 ctx.drawImage(
-                    characterImage,
+                    characterImages.body,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.fur,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.eyes,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.nose,
+                    -PLAYER_SIZE / 2,
+                    -PLAYER_SIZE / 2,
+                    PLAYER_SIZE,
+                    PLAYER_SIZE
+                );
+                
+                ctx.drawImage(
+                    characterImages.mouth,
                     -PLAYER_SIZE / 2,
                     -PLAYER_SIZE / 2,
                     PLAYER_SIZE,
