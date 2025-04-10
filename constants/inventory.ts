@@ -3,16 +3,20 @@ import { Category, Item, Rarity, SubCategory } from '../types/inventory';
 export const CATEGORIES: Category[] = ['outfits', 'powerups'];
 
 export const SUB_CATEGORIES: Record<Category, SubCategory[]> = {
-    outfits: ['head', 'body', 'legs', 'feet', 'skin'],
+    outfits: ['body', 'eyes', 'fur', 'head', 'minipet', 'misc', 'mouth', 'nose', 'skin'],
     powerups: ['speed', 'jump', 'shield']
 };
 
 export const ITEM_CATEGORIES = {
     OUTFIT: {
-        HEAD: 'head',
         BODY: 'body',
-        LEGS: 'legs',
-        FEET: 'feet',
+        EYES: 'eyes',
+        FUR: 'fur',
+        HEAD: 'head',
+        MINIPET: 'minipet',
+        MISC: 'misc',
+        MOUTH: 'mouth',
+        NOSE: 'nose',
         SKIN: 'skin'
     },
     POWERUPS: {

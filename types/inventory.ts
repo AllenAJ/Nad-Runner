@@ -10,7 +10,19 @@ export type Rarity = 'normal' | 'premium' | 'rare' | 'event_rare' | 'ultra_rare'
 
 export type Category = 'outfits' | 'powerups';
 
-export type SubCategory = 'head' | 'body' | 'legs' | 'feet' | 'skin' | 'speed' | 'jump' | 'shield';
+export type SubCategory = 
+    'body' | 
+    'eyes' | 
+    'fur' | 
+    'head' | 
+    'minipet' | 
+    'misc' | 
+    'mouth' | 
+    'nose' | 
+    'skin' | 
+    'speed' | 
+    'jump' | 
+    'shield';
 
 export interface Item {
     id: string;
@@ -45,10 +57,15 @@ export interface ShopItem {
 export interface OutfitLoadout {
     id: string;
     name: string;
-    head?: string;
     body?: string;
-    legs?: string;
-    feet?: string;
+    eyes?: string;
+    fur?: string;
+    head?: string;
+    minipet?: string;
+    misc?: string;
+    mouth?: string;
+    nose?: string;
+    skin?: string;
 }
 
 export interface ItemCounts {

@@ -415,7 +415,7 @@
 
 .categoryButton {
     width: 104px;
-    height: 64px;
+    height: 59px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -461,4 +461,8 @@
 
 .categoryButton.minipet {
     background-image: url('/bg/inv_btns/minipet_btn.png');
+}
+
+.categoryButton.all {
+    background-image: url('/bg/inv_btns/all_btn.png');
 }

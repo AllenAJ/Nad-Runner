@@ -4,7 +4,7 @@ import styles from './GameContainer.module.css';
 import { ChatBox } from '../Chat/ChatBox';
 import { useInventory } from '../../contexts/InventoryContext';
 import inventoryStyles from '../../styles/Inventory.module.css';
-import { Category, ItemCategory } from '../../types/inventory';
+import { Category, ItemCategory, SubCategory } from '../../types/inventory';
 import { LayeredCharacter } from '../Character/LayeredCharacter';
 
 
@@ -46,12 +46,16 @@ export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMen
 };
 
 type EquippedItems = {
-    head: string | null;
+    body: string | null;
     eyes: string | null;
+    fur: string | null;
+    head: string | null;
+    minipet: string | null;
+    misc: string | null;
     mouth: string | null;
-    hands: string | null;
-    feet: string | null;
+    nose: string | null;
     skin: string | null;
+    powerups: string | null;
 };
 
 export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
@@ -64,13 +68,18 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     } = useInventory();
 
     const [selectedCategory, setSelectedCategory] = useState<Category>('outfits');
+    const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | 'all'>('all');
     const [equippedItems, setEquippedItems] = useState<EquippedItems>({
-        head: null,
+        body: null,
         eyes: null,
+        fur: null,
+        head: null,
+        minipet: null,
+        misc: null,
         mouth: null,
-        hands: null,
-        feet: null,
-        skin: null
+        nose: null,
+        skin: null,
+        powerups: null
     });
 
     const handleButtonClick = (callback: () => void) => {
@@ -143,23 +152,76 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         </div>
     );
 
-    const renderCategorySection = (category: keyof EquippedItems, items: any[]) => (
-        <div className={inventoryStyles.categorySection}>
-            <h3 className={inventoryStyles.categoryTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}</h3>
-            {renderItemGrid(items, category)}
-        </div>
-    );
-
     const renderInventoryContent = () => {
-        const categories = ['head', 'eyes', 'mouth', 'hands', 'feet'];
+        if (selectedCategory === 'outfits') {
+            // Show specific category items when a subcategory is selected
+            if (selectedSubCategory !== 'all') {
+                const categoryTitles: Record<SubCategory, string> = {
+                    body: 'Body Items',
+                    eyes: 'Eyes',
+                    fur: 'Fur Styles',
+                    head: 'Head Items',
+                    minipet: 'Mini Pets',
+                    misc: 'Misc Items',
+                    mouth: 'Mouth Items',
+                    nose: 'Nose Items',
+                    skin: 'Skins',
+                    speed: 'Speed',
+                    jump: 'Jump',
+                    shield: 'Shield'
+                };
+
+                return (
+                    <div className={inventoryStyles.inventoryContent}>
+                        <div className={inventoryStyles.categorySection}>
+                            <h3 className={inventoryStyles.categoryTitle}>
+                                {categoryTitles[selectedSubCategory as SubCategory]}
+                            </h3>
+                            {renderItemGrid(
+                                getItemsByCategory(selectedSubCategory as ItemCategory),
+                                selectedSubCategory === 'speed' || selectedSubCategory === 'jump' || selectedSubCategory === 'shield' 
+                                    ? 'powerups' 
+                                    : (selectedSubCategory as keyof EquippedItems)
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            // Show all items when "ALL" is selected
+            const allItems = [
+                ...getItemsByCategory('body'),
+                ...getItemsByCategory('eyes'),
+                ...getItemsByCategory('fur'),
+                ...getItemsByCategory('head'),
+                ...getItemsByCategory('minipet'),
+                ...getItemsByCategory('misc'),
+                ...getItemsByCategory('mouth'),
+                ...getItemsByCategory('nose'),
+                ...getItemsByCategory('skin')
+            ];
+
+            return (
+                <div className={inventoryStyles.inventoryContent}>
+                    <div className={inventoryStyles.categorySection}>
+                        <h3 className={inventoryStyles.categoryTitle}>All Items</h3>
+                        {renderItemGrid(allItems, 'skin')}
+                    </div>
+                </div>
+            );
+        }
+
+        // For powerups category
         return (
             <div className={inventoryStyles.inventoryContent}>
-                {categories.map(category => 
-                    renderCategorySection(
-                        category as keyof EquippedItems,
-                        getItemsByCategory(category as ItemCategory)
-                    )
-                )}
+                <div className={inventoryStyles.categorySection}>
+                    <h3 className={inventoryStyles.categoryTitle}>Powerups</h3>
+                    {renderItemGrid([
+                        ...getItemsByCategory('speed'),
+                        ...getItemsByCategory('jump'),
+                        ...getItemsByCategory('shield')
+                    ], 'powerups')}
+                </div>
             </div>
         );
     };
@@ -181,10 +243,19 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 {renderCharacterPreview()}
                 <div className={inventoryStyles.categoryButtons}>
                     <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.all}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                            setSelectedSubCategory('all');
+                        }}
+                    />
+                    <div 
                         className={`${inventoryStyles.categoryButton} ${inventoryStyles.skin}`} 
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('skin');
                         }}
                     />
                     <div 
@@ -192,6 +263,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('fur');
                         }}
                     />
                     <div 
@@ -199,6 +271,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('head');
                         }}
                     />
                     <div 
@@ -206,6 +279,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('eyes');
                         }}
                     />
                     <div 
@@ -213,6 +287,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('nose');
                         }}
                     />
                     <div 
@@ -220,6 +295,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
+                            setSelectedSubCategory('mouth');
                         }}
                     />
                     <div 
@@ -227,28 +303,19 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         onClick={() => {
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipet}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
+                            setSelectedSubCategory('minipet');
                         }}
                     />
                     <div 
                         className={`${inventoryStyles.categoryButton} ${inventoryStyles.misc}`} 
                         onClick={() => {
                             playSound(buttonClickSound);
-                            setSelectedCategory('powerups');
+                            setSelectedCategory('outfits');
+                            setSelectedSubCategory('misc');
                         }}
                     />
                 </div>
                 <div className={inventoryStyles.itemsContainer}>
-                    <div className={inventoryStyles.skinSection}>
-                        <h2 className={inventoryStyles.sectionTitle}>Skins</h2>
-                        {renderItemGrid(getItemsByCategory('skin'), 'skin')}
-                    </div>
                     {renderInventoryContent()}
                 </div>
             </div>

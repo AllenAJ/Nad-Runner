@@ -17,10 +17,14 @@ interface PlayerInventoryItem {
 interface OutfitLoadout {
     loadout_id: number;
     name: string;
-    head_item: string | null;
     body_item: string | null;
-    legs_item: string | null;
-    feet_item: string | null;
+    eyes_item: string | null;
+    fur_item: string | null;
+    head_item: string | null;
+    minipet_item: string | null;
+    misc_item: string | null;
+    mouth_item: string | null;
+    nose_item: string | null;
     skin_item: string | null;
     is_active: boolean;
 }
