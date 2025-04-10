@@ -58,14 +58,14 @@
 
 .mainContent {
     display: grid;
-    grid-template-columns: 1fr 3fr;
+    grid-template-columns: 2fr 0.5fr 3fr;  /* Updated to include space for buttons */
     gap: 0.5rem;
     height: calc(100% - 3rem);
-    min-height: 0; /* Important for nested scrolling */
+    min-height: 0;
     overflow: hidden;
-    width: 100%; /* Ensure full width */
-    margin: 0; /* Remove any default margins */
-    padding: 0 0.25rem; /* Small horizontal padding to prevent edge clipping */
+    width: 100%;
+    margin: 0;
+    padding: 0 0.25rem;
 }
 
 .characterPreview {
@@ -149,7 +149,7 @@
     height: 96%;
     display: flex;
     flex-direction: column;
-    width: 98%;
+    width: 97%;
     min-width: 0;
     box-sizing: border-box;
     color: #fff;
@@ -401,4 +401,64 @@
     50% {
         opacity: 0.4;
     }
+}
+
+/* Add styles for the buttons container */
+.categoryButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.categoryButton {
+    width: 104px;
+    height: 64px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.categoryButton:hover {
+    transform: scale(1.1);
+}
+
+.categoryButton.skin {
+    background-image: url('/bg/inv_btns/skin_btn.png');
+}
+
+.categoryButton.heads {
+    background-image: url('/bg/inv_btns/heads_btn.png');
+}
+
+.categoryButton.eyes {
+    background-image: url('/bg/inv_btns/eyes_btn.png');
+}
+
+.categoryButton.nose {
+    background-image: url('/bg/inv_btns/nose_btn.png');
+}
+
+.categoryButton.mouth {
+    background-image: url('/bg/inv_btns/mouth_btn.png');
+}
+
+.categoryButton.minipets {
+    background-image: url('/bg/inv_btns/body_btn.png');
+}
+
+.categoryButton.misc {
+    background-image: url('/bg/inv_btns/misc_btn.png');
+}
+
+.categoryButton.fur {
+    background-image: url('/bg/inv_btns/fur_btn.png');
+}
+
+.categoryButton.minipet {
+    background-image: url('/bg/inv_btns/minipet_btn.png');
 }

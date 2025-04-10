@@ -179,6 +179,71 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             </div>
             <div className={inventoryStyles.mainContent}>
                 {renderCharacterPreview()}
+                <div className={inventoryStyles.categoryButtons}>
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.skin}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.fur}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.heads}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.eyes}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.nose}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.mouth}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipets}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipet}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.misc}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('powerups');
+                        }}
+                    />
+                </div>
                 <div className={inventoryStyles.itemsContainer}>
                     <div className={inventoryStyles.skinSection}>
                         <h2 className={inventoryStyles.sectionTitle}>Skins</h2>

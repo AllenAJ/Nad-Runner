@@ -51,7 +51,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/red_skin.svg',
         purchaseDate: new Date(),
-        color: '#ff0000'
+        color: '#8B3A3A'
     },
     {
         id: 'blue_skin',
@@ -64,7 +64,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/blue_skin.svg',
         purchaseDate: new Date(),
-        color: '#0000ff'
+        color: '#4A6B8A'
     },
     {
         id: 'green_skin',
@@ -77,7 +77,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/green_skin.svg',
         purchaseDate: new Date(),
-        color: '#00ff00'
+        color: '#4F7942'
     },
     {
         id: 'yellow_skin',
@@ -90,7 +90,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/yellow_skin.svg',
         purchaseDate: new Date(),
-        color: '#ffff00'
+        color: '#B8860B'
     },
     {
         id: 'basic_helmet',

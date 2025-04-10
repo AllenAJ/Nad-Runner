@@ -454,6 +454,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.jumpCount = 0;
             state.currentBox = null;
             state.xVelocity = 0;
+            // Removed rotation reset to preserve spinning
         }
 
         // Check if player has fallen off current box
@@ -709,44 +710,6 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const checkCollisionWithBox = (playerHitbox: any, boxHitbox: any) => {
         const state = gameStateRef.current;
         
-        // Debug visualization
-        if (state.debug.enabled) {
-            const ctx = canvasRef.current?.getContext('2d');
-            if (ctx) {
-                // Draw landing zone
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
-                ctx.fillRect(
-                    boxHitbox.x,
-                    boxHitbox.y - 30,
-                    boxHitbox.width,
-                    30
-                );
-
-                // Draw actual collision box
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
-                ctx.strokeRect(
-                    boxHitbox.x,
-                    boxHitbox.y,
-                    boxHitbox.width,
-                    boxHitbox.height
-                );
-
-                // Draw player's bottom center point
-                ctx.fillStyle = 'blue';
-                ctx.beginPath();
-                ctx.arc(
-                    playerHitbox.x + playerHitbox.width / 2,
-                    playerHitbox.y + playerHitbox.height,
-                    3,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            }
-        }
-
         // Get player's bottom center point
         const playerBottomCenterX = playerHitbox.x + playerHitbox.width / 2;
         const playerBottom = playerHitbox.y + playerHitbox.height;
@@ -760,35 +723,22 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             playerBottomCenterX >= boxHitbox.x && 
             playerBottomCenterX <= boxHitbox.x + boxHitbox.width;
 
-        // Calculate vertical overlap for landing
-        const landingZoneHeight = 30;
+        // Calculate vertical overlap for landing with smoother transition zone
+        const landingZoneHeight = 15; // Reduced landing zone height
         const isInLandingZone = 
             playerBottom >= boxTop - landingZoneHeight && 
-            playerBottom <= boxTop + 10; // Small tolerance for landing
+            playerBottom <= boxTop + 5; // Reduced tolerance for more precise landing
 
         // For horizontal boxes, we want to be more lenient with the landing zone
         const isHorizontalBox = boxHitbox.width > BOX_SIZE;
-        const landingThreshold = isHorizontalBox ? 40 : 20;
+        const landingThreshold = isHorizontalBox ? 20 : 15; // Reduced thresholds
 
-        // Debug logging
-        if (state.debug.enabled) {
-            console.log('Collision Check:', {
-                isFalling,
-                isWithinHorizontalBounds,
-                isInLandingZone,
-                playerBottom,
-                boxTop,
-                yVelocity: state.yVelocity,
-                isHorizontalBox,
-                boxWidth: boxHitbox.width,
-                playerX: playerBottomCenterX,
-                boxX: boxHitbox.x,
-                boxEndX: boxHitbox.x + boxHitbox.width
-            });
-        }
-
-        // Check for landing
+        // Check for landing with smoother transition
         if (isFalling && isWithinHorizontalBounds && isInLandingZone) {
+            // Smooth landing transition
+            const landingProgress = (playerBottom - (boxTop - landingZoneHeight)) / landingZoneHeight;
+            const smoothedVelocity = state.yVelocity * (1 - Math.min(1, landingProgress));
+
             // Safe landing
             state.currentBox = {
                 x: boxHitbox.x,
@@ -797,41 +747,46 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 height: boxHitbox.height
             };
 
-            // Position player on top of box
-            state.playerY = boxTop - PLAYER_SIZE;
-            state.yVelocity = 0;
+            // Position player on top of box with minimal interpolation
+            state.playerY = boxTop - PLAYER_SIZE;  // Removed interpolation
+            state.yVelocity = 0;  // Removed smoothing for immediate stop
             state.isJumping = false;
             state.jumpCount = 0;
 
-            // Add landing particles
-            for (let i = 0; i < 5; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 1 + Math.random() * 2;
-                state.particles.push({
-                    x: state.playerX + PLAYER_SIZE / 2,
-                    y: state.playerY + PLAYER_SIZE,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: Math.random() * 0.2,
-                    size: 2 + Math.random() * 2,
-                    color: '#FFFFFF',
-                    opacity: 0.8,
-                    fadeSpeed: 0.02
-                });
+            // Add landing particles with varied timing
+            const particleCount = Math.floor(5 + Math.random() * 3);
+            for (let i = 0; i < particleCount; i++) {
+                setTimeout(() => {
+                    if (state.currentBox) { // Check if still on box
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 1 + Math.random() * 2;
+                        state.particles.push({
+                            x: state.playerX + PLAYER_SIZE / 2,
+                            y: state.playerY + PLAYER_SIZE,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            rotation: Math.random() * Math.PI * 2,
+                            rotationSpeed: Math.random() * 0.2,
+                            size: 2 + Math.random() * 2,
+                            color: '#FFFFFF',
+                            opacity: 0.8,
+                            fadeSpeed: 0.02
+                        });
+                    }
+                }, i * 16); // Stagger particle creation
             }
 
             return false;
         }
 
-        // Check for collision with the box body
+        // Check for collision with the box body with improved precision
         const hasVerticalOverlap = 
-            playerHitbox.y < boxHitbox.y + boxHitbox.height &&
-            playerHitbox.y + playerHitbox.height > boxHitbox.y;
+            playerHitbox.y < boxHitbox.y + boxHitbox.height - 2 && // Small tolerance
+            playerHitbox.y + playerHitbox.height > boxHitbox.y + 2; // Small tolerance
 
         const hasHorizontalOverlap = 
-            playerHitbox.x < boxHitbox.x + boxHitbox.width &&
-            playerHitbox.x + playerHitbox.width > boxHitbox.x;
+            playerHitbox.x < boxHitbox.x + boxHitbox.width - 2 && // Small tolerance
+            playerHitbox.x + playerHitbox.width > boxHitbox.x + 2; // Small tolerance
 
         // Return true if there's both vertical and horizontal overlap
         return hasVerticalOverlap && hasHorizontalOverlap && !isInLandingZone;
