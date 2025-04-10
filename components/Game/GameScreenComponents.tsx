@@ -93,7 +93,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     const renderCharacterPreview = () => (
         <div className={inventoryStyles.characterPreview}>
             <div className={inventoryStyles.characterModel}>
-                <LayeredCharacter width={150} height={150} />
+                <LayeredCharacter width={200} height={200} />
             </div>
         </div>
     );

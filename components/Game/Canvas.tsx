@@ -136,6 +136,12 @@ interface GameState {
     debug: {
         enabled: boolean;
         showHitboxes: boolean;
+        lastDeathCause?: {
+            type: string;
+            x: number;
+            y: number;
+            velocity: number;
+        };
     };
     chogRotation: number;
     isOnBox: boolean;
@@ -148,6 +154,7 @@ interface GameState {
         width: number;
         height: number;
     } | null;
+    lastSpawnTime?: number;
 }
 
 interface Obstacle {
@@ -278,9 +285,9 @@ const OBSTACLE_SIZE = 50;
 const POWERUP_SIZE = 40;
 const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
 const PLAYER_OFFSET_FROM_GROUND = 0;
-const OBSTACLE_SPAWN_CHANCE = 0.1;
+const OBSTACLE_SPAWN_CHANCE = 0.95; // Increased spawn chance for more frequent obstacles
 const POWERUP_SPAWN_CHANCE = 0.008;
-const MIN_OBSTACLE_DISTANCE = 50;
+const MIN_OBSTACLE_DISTANCE = 5; // Reduced distance for closer obstacle spawning
 const SPEED_INCREASE_INTERVAL = 3;
 const SPEED_INCREASE_AMOUNT = 0.5;
 const MAX_GAME_SPEED = 15;
@@ -308,6 +315,18 @@ const BOX_SIZE = 50; // New box size (was 41)
 // Add jump sound at the top with other assets
 const jumpSound = typeof window !== 'undefined' ? new Audio('/assets/audio/jumpsound.mp3') : null;
 
+// Add explosion sound at the top with other assets
+const explosionSound = typeof window !== 'undefined' ? new Audio('/assets/audio/explode3.mp3') : null;
+
+// Add combo sounds at the top with other assets
+const comboSounds = [
+    typeof window !== 'undefined' ? new Audio('/assets/audio/3_combo1.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/4_combo2.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/5_combo3.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/6_combo4.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/7_combo5.mp3') : null
+];
+
 const CHOG_ROTATION_SPEED = Math.PI; // Rotate 180 degrees per second
 
 // Adjust physics constants for snappier movement
@@ -316,6 +335,19 @@ const DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER = 1.3; // Increased from 1.2 for stro
 const AIR_RESISTANCE = 0.95; // Increased from 0.99 for less floaty feel
 const AIR_CONTROL_MULTIPLIER = 2.5; // New constant for stronger air control
 const INITIAL_MOVE_SPEED = 400; // Base movement speed
+
+// Add hit sounds at the top with other assets
+const hitSounds = [
+    typeof window !== 'undefined' ? new Audio('/assets/audio/10_hit1.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/11_hit2.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/12_hit3.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/13_hit4.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/14_hit5.mp3') : null,
+    typeof window !== 'undefined' ? new Audio('/assets/audio/15_hit6.mp3') : null
+];
+
+// Add this constant at the top with other constants
+const OBSTACLE_SPAWN_INTERVAL = 2000; // Spawn obstacle every 1 second
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -459,10 +491,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             return obstacle.x + obstacle.width > 0;
         });
 
-        // Spawn new obstacles
-        if (Math.random() < OBSTACLE_SPAWN_CHANCE &&
-            (state.obstacles.length === 0 || width - state.lastObstacleX > MIN_OBSTACLE_DISTANCE)) {
-            
+        // Time-based obstacle spawning
+        const currentTime = Date.now();
+        if (!state.lastSpawnTime) {
+            state.lastSpawnTime = currentTime;
+        }
+
+        if (currentTime - state.lastSpawnTime >= OBSTACLE_SPAWN_INTERVAL) {
             // Simply use the original BOX_ARRANGEMENTS array without duplicating any entries
             const boxConfig = BOX_ARRANGEMENTS[Math.floor(Math.random() * BOX_ARRANGEMENTS.length)];
             
@@ -485,7 +520,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     BOX_SIZE * 3 : // Width for two boxes plus chog
                     BOX_SIZE * (boxConfig.arrangement === 'horizontal' ? boxConfig.count : 1),
                 height: BOX_SIZE * (boxConfig.arrangement === 'vertical' ? boxConfig.count : 1),
-                type: boxConfig.type as Obstacle['type'], // Explicitly cast to Obstacle type
+                type: boxConfig.type as Obstacle['type'],
                 config: boxConfig
             };
 
@@ -497,7 +532,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 state.glass = {
                     isBroken: false,
                     x: width + 100,
-                    y: glassY - BOX_SIZE, // Position glass one box height above the gap
+                    y: glassY - BOX_SIZE,
                     width: BOX_SIZE,
                     height: BOX_SIZE,
                     opacity: 1,
@@ -505,7 +540,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 };
             }
             
-            state.lastObstacleX = width;
+            state.lastSpawnTime = currentTime;
         }
 
         // Check collisions with boxes
@@ -530,7 +565,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             height: BOX_SIZE
                         };
                         if (checkCollisionWithBox(playerHitbox, box1Hitbox)) {
-                            handleCollision(obstacle.x, obstacle.y);
+                            handleCollision(obstacle.x, obstacle.y, obstacle);
                             return true;
                         }
 
@@ -542,7 +577,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             height: BOX_SIZE
                         };
                         if (checkCollisionWithBox(playerHitbox, chogHitbox)) {
-                            handleCollision(obstacle.x + BOX_SIZE, obstacle.y);
+                            handleCollision(obstacle.x + BOX_SIZE, obstacle.y, obstacle);
                             return true;
                         }
 
@@ -554,7 +589,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             height: BOX_SIZE
                         };
                         if (checkCollisionWithBox(playerHitbox, box2Hitbox)) {
-                            handleCollision(obstacle.x + BOX_SIZE * 2, obstacle.y);
+                            handleCollision(obstacle.x + BOX_SIZE * 2, obstacle.y, obstacle);
                             return true;
                         }
                     } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
@@ -569,7 +604,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             };
                             
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
-                                handleCollision(obstacle.x, boxY);
+                                handleCollision(obstacle.x, boxY, obstacle);
                                 return true;
                             }
                         }
@@ -629,7 +664,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             };
                             
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
-                                handleCollision(obstacle.x, boxY);
+                                handleCollision(obstacle.x, boxY, obstacle);
                                 return true;
                             }
                         }
@@ -647,7 +682,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             };
 
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
-                                handleCollision(obstacle.x + offsetX, obstacle.y + offsetY);
+                                handleCollision(obstacle.x + offsetX, obstacle.y + offsetY, obstacle);
                                 return true;
                             }
                         }
@@ -674,28 +709,87 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const checkCollisionWithBox = (playerHitbox: any, boxHitbox: any) => {
         const state = gameStateRef.current;
         
-        // Check if player is above the box
+        // Debug visualization
+        if (state.debug.enabled) {
+            const ctx = canvasRef.current?.getContext('2d');
+            if (ctx) {
+                // Draw landing zone
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.fillRect(
+                    boxHitbox.x,
+                    boxHitbox.y - 30,
+                    boxHitbox.width,
+                    30
+                );
+
+                // Draw actual collision box
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.strokeRect(
+                    boxHitbox.x,
+                    boxHitbox.y,
+                    boxHitbox.width,
+                    boxHitbox.height
+                );
+
+                // Draw player's bottom center point
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.arc(
+                    playerHitbox.x + playerHitbox.width / 2,
+                    playerHitbox.y + playerHitbox.height,
+                    3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+
+        // Get player's bottom center point
+        const playerBottomCenterX = playerHitbox.x + playerHitbox.width / 2;
         const playerBottom = playerHitbox.y + playerHitbox.height;
         const boxTop = boxHitbox.y;
-        const landingZoneHeight = boxHitbox.height * 0.2;
-        
-        // Check if player is within the box's horizontal bounds
-        const isOverlappingX = playerHitbox.x < boxHitbox.x + boxHitbox.width &&
-                              playerHitbox.x + playerHitbox.width > boxHitbox.x;
-        
-        // Check if player is in the landing zone
-        const isInLandingZone = playerBottom >= boxTop && 
-                               playerBottom <= boxTop + landingZoneHeight &&
-                               state.yVelocity > 0;
 
-        if (isOverlappingX && isInLandingZone) {
-            console.log('Landing on box:', {
-                playerY: state.playerY,
+        // Check if player is falling
+        const isFalling = state.yVelocity > 0;
+
+        // Calculate horizontal overlap
+        const isWithinHorizontalBounds = 
+            playerBottomCenterX >= boxHitbox.x && 
+            playerBottomCenterX <= boxHitbox.x + boxHitbox.width;
+
+        // Calculate vertical overlap for landing
+        const landingZoneHeight = 30;
+        const isInLandingZone = 
+            playerBottom >= boxTop - landingZoneHeight && 
+            playerBottom <= boxTop + 10; // Small tolerance for landing
+
+        // For horizontal boxes, we want to be more lenient with the landing zone
+        const isHorizontalBox = boxHitbox.width > BOX_SIZE;
+        const landingThreshold = isHorizontalBox ? 40 : 20;
+
+        // Debug logging
+        if (state.debug.enabled) {
+            console.log('Collision Check:', {
+                isFalling,
+                isWithinHorizontalBounds,
+                isInLandingZone,
+                playerBottom,
                 boxTop,
-                yVelocity: state.yVelocity
+                yVelocity: state.yVelocity,
+                isHorizontalBox,
+                boxWidth: boxHitbox.width,
+                playerX: playerBottomCenterX,
+                boxX: boxHitbox.x,
+                boxEndX: boxHitbox.x + boxHitbox.width
             });
+        }
 
-            // Set the current box
+        // Check for landing
+        if (isFalling && isWithinHorizontalBounds && isInLandingZone) {
+            // Safe landing
             state.currentBox = {
                 x: boxHitbox.x,
                 y: boxHitbox.y,
@@ -728,14 +822,19 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
 
             return false;
-        } else if (isOverlappingX && 
-                   playerHitbox.y < boxTop + boxHitbox.height &&
-                   playerHitbox.y + playerHitbox.height > boxTop + landingZoneHeight) {
-            // Collision with sides or bottom of box
-            return true;
         }
 
-        return false;
+        // Check for collision with the box body
+        const hasVerticalOverlap = 
+            playerHitbox.y < boxHitbox.y + boxHitbox.height &&
+            playerHitbox.y + playerHitbox.height > boxHitbox.y;
+
+        const hasHorizontalOverlap = 
+            playerHitbox.x < boxHitbox.x + boxHitbox.width &&
+            playerHitbox.x + playerHitbox.width > boxHitbox.x;
+
+        // Return true if there's both vertical and horizontal overlap
+        return hasVerticalOverlap && hasHorizontalOverlap && !isInLandingZone;
     };
 
     const updatePowerups = (deltaTime: number) => {
@@ -1071,79 +1170,84 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.strokeRect(playerHitbox.x, playerHitbox.y, playerHitbox.width, playerHitbox.height);
         ctx.fillRect(playerHitbox.x, playerHitbox.y, playerHitbox.width, playerHitbox.height);
 
-        // Draw obstacles hitboxes
+        // Draw player velocity vector
+        ctx.beginPath();
+        ctx.strokeStyle = 'blue';
+        ctx.moveTo(state.playerX + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
+        ctx.lineTo(
+            state.playerX + PLAYER_SIZE / 2 + state.xVelocity * 0.1,
+            state.playerY + PLAYER_SIZE / 2 + state.yVelocity * 0.1
+        );
+        ctx.stroke();
+
+        // Draw obstacles hitboxes and landing zones
         state.obstacles.forEach(obstacle => {
             if (obstacle.config) {
                 const { arrangement, count, hasChog } = obstacle.config;
 
+                // Draw landing zones in green
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+
                 if (arrangement === 'horizontal' && hasChog) {
-                    // Draw first box hitbox
-                    const box1Hitbox = {
-                        x: obstacle.x + HITBOX_PADDING,
-                        y: obstacle.y + HITBOX_PADDING,
-                        width: BOX_SIZE - (HITBOX_PADDING * 2),
-                        height: BOX_SIZE - (HITBOX_PADDING * 2)
-                    };
-                    ctx.strokeRect(box1Hitbox.x, box1Hitbox.y, box1Hitbox.width, box1Hitbox.height);
-                    ctx.fillRect(box1Hitbox.x, box1Hitbox.y, box1Hitbox.width, box1Hitbox.height);
-
-                    // Draw chog hitbox
-                    const chogHitbox = {
-                        x: obstacle.x + BOX_SIZE + HITBOX_PADDING,
-                        y: obstacle.y + HITBOX_PADDING,
-                        width: BOX_SIZE - (HITBOX_PADDING * 2),
-                        height: BOX_SIZE - (HITBOX_PADDING * 2)
-                    };
-                    ctx.strokeRect(chogHitbox.x, chogHitbox.y, chogHitbox.width, chogHitbox.height);
-                    ctx.fillRect(chogHitbox.x, chogHitbox.y, chogHitbox.width, chogHitbox.height);
-
-                    // Draw second box hitbox
-                    const box2Hitbox = {
-                        x: obstacle.x + BOX_SIZE * 2 + HITBOX_PADDING,
-                        y: obstacle.y + HITBOX_PADDING,
-                        width: BOX_SIZE - (HITBOX_PADDING * 2),
-                        height: BOX_SIZE - (HITBOX_PADDING * 2)
-                    };
-                    ctx.strokeRect(box2Hitbox.x, box2Hitbox.y, box2Hitbox.width, box2Hitbox.height);
-                    ctx.fillRect(box2Hitbox.x, box2Hitbox.y, box2Hitbox.width, box2Hitbox.height);
-                } else if (obstacle.type === 'split_gap') {
-                    // Draw bottom boxes hitboxes
-                    for (let i = 0; i < (obstacle.config.bottomCount || 0); i++) {
-                        const boxY = height - getGroundHeight(height) - BOX_SIZE - (i * BOX_SIZE);
-                        ctx.strokeRect(
-                            obstacle.x + HITBOX_PADDING,
-                            boxY + HITBOX_PADDING,
-                            BOX_SIZE - (HITBOX_PADDING * 2),
-                            BOX_SIZE - (HITBOX_PADDING * 2)
-                        );
+                    // Draw landing zones for horizontal arrangement with chog
+                    [0, 2].forEach(i => {
                         ctx.fillRect(
-                            obstacle.x + HITBOX_PADDING,
-                            boxY + HITBOX_PADDING,
-                            BOX_SIZE - (HITBOX_PADDING * 2),
-                            BOX_SIZE - (HITBOX_PADDING * 2)
+                            obstacle.x + i * BOX_SIZE,
+                            obstacle.y - 40,
+                            BOX_SIZE,
+                            40
+                        );
+                        ctx.strokeRect(
+                            obstacle.x + i * BOX_SIZE,
+                            obstacle.y - 40,
+                            BOX_SIZE,
+                            40
+                        );
+                    });
+                } else {
+                    // Draw landing zones for other arrangements
+                    for (let i = 0; i < count; i++) {
+                        const offsetX = arrangement === 'horizontal' ? i * BOX_SIZE : 0;
+                        const offsetY = arrangement === 'vertical' ? i * BOX_SIZE : 0;
+                        
+                        ctx.fillRect(
+                            obstacle.x + offsetX,
+                            obstacle.y + offsetY - 40,
+                            BOX_SIZE,
+                            40
+                        );
+                        ctx.strokeRect(
+                            obstacle.x + offsetX,
+                            obstacle.y + offsetY - 40,
+                            BOX_SIZE,
+                            40
                         );
                     }
+                }
 
-                    // Draw top boxes hitboxes
-                    for (let i = 0; i < (obstacle.config.topCount || 0); i++) {
-                        const boxY = height - getGroundHeight(height) - BOX_SIZE - 
-                            (obstacle.config.gapSize || 0) - 
-                            ((i + (obstacle.config.bottomCount || 0)) * BOX_SIZE);
+                // Draw hitboxes in red
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+
+                if (arrangement === 'horizontal' && hasChog) {
+                    // Draw hitboxes for all three parts
+                    for (let i = 0; i < 3; i++) {
                         ctx.strokeRect(
-                            obstacle.x + HITBOX_PADDING,
-                            boxY + HITBOX_PADDING,
+                            obstacle.x + i * BOX_SIZE + HITBOX_PADDING,
+                            obstacle.y + HITBOX_PADDING,
                             BOX_SIZE - (HITBOX_PADDING * 2),
                             BOX_SIZE - (HITBOX_PADDING * 2)
                         );
                         ctx.fillRect(
-                            obstacle.x + HITBOX_PADDING,
-                            boxY + HITBOX_PADDING,
+                            obstacle.x + i * BOX_SIZE + HITBOX_PADDING,
+                            obstacle.y + HITBOX_PADDING,
                             BOX_SIZE - (HITBOX_PADDING * 2),
                             BOX_SIZE - (HITBOX_PADDING * 2)
                         );
                     }
                 } else {
-                    // Draw regular arrangement hitboxes
+                    // Draw hitboxes for other arrangements
                     for (let i = 0; i < count; i++) {
                         const offsetX = arrangement === 'horizontal' ? i * BOX_SIZE : 0;
                         const offsetY = arrangement === 'vertical' ? i * BOX_SIZE : 0;
@@ -1167,8 +1271,31 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Draw debug text
         ctx.font = '14px Arial';
-        ctx.fillStyle = 'red';
-        ctx.fillText('Debug Mode: ON', 10, height - 10);
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'left';
+        
+        const debugInfo = [
+            `Debug Mode: ON`,
+            `Position: (${Math.round(state.playerX)}, ${Math.round(state.playerY)})`,
+            `Velocity: (${Math.round(state.xVelocity)}, ${Math.round(state.yVelocity)})`,
+            `Jumping: ${state.isJumping}`,
+            `Jump Count: ${state.jumpCount}/${state.maxJumps}`,
+            `On Box: ${state.currentBox ? 'Yes' : 'No'}`
+        ];
+
+        // Add death cause if available
+        if (state.deathAnimation.active && state.debug.lastDeathCause) {
+            debugInfo.push(
+                `Death Cause:`,
+                `- Type: ${state.debug.lastDeathCause.type}`,
+                `- Position: (${Math.round(state.debug.lastDeathCause.x)}, ${Math.round(state.debug.lastDeathCause.y)})`,
+                `- Impact Velocity: ${Math.round(state.debug.lastDeathCause.velocity)}`
+            );
+        }
+
+        debugInfo.forEach((text, i) => {
+            ctx.fillText(text, 10, height - 120 + (i * 20));
+        });
         
         ctx.restore();
     };
@@ -1614,11 +1741,12 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             if (state.currentBox && !state.isJumping) {
                 console.log('Performing box jump');
                 
-                // Play jump sound
-                if (jumpSound) {
-                    jumpSound.currentTime = 0;
-                    jumpSound.play().catch(error => {
-                        console.log('Jump sound playback failed:', error);
+                // Play random combo sound for box jump
+                const randomComboSound = comboSounds[Math.floor(Math.random() * comboSounds.length)];
+                if (randomComboSound) {
+                    randomComboSound.currentTime = 0;
+                    randomComboSound.play().catch(error => {
+                        console.log('Combo sound playback failed:', error);
                     });
                 }
 
@@ -1672,7 +1800,15 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     });
                 }
             } else if (!state.isJumping || state.jumpCount < state.maxJumps) {
-                // Normal jump
+                // Normal jump - play regular jump sound
+                if (jumpSound) {
+                    jumpSound.currentTime = 0;
+                    jumpSound.play().catch(error => {
+                        console.log('Jump sound playback failed:', error);
+                    });
+                }
+                
+                // Normal jump physics
                 state.yVelocity = state.jumpStrength;
                 state.isJumping = true;
                 state.jumpCount++;
@@ -1774,7 +1910,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         };
     }, [isPlaying]);
 
-    const handleCollision = (x: number, y: number) => {
+    const handleCollision = (x: number, y: number, obstacle?: Obstacle) => {
         const state = gameStateRef.current;
         
         // Prevent multiple collisions during death animation
@@ -1783,6 +1919,35 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         }
         
         state.isColliding = true;
+
+        // Store death cause information for debug mode
+        if (state.debug.enabled && obstacle) {
+            state.debug.lastDeathCause = {
+                type: obstacle.type,
+                x: x,
+                y: y,
+                velocity: state.yVelocity
+            };
+        }
+
+        // Play random hit sound followed by explosion sound
+        const randomHitSound = hitSounds[Math.floor(Math.random() * hitSounds.length)];
+        if (randomHitSound) {
+            randomHitSound.currentTime = 0;
+            randomHitSound.play()
+                .then(() => {
+                    // Play explosion sound after hit sound finishes
+                    if (explosionSound) {
+                        explosionSound.currentTime = 0;
+                        explosionSound.play().catch(error => {
+                            console.log('Explosion sound playback failed:', error);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.log('Hit sound playback failed:', error);
+                });
+        }
         
         // Start death animation with faster spinning
         state.deathAnimation = {
