@@ -788,7 +788,52 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             playerHitbox.x < boxHitbox.x + boxHitbox.width - 2 && // Small tolerance
             playerHitbox.x + playerHitbox.width > boxHitbox.x + 2; // Small tolerance
 
-        // Return true if there's both vertical and horizontal overlap
+        // Add protection for side collisions when jumping
+        if (state.isJumping && hasVerticalOverlap && hasHorizontalOverlap) {
+            // Calculate how much the player overlaps horizontally with the box
+            const playerRight = playerHitbox.x + playerHitbox.width;
+            const boxRight = boxHitbox.x + boxHitbox.width;
+            
+            // Check if the player is mostly on the side of the box
+            const leftOverlap = playerRight - boxHitbox.x;
+            const rightOverlap = boxRight - playerHitbox.x;
+            const minOverlap = Math.min(leftOverlap, rightOverlap);
+            
+            // If overlap is small and player is moving, push them to the side instead of killing them
+            if (minOverlap < PLAYER_SIZE * 0.4) {
+                // Player is more on the left side of the box
+                if (leftOverlap < rightOverlap) {
+                    state.playerX = boxHitbox.x - PLAYER_SIZE - 1;
+                    state.xVelocity = Math.min(state.xVelocity, -100); // Push player left
+                } 
+                // Player is more on the right side of the box
+                else {
+                    state.playerX = boxRight + 1;
+                    state.xVelocity = Math.max(state.xVelocity, 100); // Push player right
+                }
+                return false; // No collision, just repositioning
+            }
+            
+            // Also check for barely-miss vertical collisions
+            // If player's bottom is very close to the top of the box, snap to the top instead
+            if (Math.abs(playerBottom - boxTop) < 10) {
+                state.playerY = boxTop - PLAYER_SIZE;
+                state.yVelocity = 0;
+                state.isJumping = false;
+                state.jumpCount = 0;
+                
+                state.currentBox = {
+                    x: boxHitbox.x,
+                    y: boxHitbox.y,
+                    width: boxHitbox.width,
+                    height: boxHitbox.height
+                };
+                
+                return false;
+            }
+        }
+
+        // Return true if there's both vertical and horizontal overlap and not in landing zone
         return hasVerticalOverlap && hasHorizontalOverlap && !isInLandingZone;
     };
 
