@@ -102,7 +102,36 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     const renderCharacterPreview = () => (
         <div className={inventoryStyles.characterPreview}>
             <div className={inventoryStyles.characterModel}>
-                <LayeredCharacter width={200} height={200} />
+                <LayeredCharacter 
+                    width={200} 
+                    height={200} 
+                    showShadow={true}
+                    equippedMinipet={
+                        equippedItems.minipet === 'baldeagle' ? 'Baldeagle' :
+                        equippedItems.minipet === 'bug' ? 'Bug' :
+                        equippedItems.minipet === 'devil' ? 'Devil' :
+                        equippedItems.minipet === 'dodo' ? 'Dodo' :
+                        equippedItems.minipet === 'donkey' ? 'Donkey' :
+                        equippedItems.minipet === 'elephant' ? 'Elephant' :
+                        equippedItems.minipet === 'falcon' ? 'Falcon' :
+                        equippedItems.minipet === 'octopus' ? 'Octopus' :
+                        equippedItems.minipet === 'owl' ? 'Owl' :
+                        equippedItems.minipet === 'phoenix' ? 'Phoenix' :
+                        equippedItems.minipet === 'pig' ? 'Pig' :
+                        equippedItems.minipet === 'polar_bear' ? 'Polar Bear' :
+                        equippedItems.minipet === 'puffin' ? 'Puffin' :
+                        equippedItems.minipet === 'reaper' ? 'Reaper' :
+                        equippedItems.minipet === 'red_parrot' ? 'Red Parrot' :
+                        equippedItems.minipet === 'robot' ? 'Robot' :
+                        equippedItems.minipet === 'snake' ? 'Snake' :
+                        equippedItems.minipet === 'turkey' ? 'Turkey' :
+                        equippedItems.minipet === 'turtle' ? 'Turtle' :
+                        equippedItems.minipet === 'walrus' ? 'Walrus' :
+                        equippedItems.minipet === 'witch' ? 'Witch' :
+                        equippedItems.minipet === 'zombie_bird' ? 'Zombie Bird' :
+                        null
+                    }
+                />
             </div>
         </div>
     );
@@ -113,9 +142,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 className={`${inventoryStyles.itemCard} ${!equippedItems[category] ? inventoryStyles.selected : ''}`}
                 onClick={() => handleEquipItem(category, null)}
             >
-                <div className={inventoryStyles.itemImage}>
-                    <div className={inventoryStyles.noItem}></div>
-                </div>
+                <div className={inventoryStyles.noItem}></div>
             </div>
             {isLoading ? (
                 <div className={inventoryStyles.loadingContainer}>
@@ -124,8 +151,8 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             ) : items.map((item) => (
                 <div 
                     key={item.id} 
-                    className={`${inventoryStyles.itemCard} ${equippedItems[category] === item.id ? inventoryStyles.selected : ''}`}
-                    onClick={() => handleEquipItem(category, item.id)}
+                    className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as keyof EquippedItems] === item.id ? inventoryStyles.selected : ''}`}
+                    onClick={() => handleEquipItem(item.subCategory as keyof EquippedItems, item.id)}
                 >
                     <div 
                         className={inventoryStyles.itemImage}
@@ -156,7 +183,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         if (selectedCategory === 'outfits') {
             // Show specific category items when a subcategory is selected
             if (selectedSubCategory !== 'all') {
-                const categoryTitles: Record<SubCategory, string> = {
+                const categoryTitles: { [key: string]: string } = {
                     body: 'Body Items',
                     eyes: 'Eyes',
                     fur: 'Fur Styles',
@@ -264,6 +291,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                             playSound(buttonClickSound);
                             setSelectedCategory('outfits');
                             setSelectedSubCategory('fur');
+                        }}
+                    />
+                    <div 
+                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.body}`} 
+                        onClick={() => {
+                            playSound(buttonClickSound);
+                            setSelectedCategory('outfits');
+                            setSelectedSubCategory('body');
                         }}
                     />
                     <div 

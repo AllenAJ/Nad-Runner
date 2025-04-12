@@ -176,20 +176,76 @@ async function initializeDatabase() {
         // Create initial items
         console.log('Creating initial items...');
         await client.query(`
-            INSERT INTO items (id, name, description, category, sub_category, rarity, price, image_url, color)
+            INSERT INTO items (id, name, description, category, sub_category, rarity, price, image_url)
             VALUES 
-                ('red_skin', 'Red Skin', 'A vibrant red character skin', 'outfits', 'skin', 'normal', 0, '/items/red_skin.svg', '#ff0000'),
-                ('blue_skin', 'Blue Skin', 'A cool blue character skin', 'outfits', 'skin', 'normal', 0, '/items/blue_skin.svg', '#0000ff'),
-                ('green_skin', 'Green Skin', 'A fresh green character skin', 'outfits', 'skin', 'normal', 0, '/items/green_skin.svg', '#00ff00'),
-                ('yellow_skin', 'Yellow Skin', 'A bright yellow character skin', 'outfits', 'skin', 'normal', 0, '/items/yellow_skin.svg', '#ffff00')
+                ('baldeagle', 'Bald Eagle', 'A majestic bald eagle that soars beside you', 'outfits', 'minipet', 'rare', 1800, '/Mini pets/Baldeagle/1.svg'),
+                ('bug', 'Bug', 'A cute little bug that buzzes around you', 'outfits', 'minipet', 'normal', 800, '/Mini pets/Bug/1.svg'),
+                ('devil', 'Devil', 'A mischievous devil that follows your every move', 'outfits', 'minipet', 'ultra_rare', 2800, '/Mini pets/Devil/1.svg'),
+                ('dodo', 'Dodo', 'A rare dodo bird that waddles alongside you', 'outfits', 'minipet', 'event_rare', 2200, '/Mini pets/Dodo/1.svg'),
+                ('donkey', 'Donkey', 'A friendly donkey that trots beside you', 'outfits', 'minipet', 'normal', 1000, '/Mini pets/Donkey/1.svg'),
+                ('elephant', 'Elephant', 'A gentle elephant that accompanies you', 'outfits', 'minipet', 'rare', 1900, '/Mini pets/Elephant/1.svg'),
+                ('falcon', 'Falcon', 'A swift falcon that circles around you', 'outfits', 'minipet', 'premium', 1600, '/Mini pets/Falcon/1.svg'),
+                ('octopus', 'Octopus', 'A clever octopus that floats beside you', 'outfits', 'minipet', 'rare', 1700, '/Mini pets/Octopus/1.svg'),
+                ('owl', 'Owl', 'A wise owl that watches over you', 'outfits', 'minipet', 'premium', 1400, '/Mini pets/Owl/1.svg'),
+                ('phoenix', 'Phoenix', 'A legendary phoenix that blazes by your side', 'outfits', 'minipet', 'ultra_rare', 3000, '/Mini pets/Phoenix/1.svg'),
+                ('pig', 'Pig', 'A cheerful pig that bounces along with you', 'outfits', 'minipet', 'normal', 900, '/Mini pets/Pig/1.svg'),
+                ('polar_bear', 'Polar Bear', 'A cuddly polar bear that waddles beside you', 'outfits', 'minipet', 'rare', 2000, '/Mini pets/Polar Bear/1.svg'),
+                ('puffin', 'Puffin', 'A charming puffin that glides alongside you', 'outfits', 'minipet', 'premium', 1300, '/Mini pets/Puffin/1.svg'),
+                ('reaper', 'Reaper', 'A mysterious reaper that lurks in your shadow', 'outfits', 'minipet', 'ultra_rare', 2900, '/Mini pets/Reaper/1.svg'),
+                ('red_parrot', 'Red Parrot', 'A loyal red parrot companion that follows you around', 'outfits', 'minipet', 'rare', 1500, '/Mini pets/Red Parrot/1.svg'),
+                ('robot', 'Robot', 'A mechanical companion that hovers by your side', 'outfits', 'minipet', 'ultra_rare', 2500, '/Mini pets/Robot/1.svg'),
+                ('snake', 'Snake', 'A slithering snake that winds around you', 'outfits', 'minipet', 'premium', 1200, '/Mini pets/Snake/1.svg'),
+                ('turkey', 'Turkey', 'A proud turkey that struts beside you', 'outfits', 'minipet', 'normal', 1100, '/Mini pets/Turkey/1.svg'),
+                ('turtle', 'Turtle', 'A steady turtle that follows in your footsteps', 'outfits', 'minipet', 'normal', 1000, '/Mini pets/Turtle/1.svg'),
+                ('walrus', 'Walrus', 'A jolly walrus that bounces along with you', 'outfits', 'minipet', 'premium', 1400, '/Mini pets/Walrus/1.svg'),
+                ('witch', 'Witch', 'A mystical witch that floats by your side', 'outfits', 'minipet', 'ultra_rare', 2700, '/Mini pets/Witch/1.svg'),
+                ('zombie_bird', 'Zombie Bird', 'An undead bird that haunts your path', 'outfits', 'minipet', 'event_rare', 2400, '/Mini pets/Zombie Bird/1.svg'),
+                ('red_skin', 'Red Skin', 'A vibrant red character skin', 'outfits', 'skin', 'normal', 0, '/items/red_skin.svg'),
+                ('blue_skin', 'Blue Skin', 'A cool blue character skin', 'outfits', 'skin', 'normal', 0, '/items/blue_skin.svg'),
+                ('green_skin', 'Green Skin', 'A fresh green character skin', 'outfits', 'skin', 'normal', 0, '/items/green_skin.svg'),
+                ('yellow_skin', 'Yellow Skin', 'A bright yellow character skin', 'outfits', 'skin', 'normal', 0, '/items/yellow_skin.svg')
             ON CONFLICT (id) DO UPDATE 
             SET 
                 name = EXCLUDED.name,
                 description = EXCLUDED.description,
-                image_url = EXCLUDED.image_url,
-                color = EXCLUDED.color;
+                category = EXCLUDED.category,
+                sub_category = EXCLUDED.sub_category,
+                rarity = EXCLUDED.rarity,
+                price = EXCLUDED.price,
+                image_url = EXCLUDED.image_url;
         `);
         console.log('Initial items created successfully');
+
+        // Give all items to specific user
+        console.log('Giving items to user...');
+        const targetWallet = '0xdCdcC0643F2b7336030cD46fDE8bc00c8Ea74547'.toLowerCase();
+        
+        // First ensure the user exists
+        await client.query(`
+            INSERT INTO users (wallet_address, username)
+            VALUES ($1, $2)
+            ON CONFLICT (wallet_address) DO UPDATE
+            SET last_login = CURRENT_TIMESTAMP
+            RETURNING wallet_address
+        `, [targetWallet, `Player_${targetWallet.slice(0, 6)}`]);
+
+        // Ensure user profile exists
+        await client.query(`
+            INSERT INTO player_profiles (wallet_address)
+            VALUES ($1)
+            ON CONFLICT (wallet_address) DO UPDATE
+            SET last_updated = CURRENT_TIMESTAMP
+        `, [targetWallet]);
+
+        // Give all items to the user
+        await client.query(`
+            INSERT INTO player_inventories (wallet_address, item_id, quantity, equipped)
+            SELECT $1, id, 10, false
+            FROM items
+            ON CONFLICT (wallet_address, item_id) 
+            DO UPDATE SET quantity = 10;
+        `, [targetWallet]);
+        console.log('Items given to user successfully');
 
         // Create function to give default items to new players
         console.log('Creating function for default items...');

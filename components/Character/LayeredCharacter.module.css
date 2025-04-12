@@ -16,9 +16,40 @@
     align-items: center;
 }
 
-.layer img {
+.shadowLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: -1;  /* Place shadow behind other layers */
+    opacity: 0.5;  /* Make shadow semi-transparent */
+}
+
+.miniPetLayer {
+    position: absolute;
+    top: 0%;  /* Position near the top */
+    left: -30%;  /* Position to the left of the character */
+    transform: translateY(0);  /* Remove vertical centering */
+    z-index: 10;  /* Ensure minipet appears in front */
+    animation: floatTopLeft 2s ease-in-out infinite;  /* Updated floating animation */
+}
+
+.layer img, .shadowLayer img {
     width: 100%;
     height: 100%;
     object-fit: contain;
     transform-origin: bottom center;
+}
+
+@keyframes floatTopLeft {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    50% {
+        transform: translate(5px, -5px);  /* Diagonal floating movement */
+    }
 } 

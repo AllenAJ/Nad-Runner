@@ -3,7 +3,8 @@ export const BOX_TYPES = {
     PASSABLE: 'box2',
     FLOATING: 'box3',
     SPLIT_GAP: 'split_gap',
-    CHOG_BETWEEN: 'chog_between'
+    CHOG_BETWEEN: 'chog_between',
+    STACKED_WALL: 'stacked_wall'
 } as const;
 
 export type BoxType = typeof BOX_TYPES[keyof typeof BOX_TYPES];
@@ -67,6 +68,16 @@ export const BOX_ARRANGEMENTS: BoxConfig[] = [
         height: 50,
         arrangement: 'horizontal',
         count: 2,
-        hasChog: true  // New property to indicate chog presence
+        hasChog: true
+    },
+    {
+        type: BOX_TYPES.STACKED_WALL,
+        width: 50,
+        height: 50,
+        arrangement: 'split_gap',
+        count: 5,  // Total boxes (4 stacked + 1 in front)
+        gapSize: 0,  // No gap needed
+        topCount: 4,  // Four boxes stacked vertically in back
+        bottomCount: 1  // One box in front
     }
 ]; 

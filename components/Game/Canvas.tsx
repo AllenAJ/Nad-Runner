@@ -33,7 +33,7 @@ interface GameState {
         y: number;
         width: number;
         height: number;
-        type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap' | 'chog_between';
+        type: typeof BOX_TYPES[keyof typeof BOX_TYPES];
         image?: HTMLImageElement | null;
         config?: BoxConfig;
     }>;
@@ -68,7 +68,7 @@ interface GameState {
     };
     boxJumps: number;
     lastBoxJumpTime: number;
-    lastObstacleType?: 'ground' | 'air' | 'box' | 'box2' | 'box3';
+    lastObstacleType?: typeof BOX_TYPES[keyof typeof BOX_TYPES];
     explosions: Array<{
         x: number;
         y: number;
@@ -162,7 +162,7 @@ interface Obstacle {
     y: number;
     width: number;
     height: number;
-    type: 'ground' | 'air' | 'box' | 'box2' | 'box3' | 'split_gap' | 'chog_between';
+    type: typeof BOX_TYPES[keyof typeof BOX_TYPES];
     config?: BoxConfig;
 }
 
@@ -303,7 +303,7 @@ const BOX3_WIDTH = OBSTACLE_SIZE * 3;  // Width for 3 boxes side by side
 const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2; // Height above ground to make it higher
 
 // First, define a type for all possible obstacle types
-type ObstacleType = 'ground' | 'air' | 'box' | 'box2' | 'box3';
+type ObstacleType = typeof BOX_TYPES[keyof typeof BOX_TYPES];
 
 // Load explosion sprite
 // const explosionImage = typeof window !== 'undefined' ? new window.Image() : null;
@@ -557,7 +557,33 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 if (obstacle.config) {
                     const { arrangement, count, hasChog } = obstacle.config;
 
-                    if (arrangement === 'horizontal' && hasChog) {
+                    if (obstacle.type === BOX_TYPES.STACKED_WALL) {
+                        // Check collision with front box
+                        const frontBoxHitbox = {
+                            x: obstacle.x,
+                            y: height - groundHeight - BOX_SIZE,
+                            width: BOX_SIZE,
+                            height: BOX_SIZE
+                        };
+                        if (checkCollisionWithBox(playerHitbox, frontBoxHitbox)) {
+                            handleCollision(obstacle.x, frontBoxHitbox.y, obstacle);
+                            return true;
+                        }
+
+                        // Check collision with stacked boxes
+                        for (let i = 0; i < 4; i++) {
+                            const stackedBoxHitbox = {
+                                x: obstacle.x + BOX_SIZE,
+                                y: height - groundHeight - ((i + 1) * BOX_SIZE),
+                                width: BOX_SIZE,
+                                height: BOX_SIZE
+                            };
+                            if (checkCollisionWithBox(playerHitbox, stackedBoxHitbox)) {
+                                handleCollision(stackedBoxHitbox.x, stackedBoxHitbox.y, obstacle);
+                                return true;
+                            }
+                        }
+                    } else if (arrangement === 'horizontal' && hasChog) {
                         // Check collision with first box
                         const box1Hitbox = {
                             x: obstacle.x,
@@ -1094,10 +1120,30 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     BOX_SIZE,
                     BOX_SIZE
                 );
+            } else if (obstacle.type === BOX_TYPES.STACKED_WALL) {
+                // Draw the single box in front
+                ctx.drawImage(
+                    boxImage,
+                    obstacle.x,
+                    height - groundHeight - BOX_SIZE,
+                    BOX_SIZE,
+                    BOX_SIZE
+                );
+
+                // Draw the 4 stacked boxes behind
+                for (let i = 0; i < 4; i++) {
+                    ctx.drawImage(
+                        boxImage,
+                        obstacle.x + BOX_SIZE,  // Position behind the front box
+                        height - groundHeight - ((i + 1) * BOX_SIZE),
+                        BOX_SIZE,
+                        BOX_SIZE
+                    );
+                }
             } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
                 // Draw bottom boxes vertically stacked from ground level
                 for (let i = 0; i < obstacle.config.bottomCount; i++) {
-                    const boxY = height - groundHeight - ((i + 1) * BOX_SIZE); // Adjusted Y position
+                    const boxY = height - groundHeight - ((i + 1) * BOX_SIZE);
                     ctx.drawImage(
                         boxImage,
                         obstacle.x,
@@ -1108,21 +1154,24 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 }
 
                 // Draw glass in the gap
-                const glassY = height - groundHeight - BOX_SIZE - (obstacle.config.bottomCount * BOX_SIZE);
-                const glassHeight = BOX_SIZE;
-                drawGlass(
-                    ctx,
-                    obstacle.x,
-                    glassY - glassHeight,
-                    BOX_SIZE,
-                    glassHeight,
-                    gameStateRef.current.glass.isBroken,
-                    gameStateRef.current.glass.opacity
-                );
+                if (obstacle.config.gapSize > 0) {
+                    const glassY = height - groundHeight - BOX_SIZE - (obstacle.config.bottomCount * BOX_SIZE);
+                    const glassHeight = BOX_SIZE;
+                    drawGlass(
+                        ctx,
+                        obstacle.x,
+                        glassY - glassHeight,
+                        BOX_SIZE,
+                        glassHeight,
+                        gameStateRef.current.glass.isBroken,
+                        gameStateRef.current.glass.opacity
+                    );
+                }
 
                 // Draw top boxes vertically stacked
                 for (let i = 0; i < obstacle.config.topCount; i++) {
-                    const boxY = height - groundHeight - ((i + obstacle.config.bottomCount + 2) * BOX_SIZE) - obstacle.config.gapSize;
+                    const boxY = height - groundHeight - ((i + obstacle.config.bottomCount + 2) * BOX_SIZE) - 
+                        (obstacle.config.gapSize || 0);
                     ctx.drawImage(
                         boxImage,
                         obstacle.x,

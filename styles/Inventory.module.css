@@ -408,14 +408,14 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    justify-content: center;
+    /* justify-content: center; */
     align-items: center;
-    padding: 1rem 0;
+    padding: 0.5rem 0;
 }
 
 .categoryButton {
     width: 104px;
-    height: 67px;
+    height: 61px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -447,20 +447,20 @@
     background-image: url('/bg/inv_btns/mouth_btn.png');
 }
 
-.categoryButton.minipets {
-    background-image: url('/bg/inv_btns/body_btn.png');
-}
-
-.categoryButton.misc {
-    background-image: url('/bg/inv_btns/misc_btn.png');
-}
-
 .categoryButton.fur {
     background-image: url('/bg/inv_btns/fur_btn.png');
 }
 
-.categoryButton.minipet {
+.categoryButton.body {
+    background-image: url('/bg/inv_btns/body_btn.png');
+}
+
+.categoryButton.minipets {
     background-image: url('/bg/inv_btns/minipet_btn.png');
+}
+
+.categoryButton.misc {
+    background-image: url('/bg/inv_btns/misc_btn.png');
 }
 
 .categoryButton.all {
