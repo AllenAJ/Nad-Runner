@@ -413,6 +413,54 @@ export const INITIAL_ITEMS: Item[] = [
             shield: 1
         },
         purchaseDate: new Date()
+    },
+    {
+        id: 'smileysnug',
+        key: 'smileysnug',
+        name: 'Smiley Snug',
+        description: 'A warm and cozy smile',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'premium',
+        price: 1200,
+        imageUrl: '/items/Mouth/SmileySnug.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'pout',
+        key: 'pout',
+        name: 'Pout',
+        description: 'A cute pouty expression',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'rare',
+        price: 1500,
+        imageUrl: '/items/Mouth/Pout.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'tinytooth',
+        key: 'tinytooth',
+        name: 'Tiny Tooth',
+        description: 'An adorable tiny tooth smile',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'normal',
+        price: 800,
+        imageUrl: '/items/Mouth/TinyTooth.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'chomp',
+        key: 'chomp',
+        name: 'Chomp',
+        description: 'A playful chomping expression',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'ultra_rare',
+        price: 2000,
+        imageUrl: '/items/Mouth/Chomp.png',
+        purchaseDate: new Date()
     }
 ];
 

@@ -76,7 +76,7 @@ export const BOX_ARRANGEMENTS: BoxConfig[] = [
         height: 50,
         arrangement: 'split_gap',
         count: 5,  // Total boxes (4 stacked + 1 in front)
-        gapSize: 0,  // No gap needed
+        gapSize: 300,  // Increased to 150px (3 box widths) gap between front box and stacked boxes
         topCount: 4,  // Four boxes stacked vertically in back
         bottomCount: 1  // One box in front
     }

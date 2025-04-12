@@ -226,6 +226,7 @@ const INITIAL_STATE: GameState = {
     score: 0,
     obstacles: [],
     lastObstacleX: 0,
+    lastObstacleType: undefined,  // Add this line
     powerups: [],
     powerupEffects: {
         invincible: false,
@@ -239,7 +240,6 @@ const INITIAL_STATE: GameState = {
     powerupTimeouts: {},
     boxJumps: 0,
     lastBoxJumpTime: 0,
-    lastObstacleType: undefined,
     explosions: [],
     particles: [],
     screenShake: {
@@ -489,7 +489,15 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         // Move existing obstacles
         state.obstacles = state.obstacles.filter(obstacle => {
             obstacle.x -= state.gameSpeed;
-            return obstacle.x + obstacle.width > 0;
+            
+            // Calculate the full width based on obstacle type
+            let fullWidth = obstacle.width;
+            if (obstacle.type === BOX_TYPES.STACKED_WALL) {
+                // Account for front box, gap, and stacked boxes
+                fullWidth = BOX_SIZE + 300 + BOX_SIZE; // Front box + gap + last stacked box
+            }
+            
+            return obstacle.x + fullWidth > 0;
         });
 
         // Time-based obstacle spawning
@@ -499,17 +507,24 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         }
 
         if (currentTime - state.lastSpawnTime >= OBSTACLE_SPAWN_INTERVAL) {
-            // Simply use the original BOX_ARRANGEMENTS array without duplicating any entries
-            const boxConfig = BOX_ARRANGEMENTS[Math.floor(Math.random() * BOX_ARRANGEMENTS.length)];
+            // Filter out arrangements of the same type as the last obstacle
+            const availableArrangements = BOX_ARRANGEMENTS.filter(
+                arrangement => arrangement.type !== state.lastObstacleType
+            );
+
+            // Select a random arrangement from the filtered list
+            const boxConfig = availableArrangements[Math.floor(Math.random() * availableArrangements.length)];
             
-            // Log the spawning box type and its configuration
-            console.log('Spawning box:', {
-                type: boxConfig.type,
-                arrangement: boxConfig.arrangement,
-                topCount: boxConfig.topCount,
-                bottomCount: boxConfig.bottomCount,
-                gapSize: boxConfig.gapSize
-            });
+            // Store the current type as the last type for next spawn
+            state.lastObstacleType = boxConfig.type;
+
+            // Calculate the full width for the new obstacle
+            let obstacleWidth = BOX_SIZE;
+            if (boxConfig.type === BOX_TYPES.STACKED_WALL) {
+                obstacleWidth = BOX_SIZE + 300 + BOX_SIZE; // Front box + gap + last stacked box
+            } else if (boxConfig.arrangement === 'horizontal') {
+                obstacleWidth = BOX_SIZE * (boxConfig.hasChog ? 3 : boxConfig.count);
+            }
 
             const obstacleY = height - groundHeight - 
                 (boxConfig.arrangement === 'vertical' ? BOX_SIZE * boxConfig.count : BOX_SIZE);
@@ -517,30 +532,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             const newObstacle = {
                 x: width + 100,
                 y: obstacleY,
-                width: boxConfig.arrangement === 'horizontal' && boxConfig.hasChog ? 
-                    BOX_SIZE * 3 : // Width for two boxes plus chog
-                    BOX_SIZE * (boxConfig.arrangement === 'horizontal' ? boxConfig.count : 1),
+                width: obstacleWidth,
                 height: BOX_SIZE * (boxConfig.arrangement === 'vertical' ? boxConfig.count : 1),
                 type: boxConfig.type as Obstacle['type'],
                 config: boxConfig
             };
 
             state.obstacles.push(newObstacle);
-            
-            // Update glass position for split_gap obstacles
-            if (boxConfig.arrangement === 'split_gap' && boxConfig.gapSize && boxConfig.bottomCount) {
-                const glassY = height - groundHeight - BOX_SIZE - (boxConfig.bottomCount * BOX_SIZE);
-                state.glass = {
-                    isBroken: false,
-                    x: width + 100,
-                    y: glassY - BOX_SIZE,
-                    width: BOX_SIZE,
-                    height: BOX_SIZE,
-                    opacity: 1,
-                    particles: []
-                };
-            }
-            
             state.lastSpawnTime = currentTime;
         }
 
@@ -573,7 +571,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         // Check collision with stacked boxes
                         for (let i = 0; i < 4; i++) {
                             const stackedBoxHitbox = {
-                                x: obstacle.x + BOX_SIZE,
+                                x: obstacle.x + BOX_SIZE * 3,  // Match the new visual position (3 box widths gap)
                                 y: height - groundHeight - ((i + 1) * BOX_SIZE),
                                 width: BOX_SIZE,
                                 height: BOX_SIZE
@@ -1083,7 +1081,27 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             const { arrangement, count, hasChog } = obstacle.config;
             const groundHeight = getGroundHeight(height);
 
-            if (arrangement === 'horizontal' && hasChog) {
+            if (obstacle.type === BOX_TYPES.STACKED_WALL) {
+                // Draw the stacked boxes first (in the back)
+                for (let i = 0; i < 4; i++) {
+                    ctx.drawImage(
+                        boxImage,
+                        obstacle.x + BOX_SIZE * 3,  // Increased to 3 box widths (150px) gap
+                        height - groundHeight - ((i + 1) * BOX_SIZE),
+                        BOX_SIZE,
+                        BOX_SIZE
+                    );
+                }
+
+                // Draw the single box in front
+                ctx.drawImage(
+                    boxImage,
+                    obstacle.x,
+                    height - groundHeight - BOX_SIZE,
+                    BOX_SIZE,
+                    BOX_SIZE
+                );
+            } else if (arrangement === 'horizontal' && hasChog) {
                 // Draw first box
                 ctx.drawImage(
                     boxImage,
@@ -1120,26 +1138,6 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     BOX_SIZE,
                     BOX_SIZE
                 );
-            } else if (obstacle.type === BOX_TYPES.STACKED_WALL) {
-                // Draw the single box in front
-                ctx.drawImage(
-                    boxImage,
-                    obstacle.x,
-                    height - groundHeight - BOX_SIZE,
-                    BOX_SIZE,
-                    BOX_SIZE
-                );
-
-                // Draw the 4 stacked boxes behind
-                for (let i = 0; i < 4; i++) {
-                    ctx.drawImage(
-                        boxImage,
-                        obstacle.x + BOX_SIZE,  // Position behind the front box
-                        height - groundHeight - ((i + 1) * BOX_SIZE),
-                        BOX_SIZE,
-                        BOX_SIZE
-                    );
-                }
             } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
                 // Draw bottom boxes vertically stacked from ground level
                 for (let i = 0; i < obstacle.config.bottomCount; i++) {

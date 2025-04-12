@@ -9,6 +9,10 @@ interface LayeredCharacterProps {
     className?: string;
     showShadow?: boolean;
     equippedMinipet?: string | null;
+    equippedHead?: string | null;
+    equippedMouth?: string | null;
+    equippedEyes?: string | null;
+    equippedNose?: string | null;
 }
 
 export const LayeredCharacter: React.FC<LayeredCharacterProps> = ({ 
@@ -16,7 +20,11 @@ export const LayeredCharacter: React.FC<LayeredCharacterProps> = ({
     height = 150,
     className,
     showShadow = false,
-    equippedMinipet = null
+    equippedMinipet = null,
+    equippedHead = null,
+    equippedMouth = null,
+    equippedEyes = null,
+    equippedNose = null
 }) => {
     return (
         <div className={`${styles.characterContainer} ${className || ''}`} style={{ width, height }}>
@@ -56,33 +64,72 @@ export const LayeredCharacter: React.FC<LayeredCharacterProps> = ({
             
             {/* Eyes layer */}
             <div className={styles.layer}>
-                <Image
-                    src="/Char_layers/Eyes.png"
-                    alt="Character Eyes"
-                    width={width}
-                    height={height}
-                />
+                {equippedEyes ? (
+                    <Image
+                        src={`/items/Eyes/${equippedEyes}.png`}
+                        alt={`Eyes - ${equippedEyes}`}
+                        width={width}
+                        height={height}
+                    />
+                ) : (
+                    <Image
+                        src="/Char_layers/Eyes.png"
+                        alt="Character Eyes"
+                        width={width}
+                        height={height}
+                    />
+                )}
             </div>
             
             {/* Nose layer */}
             <div className={styles.layer}>
-                <Image
-                    src="/Char_layers/Nose.png"
-                    alt="Character Nose"
-                    width={width}
-                    height={height}
-                />
+                {equippedNose ? (
+                    <Image
+                        src={`/items/Nose/${equippedNose}.png`}
+                        alt={`Nose - ${equippedNose}`}
+                        width={width}
+                        height={height}
+                    />
+                ) : (
+                    <Image
+                        src="/Char_layers/Nose.png"
+                        alt="Character Nose"
+                        width={width}
+                        height={height}
+                    />
+                )}
             </div>
             
             {/* Mouth layer */}
             <div className={styles.layer}>
-                <Image
-                    src="/Char_layers/Mouth.png"
-                    alt="Character Mouth"
-                    width={width}
-                    height={height}
-                />
+                {equippedMouth ? (
+                    <Image
+                        src={`/items/Mouth/${equippedMouth}.png`}
+                        alt={`Mouth - ${equippedMouth}`}
+                        width={width}
+                        height={height}
+                    />
+                ) : (
+                    <Image
+                        src="/Char_layers/Mouth.png"
+                        alt="Character Mouth"
+                        width={width}
+                        height={height}
+                    />
+                )}
             </div>
+
+            {/* Head item layer */}
+            {equippedHead && (
+                <div className={styles.headLayer}>
+                    <Image
+                        src={`/items/Head/${equippedHead}.png`}
+                        alt={`Head Item - ${equippedHead}`}
+                        width={width}
+                        height={height}
+                    />
+                </div>
+            )}
 
             {/* Mini Pet layer */}
             {equippedMinipet && (

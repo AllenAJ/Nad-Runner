@@ -131,6 +131,38 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         equippedItems.minipet === 'zombie_bird' ? 'Zombie Bird' :
                         null
                     }
+                    equippedHead={
+                        equippedItems.head === 'musketeer' ? 'Musketeer' :
+                        equippedItems.head === 'bandage' ? 'Bandange' :
+                        equippedItems.head === 'brown_hat' ? 'Brown_hat' :
+                        equippedItems.head === 'halo' ? 'Halo' :
+                        equippedItems.head === 'bow' ? 'Bow' :
+                        equippedItems.head === 'toga' ? 'Toga' :
+                        null
+                    }
+                    equippedMouth={
+                        equippedItems.mouth === 'haha' ? 'Haha' :
+                        equippedItems.mouth === 'smileysnug' ? 'SmileySnug' :
+                        equippedItems.mouth === 'pout' ? 'Pout' :
+                        equippedItems.mouth === 'tinytooth' ? 'TinyTooth' :
+                        equippedItems.mouth === 'chomp' ? 'Chomp' :
+                        null
+                    }
+                    equippedEyes={
+                        equippedItems.eyes === 'swag' ? 'Swag' :
+                        equippedItems.eyes === 'coolglass' ? 'CoolGlass' :
+                        equippedItems.eyes === 'grumpy' ? 'Grumpy' :
+                        equippedItems.eyes === 'sparklyeyes' ? 'SparklyEyes' :
+                        equippedItems.eyes === 'dizzy' ? 'dizzy' :
+                        equippedItems.eyes === 'huh' ? 'Huh' :
+                        equippedItems.eyes === 'bored' ? 'Bored' :
+                        equippedItems.eyes === 'innocent' ? 'Innocent' :
+                        null
+                    }
+                    equippedNose={
+                        equippedItems.nose === 'clownnose' ? 'ClownNose' :
+                        null
+                    }
                 />
             </div>
         </div>
@@ -153,6 +185,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                     key={item.id} 
                     className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as keyof EquippedItems] === item.id ? inventoryStyles.selected : ''}`}
                     onClick={() => handleEquipItem(item.subCategory as keyof EquippedItems, item.id)}
+                    data-rarity={item.rarity}
                 >
                     <div 
                         className={inventoryStyles.itemImage}
@@ -160,7 +193,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                     >
                         {item.imageUrl ? (
                             <Image 
-                                src={item.imageUrl} 
+                                src={item.subCategory === 'head' || item.subCategory === 'mouth' || item.subCategory === 'eyes' || item.subCategory === 'nose'? item.imageUrl.replace('.png', '_preview.png') : item.imageUrl} 
                                 alt={item.name} 
                                 width={32} 
                                 height={32}

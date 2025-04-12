@@ -130,6 +130,7 @@ async function initializeDatabase() {
                 rarity VARCHAR(20) NOT NULL,
                 price INTEGER DEFAULT 0,
                 image_url TEXT,
+                preview_url TEXT,
                 color VARCHAR(7),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -178,6 +179,26 @@ async function initializeDatabase() {
         await client.query(`
             INSERT INTO items (id, name, description, category, sub_category, rarity, price, image_url)
             VALUES 
+                ('haha', 'Haha Mouth', 'A cheerful laughing mouth', 'outfits', 'mouth', 'premium', 1000, '/items/Mouth/Haha.png'),
+                ('smileysnug', 'Smiley Snug', 'A warm and cozy smile', 'outfits', 'mouth', 'premium', 1200, '/items/Mouth/SmileySnug.png'),
+                ('pout', 'Pout', 'A cute pouty expression', 'outfits', 'mouth', 'rare', 1500, '/items/Mouth/Pout.png'),
+                ('tinytooth', 'Tiny Tooth', 'An adorable tiny tooth smile', 'outfits', 'mouth', 'normal', 800, '/items/Mouth/TinyTooth.png'),
+                ('chomp', 'Chomp', 'A playful chomping expression', 'outfits', 'mouth', 'ultra_rare', 2000, '/items/Mouth/Chomp.png'),
+                ('swag', 'Swag Eyes', 'Cool and stylish eyes', 'outfits', 'eyes', 'rare', 1200, '/items/Eyes/Swag.png'),
+                ('coolglass', 'Cool Glass', 'Trendy sunglasses for a cool look', 'outfits', 'eyes', 'premium', 1500, '/items/Eyes/CoolGlass.png'),
+                ('grumpy', 'Grumpy Eyes', 'Adorably grumpy expression', 'outfits', 'eyes', 'rare', 1300, '/items/Eyes/Grumpy.png'),
+                ('sparklyeyes', 'Sparkly Eyes', 'Eyes that twinkle with joy', 'outfits', 'eyes', 'ultra_rare', 2200, '/items/Eyes/SparklyEyes.png'),
+                ('dizzy', 'Dizzy Eyes', 'Spinning stars in your eyes', 'outfits', 'eyes', 'premium', 1400, '/items/Eyes/dizzy.png'),
+                ('huh', 'Huh Eyes', 'A confused and curious expression', 'outfits', 'eyes', 'normal', 800, '/items/Eyes/Huh.png'),
+                ('bored', 'Bored Eyes', 'An unimpressed expression', 'outfits', 'eyes', 'normal', 700, '/items/Eyes/Bored.png'),
+                ('innocent', 'Innocent Eyes', 'Pure and innocent looking eyes', 'outfits', 'eyes', 'rare', 1600, '/items/Eyes/Innocent.png'),
+                ('musketeer', 'Musketeer Hat', 'A dashing hat worn by brave musketeers', 'outfits', 'head', 'rare', 1500, '/items/Head/Musketeer.png'),
+                ('bandage', 'Bandage', 'A simple bandage wrap for your head', 'outfits', 'head', 'normal', 500, '/items/Head/Bandange.png'),
+                ('brown_hat', 'Brown Hat', 'A stylish brown hat for casual wear', 'outfits', 'head', 'normal', 800, '/items/Head/Brown_hat.png'),
+                ('halo', 'Halo', 'A divine halo that glows above your head', 'outfits', 'head', 'ultra_rare', 2500, '/items/Head/Halo.png'),
+                ('bow', 'Bow', 'A cute bow to accessorize your look', 'outfits', 'head', 'premium', 1200, '/items/Head/Bow.png'),
+                ('toga', 'Toga', 'A majestic toga headpiece', 'outfits', 'head', 'rare', 1800, '/items/Head/Toga.png'),
+                ('clownnose', 'Clown Nose', 'A fun and playful red clown nose', 'outfits', 'nose', 'premium', 1000, '/items/Nose/ClownNose.png'),
                 ('baldeagle', 'Bald Eagle', 'A majestic bald eagle that soars beside you', 'outfits', 'minipet', 'rare', 1800, '/Mini pets/Baldeagle/1.svg'),
                 ('bug', 'Bug', 'A cute little bug that buzzes around you', 'outfits', 'minipet', 'normal', 800, '/Mini pets/Bug/1.svg'),
                 ('devil', 'Devil', 'A mischievous devil that follows your every move', 'outfits', 'minipet', 'ultra_rare', 2800, '/Mini pets/Devil/1.svg'),

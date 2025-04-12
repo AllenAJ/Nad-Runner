@@ -197,16 +197,44 @@
     transform-origin: center center;
 }
 
+.itemCard[data-rarity="normal"] {
+    border-color: #cccccc;
+    box-shadow: 0 0 5px rgba(204, 204, 204, 0.3);
+}
+
+.itemCard[data-rarity="premium"] {
+    border-color: #4834d4;
+    box-shadow: 0 0 5px rgba(72, 52, 212, 0.3);
+}
+
+.itemCard[data-rarity="rare"] {
+    border-color: #6c5ce7;
+    box-shadow: 0 0 5px rgba(108, 92, 231, 0.3);
+}
+
+.itemCard[data-rarity="event_rare"] {
+    border-color: #e056fd;
+    box-shadow: 0 0 5px rgba(224, 86, 253, 0.3);
+}
+
+.itemCard[data-rarity="ultra_rare"] {
+    border-color: #ff7675;
+    box-shadow: 0 0 5px rgba(255, 118, 117, 0.3);
+}
+
+.itemCard[data-rarity="trade_cash"] {
+    border-color: #ffeaa7;
+    box-shadow: 0 0 5px rgba(255, 234, 167, 0.3);
+}
+
 .itemCard:hover {
-    transform: translateY(-1px) rotate(15deg);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-color: #7a0000;
-    border-width: 3px;
+    transform: scale(1.1);
+    z-index: 1;
 }
 
 .itemCard.selected {
-    border-color: #4834d4;
-    box-shadow: 0 0 0 2px #4834d4;
+    transform: scale(0.95);
+    filter: brightness(0.8);
 }
 
 .itemImage {
