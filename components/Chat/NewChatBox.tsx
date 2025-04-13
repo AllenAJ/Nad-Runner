@@ -2,12 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import styles from './NewChatBox.module.css';
 import { TradeSection } from './TradeSection';
+import { useInventory } from '../../contexts/InventoryContext';
+import { Item as InventoryItem, Rarity, SubCategory } from '../../types/inventory';
+import { RARITY_COLORS, INITIAL_ITEMS } from '../../constants/inventory';
 
 interface Item {
     id: string;
     name: string;
     imageUrl: string;
-    rarity?: 'normal' | 'prem' | 'rare' | 'event' | 'ultra' | 'cash' | 'legendary' | 'epic';
+    rarity: Rarity;
+    quantity: number;
+    subCategory: SubCategory;
 }
 
 interface TradeOffer {
@@ -41,13 +46,23 @@ const RECONNECT_DELAY = 1000;
 const chatSound = typeof window !== 'undefined' ? new Audio('/assets/audio/sendchatsound.mp3') : null;
 
 const RARITY_FILTERS = [
-    { id: 'normal', label: 'normal' },
-    { id: 'prem', label: 'prem' },
-    { id: 'rare', label: 'rare' },
-    { id: 'event', label: 'event' },
-    { id: 'ultra', label: 'ultra' },
-    { id: 'cash', label: 'cash' }
-];
+    { id: 'normal', label: 'Normal' },
+    { id: 'premium', label: 'Premium' },
+    { id: 'rare', label: 'Rare' },
+    { id: 'event_rare', label: 'Event' },
+    { id: 'ultra_rare', label: 'Ultra' },
+    { id: 'trade_cash', label: 'Trade' }
+] as const;
+
+const CATEGORY_FILTERS = [
+    { id: 'all', label: 'All' },
+    { id: 'head', label: 'Head' },
+    { id: 'eyes', label: 'Eyes' },
+    { id: 'nose', label: 'Nose' },
+    { id: 'mouth', label: 'Mouth' },
+    { id: 'minipet', label: 'Pets' },
+    { id: 'skin', label: 'Skins' }
+] as const;
 
 export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBackToMenu }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -56,17 +71,33 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [isConnected, setIsConnected] = useState(false);
     const socketRef = useRef<Socket>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const [activeFilter, setActiveFilter] = useState('normal');
+    const [activeRarityFilter, setActiveRarityFilter] = useState('');
+    const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
     const [isSelectingItem, setIsSelectingItem] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [offers, setOffers] = useState<TradeOffer[]>([]);
+    const { items = {} } = useInventory();
 
-    // Mock items - replace with actual inventory items
-    const mockItems: Item[] = [
-        { id: '1', name: 'Halo', imageUrl: '/assets/items/halo.png', rarity: 'legendary' },
-        { id: '2', name: 'Cool Glass', imageUrl: '/assets/items/coolglass.png', rarity: 'epic' },
-        { id: '3', name: 'Bow', imageUrl: '/assets/items/bow.png', rarity: 'rare' },
-    ];
+    // Convert inventory items to the format we need, handling undefined case
+    const availableItems: Item[] = React.useMemo(() => {
+        // First get all items from INITIAL_ITEMS that are in the inventory
+        const inventoryItemIds = Object.keys(items);
+        
+        return INITIAL_ITEMS
+            .filter(item => {
+                // Only include items that are in the inventory
+                const count = items[item.id] || 0;
+                return count > 0;
+            })
+            .map(item => ({
+                id: item.id,
+                name: item.name,
+                imageUrl: item.imageUrl || `/assets/items/${item.id}.png`,
+                rarity: item.rarity,
+                quantity: items[item.id] || 0,
+                subCategory: item.subCategory
+            }));
+    }, [items]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -176,6 +207,10 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     };
 
     const handleMakeOffer = () => {
+        // Log all available items
+        console.log('User owned items:', availableItems);
+        console.log('Raw inventory items:', items);
+        console.log('INITIAL_ITEMS:', INITIAL_ITEMS);
         setIsSelectingItem(true);
     };
 
@@ -218,93 +253,88 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                     {/* Trading Area */}
                     <div className={styles.tradingArea}>
                         <h2 className={styles.offersHeader}>OFFERS</h2>
-                        {isSelectingItem ? (
-                            <div className={styles.itemSelectionGrid}>
-                                <div className={styles.gridHeader}>
-                                    <h4>Select an item to offer</h4>
-                                    <button 
-                                        className={styles.closeButton}
-                                        onClick={() => setIsSelectingItem(false)}
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                                <div className={styles.itemsGrid}>
-                                    {mockItems
-                                        .filter(item => !activeFilter || item.rarity === activeFilter)
-                                        .map(item => (
-                                            <div 
-                                                key={item.id}
-                                                className={styles.itemCard}
-                                                onClick={() => handleSelectItem(item)}
+                        <div className={styles.itemsGrid}>
+                            {offers.map(offer => (
+                                <div key={offer.id} className={styles.offerCard}>
+                                    <div className={styles.offerHeader}>
+                                        <span className={styles.sellerName}>{offer.sellerName}</span>
+                                        {offer.sellerAddress === walletAddress && (
+                                            <button 
+                                                className={styles.cancelOfferButton}
+                                                onClick={() => handleCancelOffer(offer.id)}
                                             >
-                                                <div className={styles.itemImage}>
-                                                    <img src={item.imageUrl} alt={item.name} />
-                                                </div>
-                                                <div className={styles.itemInfo}>
-                                                    <span className={styles.itemName}>{item.name}</span>
-                                                    <span className={`${styles.itemRarity} ${styles[item.rarity || '']}`}>
-                                                        {item.rarity}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className={styles.offeredItem}>
+                                        <div className={styles.itemImage}>
+                                            <img 
+                                                src={offer.item.subCategory === 'head' || 
+                                                    offer.item.subCategory === 'mouth' || 
+                                                    offer.item.subCategory === 'eyes' || 
+                                                    offer.item.subCategory === 'nose' 
+                                                        ? offer.item.imageUrl.replace('.png', '_preview.png') 
+                                                        : offer.item.imageUrl
+                                                } 
+                                                alt={offer.item.name} 
+                                            />
+                                        </div>
+                                        <div className={styles.itemInfo}>
+                                            <span className={styles.itemName}>{offer.item.name}</span>
+                                            <span className={`${styles.itemRarity} ${styles[offer.item.rarity || '']}`}>
+                                                {offer.item.rarity}
+                                            </span>
+                                        </div>
+                                        {offer.sellerAddress !== walletAddress && (
+                                            <button className={styles.tradeButton}>
+                                                Trade
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className={styles.itemsGrid}>
-                                {offers.map(offer => (
-                                    <div key={offer.id} className={styles.offerCard}>
-                                        <div className={styles.offerHeader}>
-                                            <span className={styles.sellerName}>{offer.sellerName}</span>
-                                            {offer.sellerAddress === walletAddress && (
-                                                <button 
-                                                    className={styles.cancelOfferButton}
-                                                    onClick={() => handleCancelOffer(offer.id)}
-                                                >
-                                                    Cancel
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className={styles.offeredItem}>
-                                            <div className={styles.itemImage}>
-                                                <img src={offer.item.imageUrl} alt={offer.item.name} />
-                                            </div>
-                                            <div className={styles.itemInfo}>
-                                                <span className={styles.itemName}>{offer.item.name}</span>
-                                                <span className={`${styles.itemRarity} ${styles[offer.item.rarity || '']}`}>
-                                                    {offer.item.rarity}
-                                                </span>
-                                            </div>
-                                            {offer.sellerAddress !== walletAddress && (
-                                                <button className={styles.tradeButton}>
-                                                    Trade
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                {offers.length === 0 && (
-                                    <div className={styles.noOffers}>
-                                        No active offers. Make an offer to start trading!
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            ))}
+                            {offers.length === 0 && (
+                                <div className={styles.noOffers}>
+                                    No active offers. Make an offer to start trading!
+                                </div>
+                            )}
+                        </div>
                         <div className={styles.tradeControls}>
                             <button className={styles.makeOfferButton} onClick={handleMakeOffer}>
                                 Make Offer
                             </button>
                             <div className={styles.rarityFilters}>
-                                {RARITY_FILTERS.map(filter => (
+                                <div className={styles.filterGroup}>
+                                    <span className={styles.filterLabel}>Category:</span>
+                                    {CATEGORY_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            className={`${styles.filterButton} ${activeCategoryFilter === filter.id ? styles.active : ''}`}
+                                            onClick={() => setActiveCategoryFilter(filter.id)}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className={styles.filterGroup}>
+                                    <span className={styles.filterLabel}>Rarity:</span>
                                     <button
-                                        key={filter.id}
-                                        className={`${styles.filterButton} ${activeFilter === filter.id ? styles.active : ''}`}
-                                        onClick={() => setActiveFilter(filter.id)}
+                                        className={`${styles.filterButton} ${!activeRarityFilter ? styles.active : ''}`}
+                                        onClick={() => setActiveRarityFilter('')}
                                     >
-                                        {filter.label}
+                                        All
                                     </button>
-                                ))}
+                                    {RARITY_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            className={`${styles.filterButton} ${activeRarityFilter === filter.id ? styles.active : ''}`}
+                                            onClick={() => setActiveRarityFilter(filter.id)}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -376,6 +406,88 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                         </button>
                     </form>
                 </div>
+
+                {/* Item Selection Overlay */}
+                {isSelectingItem && (
+                    <div className={styles.itemSelectionOverlay}>
+                        <div className={styles.itemSelectionGrid}>
+                            <div className={styles.gridHeader}>
+                                <h4>Select an Item</h4>
+                                <button 
+                                    className={styles.closeButton}
+                                    onClick={() => setIsSelectingItem(false)}
+                                >
+                                    X
+                                </button>
+                            </div>
+                            <div className={styles.filterControls}>
+                                <div className={styles.filterGroup}>
+                                    <span className={styles.filterLabel}>Category:</span>
+                                    {CATEGORY_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            className={`${styles.filterButton} ${activeCategoryFilter === filter.id ? styles.active : ''}`}
+                                            onClick={() => setActiveCategoryFilter(filter.id)}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className={styles.filterGroup}>
+                                    <span className={styles.filterLabel}>Rarity:</span>
+                                    <button
+                                        className={`${styles.filterButton} ${!activeRarityFilter ? styles.active : ''}`}
+                                        onClick={() => setActiveRarityFilter('')}
+                                    >
+                                        All
+                                    </button>
+                                    {RARITY_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            className={`${styles.filterButton} ${activeRarityFilter === filter.id ? styles.active : ''}`}
+                                            onClick={() => setActiveRarityFilter(filter.id)}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={styles.itemsGrid}>
+                                {availableItems
+                                    .filter(item => 
+                                        (!activeRarityFilter || item.rarity === activeRarityFilter) &&
+                                        (activeCategoryFilter === 'all' || item.subCategory === activeCategoryFilter)
+                                    )
+                                    .map(item => (
+                                        <div 
+                                            key={item.id}
+                                            className={styles.itemCard}
+                                            data-rarity={item.rarity}
+                                            onClick={() => handleSelectItem(item)}
+                                        >
+                                            <div className={styles.itemImage}>
+                                                {item.imageUrl ? (
+                                                    <img 
+                                                        src={item.subCategory === 'head' || 
+                                                            item.subCategory === 'mouth' || 
+                                                            item.subCategory === 'eyes' || 
+                                                            item.subCategory === 'nose' 
+                                                                ? item.imageUrl.replace('.png', '_preview.png') 
+                                                                : item.imageUrl
+                                                        } 
+                                                        alt={item.name} 
+                                                    />
+                                                ) : (
+                                                    <div className={styles.placeholder}>{item.name.substring(0, 2)}</div>
+                                                )}
+                                            </div>
+                                            <span className={styles.itemCount}>{item.quantity}</span>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

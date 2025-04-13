@@ -44,6 +44,255 @@ export const RARITY_COLORS: Record<Rarity, string> = {
 };
 
 export const INITIAL_ITEMS: Item[] = [
+    // Head Items
+    {
+        id: 'musketeer',
+        key: 'musketeer',
+        name: 'Musketeer Hat',
+        description: 'A stylish musketeer hat',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'premium',
+        price: 1500,
+        imageUrl: '/items/Head/Musketeer.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'bandage',
+        key: 'bandage',
+        name: 'Bandage',
+        description: 'A wrapped bandage',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'normal',
+        price: 800,
+        imageUrl: '/items/Head/Bandage.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'brown_hat',
+        key: 'brown_hat',
+        name: 'Brown Hat',
+        description: 'A classic brown hat',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'normal',
+        price: 1000,
+        imageUrl: '/items/Head/Brown_hat.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'halo',
+        key: 'halo',
+        name: 'Halo',
+        description: 'A glowing halo',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'ultra_rare',
+        price: 2500,
+        imageUrl: '/items/Head/Halo.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'bow',
+        key: 'bow',
+        name: 'Bow',
+        description: 'A cute bow',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'rare',
+        price: 1200,
+        imageUrl: '/items/Head/Bow.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'toga',
+        key: 'toga',
+        name: 'Toga',
+        description: 'A classic toga headpiece',
+        category: 'outfits',
+        subCategory: 'head',
+        rarity: 'premium',
+        price: 1800,
+        imageUrl: '/items/Head/Toga.png',
+        purchaseDate: new Date()
+    },
+
+    // Eyes Items
+    {
+        id: 'swag',
+        key: 'swag',
+        name: 'Swag Eyes',
+        description: 'Cool swag eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'rare',
+        price: 1500,
+        imageUrl: '/items/Eyes/Swag.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'coolglass',
+        key: 'coolglass',
+        name: 'Cool Glasses',
+        description: 'Stylish sunglasses',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'premium',
+        price: 1800,
+        imageUrl: '/items/Eyes/CoolGlass.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'grumpy',
+        key: 'grumpy',
+        name: 'Grumpy Eyes',
+        description: 'Grumpy looking eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'normal',
+        price: 1000,
+        imageUrl: '/items/Eyes/Grumpy.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'sparklyeyes',
+        key: 'sparklyeyes',
+        name: 'Sparkly Eyes',
+        description: 'Eyes full of sparkles',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'ultra_rare',
+        price: 2500,
+        imageUrl: '/items/Eyes/SparklyEyes.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'dizzy',
+        key: 'dizzy',
+        name: 'Dizzy Eyes',
+        description: 'Spinning dizzy eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'rare',
+        price: 1300,
+        imageUrl: '/items/Eyes/dizzy.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'huh',
+        key: 'huh',
+        name: 'Huh Eyes',
+        description: 'Confused looking eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'normal',
+        price: 900,
+        imageUrl: '/items/Eyes/Huh.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'bored',
+        key: 'bored',
+        name: 'Bored Eyes',
+        description: 'Unimpressed looking eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'normal',
+        price: 800,
+        imageUrl: '/items/Eyes/Bored.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'innocent',
+        key: 'innocent',
+        name: 'Innocent Eyes',
+        description: 'Sweet innocent eyes',
+        category: 'outfits',
+        subCategory: 'eyes',
+        rarity: 'premium',
+        price: 1600,
+        imageUrl: '/items/Eyes/Innocent.png',
+        purchaseDate: new Date()
+    },
+
+    // Mouth Items
+    {
+        id: 'haha',
+        key: 'haha',
+        name: 'Haha Mouth',
+        description: 'A laughing mouth',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'normal',
+        price: 1000,
+        imageUrl: '/items/Mouth/Haha.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'smileysnug',
+        key: 'smileysnug',
+        name: 'Smiley Snug',
+        description: 'A warm and cozy smile',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'premium',
+        price: 1200,
+        imageUrl: '/items/Mouth/SmileySnug.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'pout',
+        key: 'pout',
+        name: 'Pout',
+        description: 'A cute pouty expression',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'rare',
+        price: 1500,
+        imageUrl: '/items/Mouth/Pout.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'tinytooth',
+        key: 'tinytooth',
+        name: 'Tiny Tooth',
+        description: 'An adorable tiny tooth smile',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'normal',
+        price: 800,
+        imageUrl: '/items/Mouth/TinyTooth.png',
+        purchaseDate: new Date()
+    },
+    {
+        id: 'chomp',
+        key: 'chomp',
+        name: 'Chomp',
+        description: 'A playful chomping expression',
+        category: 'outfits',
+        subCategory: 'mouth',
+        rarity: 'ultra_rare',
+        price: 2000,
+        imageUrl: '/items/Mouth/Chomp.png',
+        purchaseDate: new Date()
+    },
+
+    // Nose Items
+    {
+        id: 'clownnose',
+        key: 'clownnose',
+        name: 'Clown Nose',
+        description: 'A funny red clown nose',
+        category: 'outfits',
+        subCategory: 'nose',
+        rarity: 'rare',
+        price: 1500,
+        imageUrl: '/items/Nose/ClownNose.png',
+        purchaseDate: new Date()
+    },
+
+    // Existing items...
     {
         id: 'baldeagle',
         key: 'baldeagle',

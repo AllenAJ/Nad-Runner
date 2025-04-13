@@ -78,13 +78,14 @@
 
 .itemsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 1.25rem;
   padding: 15px;
   overflow-y: auto;
   background-color: #001528;
   border-radius: 4px;
   flex: 1;
+  height: 400px;
 }
 
 /* Trading area controls */
@@ -113,9 +114,23 @@
 
 .rarityFilters {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.filterGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .filterButton {
@@ -374,100 +389,240 @@
   letter-spacing: 2px;
 }
 
+.itemSelectionOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
 .itemSelectionGrid {
-  flex: 1;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  background-color: #002952;
+  border-radius: 8px;
   padding: 20px;
-  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  border: 2px solid #004080;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  gap: 15px;
 }
 
 .gridHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 0 10px;
 }
 
 .gridHeader h4 {
   margin: 0;
   color: white;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.filterControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 10px;
+}
+
+.filterGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.filterButton {
+  padding: 5px 12px;
+  border: 1px solid #004080;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.filterButton:hover {
+  border-color: #0066cc;
+  background-color: rgba(0, 102, 204, 0.1);
+}
+
+.filterButton.active {
+  border-color: #ffcc00;
+  background-color: rgba(255, 204, 0, 0.1);
 }
 
 .closeButton {
-  background: none;
+  width: 32px;
+  height: 32px;
+  background-color: #dc2626;
   border: none;
   color: white;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   cursor: pointer;
-  padding: 0;
-  line-height: 1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.closeButton:hover {
+  background-color: #b91c1c;
 }
 
 .itemCard {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: #00000047;
+  border: 2px solid #363232;
   border-radius: 8px;
-  padding: 10px;
+  padding: 0.25rem;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  transform-origin: center center;
 }
 
 .itemCard:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
+  transform: scale(1.1);
+  z-index: 1;
 }
 
 .itemImage {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 6px;
-  overflow: hidden;
-  margin-bottom: 8px;
-  background-color: rgba(0, 0, 0, 0.3);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
 .itemImage img {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
-.itemInfo {
+.placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.itemName {
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
   color: white;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.itemRarity {
   font-size: 0.8rem;
+  font-weight: 500;
   text-transform: uppercase;
 }
 
-.legendary {
-  color: #fbbf24;
+.itemCount {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  z-index: 2;
 }
 
-.epic {
-  color: #8b5cf6;
+/* Rarity borders */
+.itemCard[data-rarity="normal"] {
+  border-color: #cccccc;
 }
 
-.rare {
-  color: #3b82f6;
+.itemCard[data-rarity="premium"] {
+  border-color: #4834d4;
 }
 
-.common {
-  color: #9ca3af;
+.itemCard[data-rarity="rare"] {
+  border-color: #6c5ce7;
+}
+
+.itemCard[data-rarity="event_rare"] {
+  border-color: #e056fd;
+}
+
+.itemCard[data-rarity="ultra_rare"] {
+  border-color: #ff7675;
+}
+
+.itemCard[data-rarity="trade_cash"] {
+  border-color: #ffeaa7;
+}
+
+/* Rarity filter buttons at the top */
+.rarityFilterBar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 0 10px;
+}
+
+.rarityFilterButton {
+  width: 30px;
+  height: 30px;
+  border: 2px solid #666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rarityFilterButton.normal {
+  background-color: #cccccc;
+}
+
+.rarityFilterButton.premium {
+  background-color: #4834d4;
+}
+
+.rarityFilterButton.rare {
+  background-color: #6c5ce7;
+}
+
+.rarityFilterButton.event_rare {
+  background-color: #e056fd;
+}
+
+.rarityFilterButton.ultra_rare {
+  background-color: #ff7675;
+}
+
+.rarityFilterButton.trade_cash {
+  background-color: #ffeaa7;
+}
+
+.rarityFilterButton:hover {
+  transform: scale(1.1);
+}
+
+.rarityFilterButton.active {
+  border-color: white;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .offersContainer {
