@@ -90,12 +90,12 @@
   height: 400px;
 }
 
-/* New offer grid styles */
+/* Update offer grid to use grid layout */
 .offerGrid {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
   padding: 15px;
   overflow-y: auto;
   background-color: #001528;
@@ -104,20 +104,87 @@
   height: 400px;
 }
 
-/* Compact offer card for viewing others' offers */
+/* Update offer card styles for grid layout */
 .offerCard {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid #1a4d8c;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 8px;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 180px;
+}
+
+.offerCard:not(.waiting) .offerItemDisplay {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.offerCard:not(.waiting) .offerItemCard {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+/* Full-screen waiting state */
+.offerCard.waiting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  z-index: 10;
+}
+
+.offerCard.waiting .offerHeader {
+  width: 100%;
+  margin-bottom: 16px;
+  background-color: #0f2744;
+  border-radius: 4px;
+  padding: 8px 8px;
+}
+
+.offerItemDisplay {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.offerItemInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.noOffers {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  color: #9ca3af;
 }
 
 .offerHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 8px;
+  background-color: #0f2744;
+  border-radius: 4px;
+  margin: 0;
+  width: auto;
 }
 
 .offerSellerName {
@@ -126,72 +193,26 @@
   font-size: 14px;
 }
 
-.offerItemDisplay {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
 .offerItemCard {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
+  border: 2px solid;
   border-radius: 8px;
   overflow: hidden;
   position: relative;
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
+/* Regular trade offer display */
+.offerCard:not(.waiting) .offerItemCard {
+  width: 64px;
+  height: 64px;
+}
+
+/* Full-screen waiting state */
 .offerCard.waiting .offerItemCard {
   width: 120px;
   height: 120px;
-}
-
-.offerItemImage {
-  width: 100%;
-  height: 100%;
-}
-
-.offerItemImage img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.offerItemInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.offerItemName {
-  color: white;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.offerItemRarity {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.offerWaitingText {
-  color: #4a9eff;
-  font-size: 14px;
-  margin-top: 8px;
-}
-
-.offerCancelButton {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.offerCancelButton:hover {
-  background: #b91c1c;
 }
 
 /* Rarity border colors for offer items */
@@ -217,6 +238,52 @@
 
 .offerItemCard[data-rarity="trade_cash"] {
   border-color: #ffeaa7;
+}
+
+.offerItemImage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offerItemImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.offerItemName {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.offerItemRarity {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.offerWaitingText {
+  color: #4a9eff;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.offerCancelButton {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.offerCancelButton:hover {
+  background: #b91c1c;
 }
 
 /* Trading area controls */
@@ -416,6 +483,7 @@
   padding: 2px 8px;
   line-height: 1.2;
   font-size: 14px;
+  justify-content: flex-start;
 }
 
 .sender {
@@ -441,6 +509,7 @@
   margin: 0;
   color: #ffffff;
   word-break: break-word;
+  text-align: left;
 }
 
 .timestamp {
@@ -530,7 +599,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1001;
 }
 
 .itemSelectionGrid {
@@ -545,6 +614,8 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
+  z-index: 1002;
 }
 
 .gridHeader {
@@ -696,16 +767,6 @@
   gap: 20px;
   text-align: center;
   border: 1px solid #004080;
-}
-
-.offerHeader {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 8px;
-  background-color: #0f2744;
-  border-radius: 4px;
 }
 
 .sellerName {
@@ -882,11 +943,11 @@
   background-color: rgba(0, 0, 0, 0.7);
   border: 1px solid #1a4d8c;
   border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all 0.2s ease;
+  padding: 8px;
+  margin-bottom: 12px;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .offerCard.cancelled {
@@ -902,15 +963,6 @@
   height: 2px;
   background-color: #dc2626;
   transform: rotate(-5deg);
-}
-
-.offerHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 8px;
-  background-color: #0f2744;
-  border-radius: 4px;
 }
 
 .sellerName {
@@ -992,14 +1044,6 @@
   transform: translateY(-1px);
 }
 
-.waitingText {
-  color: #a3e635;
-  font-size: 0.9rem;
-  margin-top: 4px;
-  font-weight: 500;
-  text-align: center;
-}
-
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .chatContainer {
@@ -1053,4 +1097,333 @@
   padding: 4px 8px;
   background: rgba(74, 222, 128, 0.1);
   border-radius: 4px;
+}
+
+.offerActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tradeButton {
+  background-color: #00b300;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tradeButton:hover {
+  background-color: #009900;
+  transform: translateY(-1px);
+}
+
+.tradeButton:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.offerCancelButton {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.offerCancelButton:hover {
+  background-color: #b91c1c;
+}
+
+/* Update the waiting state to handle buttons properly */
+.offerCard.waiting .offerActions {
+  justify-content: center;
+}
+
+.offerCard.waiting .tradeButton {
+  display: none;
+}
+
+/* Trade Negotiation Overlay */
+.tradeNegotiationOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.98);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.tradeNegotiationContainer {
+  background: #1a1a1a;
+  border: 2px solid #4a9eff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 600px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tradeHeader {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 24px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.tradePartnerName {
+  font-size: 1.1rem;
+  color: #4a9eff;
+}
+
+.tradeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.tradeSide {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tradeSideHeader {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tradeSideTitle {
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.tradeItemsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tradeItemSlot {
+  aspect-ratio: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 64px;
+  height: 64px;
+}
+
+.tradeItemSlot:hover {
+  border-color: #4a9eff;
+  background: rgba(74, 158, 255, 0.1);
+}
+
+.tradeItemSlot.filled {
+  border-color: #4a9eff;
+}
+
+.tradeCoins {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffd700;
+  font-size: 1.1rem;
+}
+
+.tradeActions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.tradeLockButton {
+  background: #00b300;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.tradeUnlockButton {
+  background: #666;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.tradeRejectButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.tradeStatus {
+  text-align: center;
+  color: #9ca3af;
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+
+.waitingStatus {
+  color: #4a9eff;
+}
+
+.lockedStatus {
+  color: #00b300;
+}
+
+.cancelledStatus {
+  color: #dc2626;
+}
+
+/* Trade Chat Styles */
+.tradeChatSection {
+  border-top: 1px solid rgba(74, 158, 255, 0.3);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 200px;
+}
+
+.tradeChatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4a9eff;
+  font-size: 0.9rem;
+}
+
+.tradeChatMessages {
+  flex: 1;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tradeChatMessage {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+}
+
+.tradeChatMessage.self {
+  flex-direction: row-reverse;
+}
+
+.tradeChatMessage .sender {
+  color: #4a9eff;
+  font-weight: 500;
+}
+
+.tradeChatMessage.self .sender {
+  color: #00b300;
+}
+
+.tradeChatMessage .content {
+  background: rgba(74, 158, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  max-width: 80%;
+}
+
+.tradeChatMessage.self .content {
+  background: rgba(0, 179, 0, 0.1);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+}
+
+.tradeChatInput {
+  display: flex;
+  gap: 8px;
+}
+
+.tradeChatInput input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.tradeChatInput input:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.tradeChatInput button {
+  background: #4a9eff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tradeChatInput button:hover {
+  background: #2563eb;
+}
+
+.tradeChatInput button:disabled {
+  background: #666;
+  cursor: not-allowed;
 } 
