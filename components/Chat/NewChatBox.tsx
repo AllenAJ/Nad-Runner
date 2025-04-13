@@ -49,6 +49,7 @@ interface ClientTradeNegotiation {
     status: 'waiting' | 'locked' | 'cancelled' | 'completed';
     yourItems: Item[];
     partnerItems: Item[];
+    originalOfferItems: Item[];
 }
 
 interface TradeChatMessage {
@@ -122,6 +123,75 @@ const TradeItemGrid: React.FC<{
     );
 };
 
+const PartnerTradeItemGrid: React.FC<{
+    items: Item[];
+    isLocked?: boolean;
+    onSlotClick?: (index: number) => void;
+    maxItems?: number;
+}> = ({ items, isLocked, onSlotClick, maxItems = 6 }) => {
+    return (
+        <div className={styles.partnerTradeItemsGrid}>
+            {Array.from({ length: maxItems }).map((_, index) => {
+                const item = items[index];
+                return (
+                    <div 
+                        key={`partner-slot-${index}`}
+                        className={`${styles.partnerTradeItemSlot} ${item ? styles.filled : ''}`}
+                        onClick={() => !isLocked && onSlotClick?.(index)}
+                    >
+                        {item && item.imageUrl && (
+                            <img 
+                                src={item.subCategory === 'head' || 
+                                    item.subCategory === 'mouth' || 
+                                    item.subCategory === 'eyes' || 
+                                    item.subCategory === 'nose' 
+                                        ? item.imageUrl.replace('.png', '_preview.png') 
+                                        : item.imageUrl
+                                } 
+                                alt={item.name || 'Trade item'}
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+const OffererTradeItemGrid: React.FC<{
+    items: Item[];
+    maxItems?: number;
+}> = ({ items, maxItems = 6 }) => {
+    return (
+        <div className={styles.offererTradeItemsGrid}>
+            {Array.from({ length: maxItems }).map((_, index) => {
+                const item = items[index];
+                return (
+                    <div 
+                        key={`offerer-slot-${index}`}
+                        className={`${styles.offererTradeItemSlot} ${item ? styles.filled : ''}`}
+                    >
+                        {item && item.imageUrl && (
+                            <img 
+                                src={item.subCategory === 'head' || 
+                                    item.subCategory === 'mouth' || 
+                                    item.subCategory === 'eyes' || 
+                                    item.subCategory === 'nose' 
+                                        ? item.imageUrl.replace('.png', '_preview.png') 
+                                        : item.imageUrl
+                                } 
+                                alt={item.name || 'Trade item'}
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBackToMenu }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -134,7 +204,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [isSelectingItem, setIsSelectingItem] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [offers, setOffers] = useState<TradeOffer[]>([]);
-    const { items = {} } = useInventory();
+    const { items: inventoryItems, updateInventory } = useInventory();
     const [isOfferActive, setIsOfferActive] = useState(false);
     const [selectedItems, setSelectedItems] = useState<Item[]>([]);
     const [activeTradeNegotiation, setActiveTradeNegotiation] = useState<ClientTradeNegotiation | null>(null);
@@ -149,12 +219,12 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     // Convert inventory items to the format we need, handling undefined case
     const availableItems: Item[] = React.useMemo(() => {
         // First get all items from INITIAL_ITEMS that are in the inventory
-        const inventoryItemIds = Object.keys(items);
+        const inventoryItemIds = Object.keys(inventoryItems);
         
         return INITIAL_ITEMS
             .filter(item => {
                 // Only include items that are in the inventory
-                const count = items[item.id] || 0;
+                const count = inventoryItems[item.id] || 0;
                 return count > 0;
             })
             .map(item => ({
@@ -162,10 +232,10 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 name: item.name,
                 imageUrl: item.imageUrl || `/assets/items/${item.id}.png`,
                 rarity: item.rarity,
-                quantity: items[item.id] || 0,
+                quantity: inventoryItems[item.id] || 0,
                 subCategory: item.subCategory
             }));
-    }, [items]);
+    }, [inventoryItems]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -239,10 +309,10 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             const isOfferer = negotiation.sellerAddress.toLowerCase() === walletAddress.toLowerCase();
             setIsTradeOfferer(isOfferer);
             
-            // Create a clean copy of the items to prevent reference sharing
-            const partnerItems = negotiation.sellerItems.map(item => ({
+            // Store the original offer items
+            const originalItems = negotiation.sellerItems.map(item => ({
                 ...item,
-                id: `partner-${item.id}` // Add prefix to distinguish partner items
+                id: `original-${item.id}` // Add prefix to distinguish original items
             }));
             
             setActiveTradeNegotiation({
@@ -251,7 +321,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 partnerAddress: negotiation.partnerAddress,
                 status: negotiation.status,
                 yourItems: [],
-                partnerItems: partnerItems
+                partnerItems: [],
+                originalOfferItems: originalItems // Store the original items
             });
 
             // Add system message about trade start
@@ -277,9 +348,9 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 console.log('Update from partner:', isFromPartner, 'Status:', data.status);
                 
                 // Clean and prepare items
-                const cleanItems = (items: any[] = []) => items.map(item => ({
+                const cleanItems = (items: any[] = [], prefix: string = '') => items.map(item => ({
                     ...item,
-                    id: item.id.replace(/^(locked-|your-|partner-)*/g, '')
+                    id: `${prefix}${item.id.replace(/^(locked-|your-|partner-)*/g, '')}`
                 }));
 
                 let yourItems = prev.yourItems;
@@ -287,29 +358,23 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
 
                 if (isFromPartner) {
                     // Partner's update
-                    partnerItems = data.items ? cleanItems(data.items) : prev.partnerItems;
+                    partnerItems = data.items ? cleanItems(data.items, 'partner-') : prev.partnerItems;
                     if (data.partnerItems) {
-                        yourItems = cleanItems(data.partnerItems);
-                        // Update selectedTradeItems when receiving partner's update
+                        yourItems = cleanItems(data.partnerItems, 'your-');
                         setSelectedTradeItems(yourItems);
                     }
                 } else {
                     // Your update
-                    yourItems = data.items ? cleanItems(data.items) : prev.yourItems;
-                    partnerItems = data.partnerItems ? cleanItems(data.partnerItems) : prev.partnerItems;
+                    yourItems = data.items ? cleanItems(data.items, 'your-') : prev.yourItems;
+                    partnerItems = data.partnerItems ? cleanItems(data.partnerItems, 'partner-') : prev.partnerItems;
                 }
-
-                console.log('Updating trade state:', {
-                    status: data.status,
-                    yourItems,
-                    partnerItems
-                });
 
                 return {
                     ...prev,
                     status: data.status,
                     yourItems,
-                    partnerItems
+                    partnerItems,
+                    originalOfferItems: prev.originalOfferItems // Preserve original offer items
                 };
             });
 
@@ -354,7 +419,84 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             console.log('Trade chat message received:', message);
             setTradeChatMessages(prev => [...prev, message]);
         });
-    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users]);
+
+        // Add handler for trade accepted
+        socketRef.current.on('tradeAccepted', (data: { offerId: string; acceptedBy: string }) => {
+            console.log('🤝 Trade accepted:', data);
+            
+            // Add system message
+            const systemMessage = {
+                id: generateTempId(),
+                sender_address: 'system',
+                sender_name: 'System',
+                message: `Trade accepted by ${data.acceptedBy}!`,
+                created_at: new Date().toISOString(),
+                isSystem: true
+            };
+            setMessages(prev => [...prev, systemMessage]);
+
+            // Clear the trade negotiation
+            setActiveTradeNegotiation(null);
+            setSelectedTradeItems([]);
+        });
+
+        // Add handlers for trade completion and failure
+        socketRef.current.on('tradeCompleted', (data: { 
+            offerId: string; 
+            receivedItems: Item[]; 
+            givenItems: Item[]; 
+            newInventory: Record<string, number>;
+        }) => {
+            console.log('🎉 Trade completed event received:', data);
+            
+            // Update inventory context
+            if (updateInventory) {
+                console.log('Updating inventory with:', data.newInventory);
+                updateInventory(data.newInventory);
+            } else {
+                console.error('updateInventory function not available');
+            }
+
+            // Add success message
+            const receivedItemNames = data.receivedItems.map(item => item.name).join(', ');
+            const givenItemNames = data.givenItems.map(item => item.name).join(', ');
+            
+            const systemMessage = {
+                id: generateTempId(),
+                sender_address: 'system',
+                sender_name: 'System',
+                message: `Trade completed successfully!\nReceived: ${receivedItemNames}\nGave: ${givenItemNames}`,
+                created_at: new Date().toISOString(),
+                isSystem: true
+            };
+            setMessages(prev => [...prev, systemMessage]);
+
+            // Clear trade state
+            setActiveTradeNegotiation(null);
+            setSelectedTradeItems([]);
+        });
+
+        socketRef.current.on('tradeFailed', (data: { offerId: string; error: string }) => {
+            console.error('❌ Trade failed event received:', data);
+            
+            // Add error message
+            const systemMessage = {
+                id: generateTempId(),
+                sender_address: 'system',
+                sender_name: 'System',
+                message: `Trade failed: ${data.error}`,
+                created_at: new Date().toISOString(),
+                isSystem: true
+            };
+            setMessages(prev => [...prev, systemMessage]);
+
+            // Reset trade state to unlocked
+            setActiveTradeNegotiation(prev => prev ? {
+                ...prev,
+                status: 'waiting'
+            } : null);
+        });
+    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory]);
 
     useEffect(() => {
         // Only create socket connection if it doesn't exist
@@ -684,6 +826,37 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             : selectedTradeItems;
     }, [activeTradeNegotiation, selectedTradeItems, isTradeOfferer]);
 
+    const handleAcceptTrade = () => {
+        if (!activeTradeNegotiation || !socketRef.current?.connected) {
+            console.error('Cannot accept trade: negotiation not active or socket not connected');
+            return;
+        }
+        
+        console.log('🤝 Accepting trade:', {
+            offerId: activeTradeNegotiation.offerId,
+            acceptedBy: username,
+            acceptedByAddress: walletAddress
+        });
+
+        // Emit accept trade event
+        socketRef.current.emit('acceptTrade', {
+            offerId: activeTradeNegotiation.offerId,
+            acceptedBy: username,
+            acceptedByAddress: walletAddress.toLowerCase()
+        });
+
+        // Add system message
+        const systemMessage = {
+            id: generateTempId(),
+            sender_address: 'system',
+            sender_name: 'System',
+            message: 'Processing trade acceptance...',
+            created_at: new Date().toISOString(),
+            isSystem: true
+        };
+        setMessages(prev => [...prev, systemMessage]);
+    };
+
     return (
         <div className={styles.wrapper}>
             <div className={styles.chatContainer}>
@@ -980,44 +1153,49 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                 </div>
                             </div>
 
-                            <div className={styles.tradeGrid}>
+                            <div className={isTradeOfferer ? styles.offererTradeGrid : styles.partnerTradeGrid}>
                                 {!isTradeOfferer ? (
                                     <>
-                                        <div className={`${styles.tradeSide} ${activeTradeNegotiation?.status === 'locked' ? styles.locked : ''}`}>
-                                            <div className={styles.tradeSideHeader}>
-                                                <span className={styles.tradeSideTitle}>You give:</span>
+                                        <div className={`${styles.partnerTradeSide} ${activeTradeNegotiation?.status === 'locked' ? styles.locked : ''}`}>
+                                            <div className={styles.partnerTradeHeader}>
+                                                <span>You give:</span>
                                             </div>
-                                            <TradeItemGrid 
+                                            <PartnerTradeItemGrid 
                                                 items={activeTradeNegotiation?.status === 'locked' ? 
                                                     activeTradeNegotiation.yourItems || [] : 
                                                     selectedTradeItems}
                                                 isLocked={activeTradeNegotiation?.status === 'locked'}
                                                 onSlotClick={handleTradeSlotClick}
-                                                maxItems={6}
                                             />
                                             <div className={styles.tradeCoins}>
                                                 and <span>0 Coins</span>
                                             </div>
                                         </div>
-                                        <div className={styles.tradeSide}>
-                                            <div className={styles.tradeSideHeader}>
-                                                <span className={styles.tradeSideTitle}>Item:</span>
+                                        <div className={styles.partnerTradeSide}>
+                                            <div className={styles.partnerTradeHeader}>
+                                                <span>Item:</span>
                                             </div>
-                                            <TradeItemGrid 
-                                                items={activeTradeNegotiation?.partnerItems || []}
-                                                maxItems={6}
+                                            <PartnerTradeItemGrid 
+                                                items={activeTradeNegotiation?.originalOfferItems || []}
                                             />
                                         </div>
                                     </>
                                 ) : (
-                                    <div className={styles.tradeSide}>
-                                        <div className={styles.tradeSideHeader}>
-                                            <span className={styles.tradeSideTitle}>you get:</span>
+                                    <div className={styles.offererTradeSide}>
+                                        <div className={styles.offererTradeHeader}>
+                                            <span>you get:</span>
                                         </div>
-                                        <TradeItemGrid 
+                                        <OffererTradeItemGrid 
                                             items={activeTradeNegotiation?.partnerItems || []}
-                                            maxItems={6}
                                         />
+                                        {activeTradeNegotiation?.status === 'locked' && (
+                                            <button 
+                                                className={styles.tradeAcceptButton}
+                                                onClick={handleAcceptTrade}
+                                            >
+                                                Accept Trade
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

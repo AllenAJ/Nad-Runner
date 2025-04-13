@@ -1,6 +1,7 @@
 import { Server as SocketServer, Socket } from 'socket.io';
 import { wsPool } from '../websocket';
 import { CHAT_CONFIG } from '../../config/chat';
+import { Pool } from 'pg';
 
 interface User {
     walletAddress: string;
@@ -48,6 +49,14 @@ let clearMessagesTimeout: NodeJS.Timeout | null = null;
 const messageRateLimit = new Map<string, number>();
 const RATE_LIMIT_WINDOW = 1000; // 1 second
 const MAX_MESSAGES_PER_WINDOW = 5;
+
+const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: parseInt(process.env.DB_PORT || '5432')
+});
 
 export const setupSocket = (io: SocketServer) => {
     io.on('connection', (socket: Socket) => {
@@ -396,5 +405,92 @@ export const setupSocket = (io: SocketServer) => {
                 io.to(offer.partnerSocketId).emit('tradeUnlocked', offerId);
             }
         });
+
+        socket.on('acceptTrade', async (data: { offerId: string; acceptedBy: string; acceptedByAddress: string }) => {
+            console.log('🤝 Trade acceptance received:', data);
+            
+            const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
+            const offer = activeOffers.find(o => o.id === data.offerId);
+            
+            if (!negotiation || !offer) {
+                socket.emit('tradeFailed', { 
+                    offerId: data.offerId, 
+                    error: 'Trade negotiation not found' 
+                });
+                return;
+            }
+
+            try {
+                // Update negotiation status
+                negotiation.status = 'completed';
+
+                // Get the buyer and seller sockets
+                const buyerSocket = io.sockets.sockets.get(offer.partnerSocketId);
+                const sellerSocket = io.sockets.sockets.get(offer.offererSocketId);
+
+                if (!buyerSocket || !sellerSocket) {
+                    throw new Error('One or both parties disconnected');
+                }
+
+                // Calculate new inventories for both parties
+                const buyerNewItems = calculateNewInventory(
+                    negotiation.buyerItems,
+                    negotiation.sellerItems
+                );
+                
+                const sellerNewItems = calculateNewInventory(
+                    negotiation.sellerItems,
+                    negotiation.buyerItems
+                );
+
+                // Emit trade completion events to both parties
+                buyerSocket.emit('tradeCompleted', {
+                    offerId: data.offerId,
+                    receivedItems: negotiation.sellerItems,
+                    givenItems: negotiation.buyerItems,
+                    newInventory: buyerNewItems
+                });
+
+                sellerSocket.emit('tradeCompleted', {
+                    offerId: data.offerId,
+                    receivedItems: negotiation.buyerItems,
+                    givenItems: negotiation.sellerItems,
+                    newInventory: sellerNewItems
+                });
+
+                // Remove completed trade from active lists
+                activeOffers = activeOffers.filter(o => o.id !== data.offerId);
+                activeNegotiations = activeNegotiations.filter(n => n.offerId !== data.offerId);
+
+                // Broadcast trade offer removal
+                io.emit('tradeOfferCancelled', data.offerId);
+
+            } catch (error) {
+                console.error('Trade completion failed:', error);
+                socket.emit('tradeFailed', {
+                    offerId: data.offerId,
+                    error: 'Failed to complete trade: ' + (error as Error).message
+                });
+            }
+        });
+
+        // Helper function to calculate new inventory
+        function calculateNewInventory(receivedItems: any[], givenItems: any[]) {
+            const inventory: { [key: string]: number } = {};
+            
+            // Add received items
+            receivedItems.forEach(item => {
+                const itemId = item.id.replace(/^(locked-|your-|partner-)*/g, '');
+                inventory[itemId] = (inventory[itemId] || 0) + 1;
+            });
+            
+            // Subtract given items
+            givenItems.forEach(item => {
+                const itemId = item.id.replace(/^(locked-|your-|partner-)*/g, '');
+                inventory[itemId] = (inventory[itemId] || 0) - 1;
+            });
+            
+            return inventory;
+        }
     });
 }; 

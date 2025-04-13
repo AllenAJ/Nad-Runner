@@ -172,6 +172,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return counts;
     }, {});
 
+    const updateInventory = (newItems: { [key: string]: number }) => {
+        setItems(newItems);
+    };
+
     const value: InventoryContextType = {
         items,
         itemCounts,
@@ -190,7 +194,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         unequipPowerup,
         getItemsByCategory,
         countItem,
-        isLoading
+        isLoading,
+        updateInventory,
     };
 
     return (

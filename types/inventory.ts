@@ -98,4 +98,5 @@ export interface InventoryContextType {
     getItemsByCategory: (category: ItemCategory) => Item[];
     countItem: (itemId: string) => number;
     isLoading: boolean;
+    updateInventory: (newItems: { [key: string]: number }) => void;
 } 
