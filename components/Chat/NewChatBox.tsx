@@ -21,6 +21,7 @@ interface TradeOffer {
     sellerAddress: string;
     item: Item;
     timestamp: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
 }
 
 interface ChatMessage {
@@ -77,6 +78,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [offers, setOffers] = useState<TradeOffer[]>([]);
     const { items = {} } = useInventory();
+    const [isOfferActive, setIsOfferActive] = useState(false);
+    const [selectedItems, setSelectedItems] = useState<Item[]>([]);
 
     // Convert inventory items to the format we need, handling undefined case
     const availableItems: Item[] = React.useMemo(() => {
@@ -206,32 +209,41 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         }
     };
 
-    const handleMakeOffer = () => {
-        // Log all available items
-        console.log('User owned items:', availableItems);
-        console.log('Raw inventory items:', items);
-        console.log('INITIAL_ITEMS:', INITIAL_ITEMS);
-        setIsSelectingItem(true);
+    const handleSelectItem = (item: Item) => {
+        handleMakeOffer(item);
+        setIsSelectingItem(false);
     };
 
-    const handleSelectItem = (item: Item) => {
-        setSelectedItem(item);
-        setIsSelectingItem(false);
-        
+    const handleMakeOffer = (selectedItem: Item) => {
         // Create new offer
         const newOffer: TradeOffer = {
             id: `offer-${Date.now()}`,
             sellerName: username,
             sellerAddress: walletAddress,
-            item: item,
-            timestamp: new Date().toISOString()
+            item: selectedItem,
+            timestamp: new Date().toISOString(),
+            status: 'pending'
         };
         
+        // Emit the offer to the server
+        socketRef.current?.emit('makeTradeOffer', newOffer);
+        
+        // Optimistically add to local state
         setOffers(prev => [newOffer, ...prev]);
     };
 
     const handleCancelOffer = (offerId: string) => {
         setOffers(prev => prev.filter(offer => offer.id !== offerId));
+    };
+
+    const handleCloseOffer = () => {
+        setIsOfferActive(false);
+        setSelectedItems([]);
+    };
+
+    const handleAcceptOffer = (offer: TradeOffer) => {
+        // Implement the logic to accept the offer
+        console.log('Accepting offer:', offer);
     };
 
     return (
@@ -258,50 +270,74 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                 <div key={offer.id} className={styles.offerCard}>
                                     <div className={styles.offerHeader}>
                                         <span className={styles.sellerName}>{offer.sellerName}</span>
-                                        {offer.sellerAddress === walletAddress && (
+                                        {offer.sellerAddress === walletAddress ? (
                                             <button 
                                                 className={styles.cancelOfferButton}
                                                 onClick={() => handleCancelOffer(offer.id)}
                                             >
                                                 Cancel
                                             </button>
+                                        ) : (
+                                            <span className={styles.offerStatus}>
+                                                Available for trade
+                                            </span>
                                         )}
                                     </div>
                                     <div className={styles.offeredItem}>
-                                        <div className={styles.itemImage}>
-                                            <img 
-                                                src={offer.item.subCategory === 'head' || 
-                                                    offer.item.subCategory === 'mouth' || 
-                                                    offer.item.subCategory === 'eyes' || 
-                                                    offer.item.subCategory === 'nose' 
-                                                        ? offer.item.imageUrl.replace('.png', '_preview.png') 
-                                                        : offer.item.imageUrl
-                                                } 
-                                                alt={offer.item.name} 
-                                            />
+                                        <div 
+                                            className={`${styles.itemCard} ${offer.sellerAddress !== walletAddress ? styles.tradeable : ''}`}
+                                            data-rarity={offer.item.rarity}
+                                            onClick={() => {
+                                                if (offer.sellerAddress !== walletAddress && offer.status === 'pending') {
+                                                    handleAcceptOffer(offer);
+                                                }
+                                            }}
+                                        >
+                                            <div className={styles.itemImage}>
+                                                <img 
+                                                    src={offer.item.subCategory === 'head' || 
+                                                        offer.item.subCategory === 'mouth' || 
+                                                        offer.item.subCategory === 'eyes' || 
+                                                        offer.item.subCategory === 'nose' 
+                                                            ? offer.item.imageUrl.replace('.png', '_preview.png') 
+                                                            : offer.item.imageUrl
+                                                    } 
+                                                    alt={offer.item.name}
+                                                />
+                                            </div>
                                         </div>
                                         <div className={styles.itemInfo}>
                                             <span className={styles.itemName}>{offer.item.name}</span>
                                             <span className={`${styles.itemRarity} ${styles[offer.item.rarity || '']}`}>
                                                 {offer.item.rarity}
                                             </span>
+                                            {offer.sellerAddress === walletAddress && offer.status === 'pending' && (
+                                                <span className={styles.waitingText}>
+                                                    Waiting for interested traders...
+                                                </span>
+                                            )}
+                                            {offer.sellerAddress !== walletAddress && offer.status === 'pending' && (
+                                                <button 
+                                                    className={styles.tradeButton}
+                                                    onClick={() => handleAcceptOffer(offer)}
+                                                >
+                                                    Trade Now
+                                                </button>
+                                            )}
                                         </div>
-                                        {offer.sellerAddress !== walletAddress && (
-                                            <button className={styles.tradeButton}>
-                                                Trade
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             ))}
                             {offers.length === 0 && (
                                 <div className={styles.noOffers}>
-                                    No active offers. Make an offer to start trading!
+                                    No active offers.
+                                    <br />
+                                    Make an offer to start trading!
                                 </div>
                             )}
                         </div>
                         <div className={styles.tradeControls}>
-                            <button className={styles.makeOfferButton} onClick={handleMakeOffer}>
+                            <button className={styles.makeOfferButton} onClick={() => setIsSelectingItem(true)}>
                                 Make Offer
                             </button>
                             <div className={styles.rarityFilters}>

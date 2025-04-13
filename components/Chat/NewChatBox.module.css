@@ -77,6 +77,7 @@
 }
 
 .itemsGrid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
   gap: 1.25rem;
@@ -636,16 +637,52 @@
 }
 
 .offerCard {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
+  position: absolute;
+  inset: 0;
+  margin: 15px;
+  background-color: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  border: 1px solid #004080;
 }
 
 .offerHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+}
+
+.offeredItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.itemName {
+  color: white;
+  font-weight: 500;
+}
+
+.itemRarity {
+  font-size: 0.9rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: capitalize;
 }
 
 .sellerName {
@@ -667,41 +704,63 @@
   background-color: #dc2626;
 }
 
-.offeredItem {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.offeredItem .itemImage {
-  width: 60px;
-  height: 60px;
-  margin: 0;
-}
-
-.offeredItem .itemInfo {
-  flex: 1;
-}
-
 .tradeButton {
   background-color: #4ade80;
   color: white;
   border: none;
-  border-radius: 6px;
   padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 120px;
 }
 
 .tradeButton:hover {
   background-color: #22c55e;
+  transform: translateY(-1px);
 }
 
 .noOffers {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: #9ca3af;
-  padding: 40px 0;
+  padding: 20px;
+  font-size: 1rem;
+  line-height: 1.5;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.waitingText {
+  color: #a3e635;
+  font-size: 1rem;
+  margin-top: 10px;
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+}
+
+.closeOfferButton {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 120px;
+}
+
+.closeOfferButton:hover {
+  background-color: #b91c1c;
 }
 
 /* Responsive adjustments */
@@ -729,4 +788,32 @@
   .chatBox {
     min-height: 300px;
   }
+}
+
+.itemCard.tradeable {
+  cursor: pointer;
+  position: relative;
+}
+
+.itemCard.tradeable::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid #4ade80;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.itemCard.tradeable:hover::after {
+  opacity: 1;
+}
+
+.offerStatus {
+  color: #4ade80;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 4px;
 } 

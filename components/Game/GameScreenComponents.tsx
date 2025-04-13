@@ -133,7 +133,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                     }
                     equippedHead={
                         equippedItems.head === 'musketeer' ? 'Musketeer' :
-                        equippedItems.head === 'bandage' ? 'Bandange' :
+                        equippedItems.head === 'bandage' ? 'Bandage' :
                         equippedItems.head === 'brown_hat' ? 'Brown_hat' :
                         equippedItems.head === 'halo' ? 'Halo' :
                         equippedItems.head === 'bow' ? 'Bow' :
