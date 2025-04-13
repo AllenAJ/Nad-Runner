@@ -76,6 +76,7 @@
   margin-bottom: 15px;
 }
 
+/* Original itemsGrid for item selection */
 .itemsGrid {
   position: relative;
   display: grid;
@@ -87,6 +88,135 @@
   border-radius: 4px;
   flex: 1;
   height: 400px;
+}
+
+/* New offer grid styles */
+.offerGrid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  overflow-y: auto;
+  background-color: #001528;
+  border-radius: 4px;
+  flex: 1;
+  height: 400px;
+}
+
+/* Compact offer card for viewing others' offers */
+.offerCard {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #1a4d8c;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.offerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.offerSellerName {
+  color: #4a9eff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.offerItemDisplay {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.offerItemCard {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.offerCard.waiting .offerItemCard {
+  width: 120px;
+  height: 120px;
+}
+
+.offerItemImage {
+  width: 100%;
+  height: 100%;
+}
+
+.offerItemImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.offerItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.offerItemName {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.offerItemRarity {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.offerWaitingText {
+  color: #4a9eff;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.offerCancelButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.offerCancelButton:hover {
+  background: #b91c1c;
+}
+
+/* Rarity border colors for offer items */
+.offerItemCard[data-rarity="normal"] {
+  border-color: #cccccc;
+}
+
+.offerItemCard[data-rarity="premium"] {
+  border-color: #4834d4;
+}
+
+.offerItemCard[data-rarity="rare"] {
+  border-color: #6c5ce7;
+}
+
+.offerItemCard[data-rarity="event_rare"] {
+  border-color: #e056fd;
+}
+
+.offerItemCard[data-rarity="ultra_rare"] {
+  border-color: #ff7675;
+}
+
+.offerItemCard[data-rarity="trade_cash"] {
+  border-color: #ffeaa7;
 }
 
 /* Trading area controls */
@@ -551,7 +681,118 @@
   z-index: 2;
 }
 
-/* Rarity borders */
+/* Trade offer display styles */
+.offerDisplay {
+  position: absolute;
+  inset: 0;
+  margin: 15px;
+  background-color: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  border: 1px solid #004080;
+}
+
+.offerHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background-color: #0f2744;
+  border-radius: 4px;
+}
+
+.sellerName {
+  color: #4ade80;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.offeredItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: rgba(15, 39, 68, 0.4);
+  border-radius: 6px;
+}
+
+.offeredItemCard {
+  width: 64px;
+  height: 64px;
+  border: 2px solid;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.offeredItemImage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.offeredItemImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.offeredItemInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.itemName {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.itemRarity {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.waitingText {
+  color: #a3e635;
+  font-size: 0.9rem;
+  margin-top: 4px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.cancelOfferButton {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancelOfferButton:hover {
+  background-color: #b91c1c;
+}
+
+/* Rarity colors for borders */
 .itemCard[data-rarity="normal"] {
   border-color: #cccccc;
 }
@@ -637,84 +878,113 @@
 }
 
 .offerCard {
-  position: absolute;
-  inset: 0;
-  margin: 15px;
-  background-color: rgba(0, 0, 0, 0.9);
-  border-radius: 4px;
-  padding: 20px;
+  position: relative;
+  background-color: rgba(0, 0, 0, 0.7);
+  border: 1px solid #1a4d8c;
+  border-radius: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  text-align: center;
-  border: 1px solid #004080;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.offerCard.cancelled {
+  opacity: 0.6;
+}
+
+.offerCard.cancelled::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #dc2626;
+  transform: rotate(-5deg);
 }
 
 .offerHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  padding: 4px 8px;
+  background-color: #0f2744;
+  border-radius: 4px;
+}
+
+.sellerName {
+  color: #4ade80;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .offeredItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px;
+  background-color: rgba(15, 39, 68, 0.4);
+  border-radius: 6px;
 }
 
 .itemInfo {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  text-align: center;
 }
 
 .itemName {
   color: white;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 
 .itemRarity {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   padding: 2px 8px;
   border-radius: 4px;
   text-transform: capitalize;
 }
 
-.sellerName {
-  color: #4ade80;
-  font-weight: 600;
-}
-
 .cancelOfferButton {
-  background-color: #ef4444;
+  background-color: #dc2626;
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 4px 12px;
-  font-size: 0.8rem;
+  padding: 4px 8px;
+  font-size: 0.75rem;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .cancelOfferButton:hover {
-  background-color: #dc2626;
+  background-color: #b91c1c;
+}
+
+.offerStatus {
+  color: #4ade80;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 4px;
 }
 
 .tradeButton {
   background-color: #4ade80;
   color: white;
   border: none;
-  padding: 8px 24px;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .tradeButton:hover {
@@ -722,45 +992,12 @@
   transform: translateY(-1px);
 }
 
-.noOffers {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: #9ca3af;
-  padding: 20px;
-  font-size: 1rem;
-  line-height: 1.5;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
 .waitingText {
   color: #a3e635;
-  font-size: 1rem;
-  margin-top: 10px;
+  font-size: 0.9rem;
+  margin-top: 4px;
   font-weight: 500;
   text-align: center;
-  width: 100%;
-}
-
-.closeOfferButton {
-  background-color: #dc2626;
-  color: white;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  min-width: 120px;
-}
-
-.closeOfferButton:hover {
-  background-color: #b91c1c;
 }
 
 /* Responsive adjustments */

@@ -39,7 +39,7 @@ interface ChatBoxProps {
     onBackToMenu: () => void;
 }
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:3001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 const MAX_MESSAGE_LENGTH = 500;
 const RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 1000;
@@ -113,10 +113,37 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const setupSocketListeners = useCallback(() => {
         if (!socketRef.current) return;
 
+        console.log('Setting up socket listeners...');
+
         socketRef.current.on('connect', () => {
             console.log('Connected to chat server');
             setIsConnected(true);
             socketRef.current?.emit('join', { walletAddress, username });
+            console.log('Emitted join event with:', { walletAddress, username });
+        });
+
+        // Add handler for initial active offers
+        socketRef.current.on('activeOffers', (activeOffers: TradeOffer[]) => {
+            console.log('🔵 Received initial active offers:', activeOffers);
+            setOffers(activeOffers);
+        });
+
+        // Handle new trade offers
+        socketRef.current.on('newTradeOffer', (offer: TradeOffer) => {
+            console.log('🟢 Received new trade offer:', offer);
+            setOffers(prev => {
+                // Check if offer already exists to prevent duplicates
+                if (prev.some(o => o.id === offer.id)) {
+                    return prev;
+                }
+                return [offer, ...prev];
+            });
+        });
+
+        // Handle cancelled offers
+        socketRef.current.on('tradeOfferCancelled', (offerId: string) => {
+            console.log('🔴 Trade offer cancelled:', offerId);
+            setOffers(prev => prev.filter(offer => offer.id !== offerId));
         });
 
         socketRef.current.on('disconnect', () => {
@@ -215,6 +242,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     };
 
     const handleMakeOffer = (selectedItem: Item) => {
+        console.log('Making new offer for item:', selectedItem);
+        
         // Create new offer
         const newOffer: TradeOffer = {
             id: `offer-${Date.now()}`,
@@ -225,15 +254,17 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             status: 'pending'
         };
         
+        console.log('🟡 Emitting makeTradeOffer with:', newOffer);
         // Emit the offer to the server
         socketRef.current?.emit('makeTradeOffer', newOffer);
         
-        // Optimistically add to local state
-        setOffers(prev => [newOffer, ...prev]);
+        // No need to add to local state here as it will come back through the socket
     };
 
     const handleCancelOffer = (offerId: string) => {
-        setOffers(prev => prev.filter(offer => offer.id !== offerId));
+        console.log('🔴 Requesting to cancel offer:', offerId);
+        socketRef.current?.emit('cancelTradeOffer', offerId);
+        // No need to update local state here as it will be handled by the socket event
     };
 
     const handleCloseOffer = () => {
@@ -245,6 +276,11 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         // Implement the logic to accept the offer
         console.log('Accepting offer:', offer);
     };
+
+    // Add a useEffect to monitor offers state changes
+    useEffect(() => {
+        console.log('🔄 Offers state updated:', offers);
+    }, [offers]);
 
     return (
         <div className={styles.wrapper}>
@@ -265,35 +301,29 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                     {/* Trading Area */}
                     <div className={styles.tradingArea}>
                         <h2 className={styles.offersHeader}>OFFERS</h2>
-                        <div className={styles.itemsGrid}>
+                        <div className={styles.offerGrid}>
                             {offers.map(offer => (
-                                <div key={offer.id} className={styles.offerCard}>
+                                <div 
+                                    key={offer.id} 
+                                    className={`${styles.offerCard} ${offer.sellerAddress === walletAddress ? styles.waiting : ''}`}
+                                >
                                     <div className={styles.offerHeader}>
-                                        <span className={styles.sellerName}>{offer.sellerName}</span>
-                                        {offer.sellerAddress === walletAddress ? (
+                                        <span className={styles.offerSellerName}>{offer.sellerName}</span>
+                                        {offer.sellerAddress === walletAddress && (
                                             <button 
-                                                className={styles.cancelOfferButton}
+                                                className={styles.offerCancelButton}
                                                 onClick={() => handleCancelOffer(offer.id)}
                                             >
                                                 Cancel
                                             </button>
-                                        ) : (
-                                            <span className={styles.offerStatus}>
-                                                Available for trade
-                                            </span>
                                         )}
                                     </div>
-                                    <div className={styles.offeredItem}>
+                                    <div className={styles.offerItemDisplay}>
                                         <div 
-                                            className={`${styles.itemCard} ${offer.sellerAddress !== walletAddress ? styles.tradeable : ''}`}
+                                            className={styles.offerItemCard}
                                             data-rarity={offer.item.rarity}
-                                            onClick={() => {
-                                                if (offer.sellerAddress !== walletAddress && offer.status === 'pending') {
-                                                    handleAcceptOffer(offer);
-                                                }
-                                            }}
                                         >
-                                            <div className={styles.itemImage}>
+                                            <div className={styles.offerItemImage}>
                                                 <img 
                                                     src={offer.item.subCategory === 'head' || 
                                                         offer.item.subCategory === 'mouth' || 
@@ -306,23 +336,15 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                                 />
                                             </div>
                                         </div>
-                                        <div className={styles.itemInfo}>
-                                            <span className={styles.itemName}>{offer.item.name}</span>
-                                            <span className={`${styles.itemRarity} ${styles[offer.item.rarity || '']}`}>
+                                        <div className={styles.offerItemInfo}>
+                                            <span className={styles.offerItemName}>{offer.item.name}</span>
+                                            <span className={styles.offerItemRarity}>
                                                 {offer.item.rarity}
                                             </span>
-                                            {offer.sellerAddress === walletAddress && offer.status === 'pending' && (
-                                                <span className={styles.waitingText}>
+                                            {offer.sellerAddress === walletAddress && (
+                                                <span className={styles.offerWaitingText}>
                                                     Waiting for interested traders...
                                                 </span>
-                                            )}
-                                            {offer.sellerAddress !== walletAddress && offer.status === 'pending' && (
-                                                <button 
-                                                    className={styles.tradeButton}
-                                                    onClick={() => handleAcceptOffer(offer)}
-                                                >
-                                                    Trade Now
-                                                </button>
                                             )}
                                         </div>
                                     </div>

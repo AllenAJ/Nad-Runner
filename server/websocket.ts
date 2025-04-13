@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import { Pool } from 'pg'; // Import Pool directly
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 import { CronJob } from 'cron';
@@ -8,6 +8,7 @@ import { CHAT_CONFIG } from '../config/chat';
 import express from 'express';
 import https from 'https';
 import http from 'http';
+import { setupSocket } from './socket';
 
 // Load environment variables first with absolute path
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -21,7 +22,7 @@ const app = express();
 const httpServer = createServer(app);
 
 // Create a dedicated pool for the WebSocket server
-const wsPool = new Pool({
+export const wsPool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false
@@ -43,7 +44,6 @@ const pingServer = () => {
     const serverUrl = process.env.SERVER_URL || 'http://localhost:3001';
     console.log('Pinging server:', serverUrl);
     
-    // Use https or http depending on the URL
     const requester = serverUrl.startsWith('https') ? https : require('http');
     
     requester.get(`${serverUrl}/health`, (res: http.IncomingMessage) => {
@@ -57,19 +57,17 @@ const pingServer = () => {
     });
 };
 
-// Set up periodic ping every 14 minutes (before Render's 15-minute sleep)
+// Set up periodic ping every 14 minutes
 const pingJob = new CronJob('*/14 * * * *', pingServer);
 pingJob.start();
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
     try {
-        // Test database connection
         const client = await wsPool.connect();
         await client.query('SELECT 1');
         client.release();
 
-        // Return health status
         res.json({
             status: 'healthy',
             timestamp: new Date().toISOString(),
@@ -99,140 +97,8 @@ const io = new Server(httpServer, {
     transports: ['websocket', 'polling']
 });
 
-interface OnlineUser {
-    walletAddress: string;
-    username: string;
-    socketId: string;
-}
-
-const onlineUsers = new Map<string, OnlineUser>();
-let clearMessagesTimeout: NodeJS.Timeout | null = null;
-
-// Add rate limiting
-const messageRateLimit = new Map<string, number>();
-const RATE_LIMIT_WINDOW = 1000; // 1 second
-const MAX_MESSAGES_PER_WINDOW = 5;
-
-io.on('connection', (socket) => {
-    // Cancel any pending message cleanup when a user connects
-    if (clearMessagesTimeout) {
-        clearTimeout(clearMessagesTimeout);
-        clearMessagesTimeout = null;
-    }
-
-    socket.on('join', async ({ walletAddress, username }) => {
-        const normalizedWalletAddress = walletAddress.toLowerCase();
-        onlineUsers.set(socket.id, { walletAddress: normalizedWalletAddress, username, socketId: socket.id });
-        io.emit('onlineUsers', Array.from(onlineUsers.values()).map(u => u.username));
-    });
-
-    socket.on('message', async ({ walletAddress, username, message }) => {
-        const normalizedWalletAddress = walletAddress.toLowerCase();
-        console.log('Attempting to save message for wallet:', normalizedWalletAddress);
-        
-        // Check rate limit
-        const now = Date.now();
-        const userLastMessage = messageRateLimit.get(normalizedWalletAddress) || 0;
-        
-        if (now - userLastMessage < RATE_LIMIT_WINDOW) {
-            socket.emit('error', 'Please wait before sending another message');
-            return;
-        }
-        
-        messageRateLimit.set(normalizedWalletAddress, now);
-
-        // Validate message
-        if (!message || message.length > 500) {
-            socket.emit('error', 'Invalid message');
-            return;
-        }
-
-        let client;
-        try {
-            client = await wsPool.connect();
-            
-            // Check if user exists
-            const userExists = await client.query(
-                'SELECT wallet_address FROM users WHERE wallet_address = LOWER($1)',
-                [normalizedWalletAddress]
-            );
-
-            console.log('User exists check result:', userExists.rows.length);
-
-            if (userExists.rows.length === 0) {
-                // Create user if they don't exist
-                console.log('Creating new user:', normalizedWalletAddress);
-                await client.query(
-                    'INSERT INTO users (wallet_address, username) VALUES (LOWER($1), $2) ON CONFLICT (wallet_address) DO UPDATE SET username = $2',
-                    [normalizedWalletAddress, username]
-                );
-            }
-            
-            console.log('Inserting message into chat_messages');
-            const result = await client.query(
-                `INSERT INTO chat_messages (sender_address, message)
-                 VALUES (LOWER($1), $2)
-                 RETURNING id, created_at;`,
-                [normalizedWalletAddress, message]
-            );
-
-            const newMessage = {
-                id: result.rows[0].id,
-                sender_address: normalizedWalletAddress,
-                sender_name: username,
-                message,
-                created_at: result.rows[0].created_at
-            };
-
-            io.emit('message', newMessage);
-            console.log('Message saved and emitted successfully');
-        } catch (error) {
-            console.error('Database error:', error);
-            socket.emit('error', 'Failed to save message');
-        } finally {
-            if (client) {
-                client.release();
-            }
-        }
-    });
-
-    socket.on('disconnect', async () => {
-        onlineUsers.delete(socket.id);
-        const remainingUsers = Array.from(onlineUsers.values());
-        io.emit('onlineUsers', remainingUsers.map(u => u.username));
-
-        // If no users left, start cleanup timer
-        if (remainingUsers.length === 0) {
-            clearMessagesTimeout = setTimeout(async () => {
-                let client;
-                try {
-                    client = await wsPool.connect();
-                    
-                    // Keep last 100 messages in main table
-                    await client.query(`
-                        WITH moved_messages AS (
-                            DELETE FROM chat_messages 
-                            WHERE id NOT IN (
-                                SELECT id FROM chat_messages 
-                                ORDER BY created_at DESC 
-                                LIMIT 100
-                            )
-                            RETURNING *
-                        )
-                        INSERT INTO chat_messages_archive 
-                        SELECT * FROM moved_messages;
-                    `);
-
-                    console.log('Chat messages archived due to room being empty');
-                } catch (error) {
-                    console.error('Error archiving messages:', error);
-                } finally {
-                    if (client) client.release();
-                }
-            }, CHAT_CONFIG.EMPTY_ROOM_CLEANUP_DELAY); // Wait 5 minutes before cleanup
-        }
-    });
-});
+// Set up socket event handlers
+setupSocket(io);
 
 // Add message cleanup job - runs daily at midnight
 const cleanupJob = new CronJob('0 0 * * *', async () => {
