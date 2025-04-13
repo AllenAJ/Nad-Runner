@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import styles from './GameContainer.module.css';
-import { ChatBox } from '../Chat/ChatBox';
+import { NewChatBox } from '../Chat/NewChatBox';
 import { useInventory } from '../../contexts/InventoryContext';
 import inventoryStyles from '../../styles/Inventory.module.css';
 import { Category, ItemCategory, SubCategory } from '../../types/inventory';
@@ -408,21 +408,10 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
     };
 
     return (
-        <div className={styles.multiplayerScreen}>
-            <div className={styles.chatSection}>
-                <ChatBox 
-                    walletAddress={walletAddress} 
-                    username={username} 
-                    onBackToMenu={onBackToMenu}
-                />
-            </div>
-            <button 
-                onClick={() => handleButtonClick(onBackToMenu)}
-                onMouseEnter={() => playSound(buttonHoverSound)}
-                className={styles.backButton}
-            >
-                Back to Menu
-            </button>
-        </div>
+        <NewChatBox 
+            walletAddress={walletAddress} 
+            username={username} 
+            onBackToMenu={onBackToMenu}
+        />
     );
 };

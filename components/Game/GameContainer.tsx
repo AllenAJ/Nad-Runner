@@ -693,13 +693,11 @@ export default function GameContainer() {
             case 'inventory':
                 return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
             case 'multiplayer':
-                return (
-                    <MultiplayerScreen 
-                        onBackToMenu={() => navigateTo('menu')}
-                        walletAddress={walletAddress}
-                        username={playerData?.playerStats.username || ''}
-                    />
-                );
+                return <MultiplayerScreen 
+                    onBackToMenu={() => navigateTo('menu')} 
+                    walletAddress={walletAddress}
+                    username={playerData?.playerStats?.username || ''}
+                />;
             case 'gameOver':
                 return (
                     <GameOverScreen 
@@ -735,9 +733,16 @@ export default function GameContainer() {
                 </div>
             )}
             
-            {isZoom100 && (
+            {isZoom100 && gameState.currentScreen === 'multiplayer' ? (
+                <MultiplayerScreen 
+                    onBackToMenu={() => navigateTo('menu')}
+                    walletAddress={walletAddress}
+                    username={playerData?.playerStats.username || ''}
+                />
+            ) : isZoom100 && (
                 <div 
                     className={styles.container}
+                    data-screen={gameState.currentScreen}
                     style={{
                         minHeight: '100vh',
                         position: 'relative'
