@@ -298,39 +298,51 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         });
 
         socketRef.current.on('error', (error: string) => {
-            console.error('Socket error:', error);
+            handleTradeError(error);
         });
 
-        // Add handler for trade negotiation started
-        socketRef.current.on('tradeNegotiationStarted', (negotiation: ServerTradeNegotiation & { partnerName: string; partnerAddress: string }) => {
-            console.log('🤝 Trade negotiation started:', negotiation);
+        // Update the tradeNegotiationStarted handler
+        socketRef.current.on('tradeNegotiationStarted', (data: {
+            offerId: string;
+            partnerName: string;
+            partnerAddress: string;
+            status: 'waiting' | 'locked' | 'cancelled' | 'completed';
+            yourItems: Item[];
+            partnerItems: Item[];
+            originalOfferItems: Item[];
+            isOfferer: boolean;
+        }) => {
+            console.log('🤝 Trade negotiation started:', data);
             
-            // Check if current user is the seller
-            const isOfferer = negotiation.sellerAddress.toLowerCase() === walletAddress.toLowerCase();
-            setIsTradeOfferer(isOfferer);
-            
-            // Store the original offer items
-            const originalItems = negotiation.sellerItems.map(item => ({
-                ...item,
-                id: `original-${item.id}` // Add prefix to distinguish original items
-            }));
-            
+            // Set the trade negotiation state
             setActiveTradeNegotiation({
-                offerId: negotiation.offerId,
-                partnerName: negotiation.partnerName,
-                partnerAddress: negotiation.partnerAddress,
-                status: negotiation.status,
-                yourItems: [],
-                partnerItems: [],
-                originalOfferItems: originalItems // Store the original items
+                offerId: data.offerId,
+                partnerName: data.partnerName,
+                partnerAddress: data.partnerAddress,
+                status: data.status,
+                yourItems: data.yourItems || [],
+                partnerItems: data.partnerItems || [],
+                originalOfferItems: data.originalOfferItems || []
             });
 
-            // Add system message about trade start
+            // Set initial selected items if you're the offerer
+            if (data.isOfferer) {
+                setSelectedTradeItems(data.yourItems || []);
+                setIsTradeOfferer(true);
+            } else {
+                setSelectedTradeItems([]);
+                setIsTradeOfferer(false);
+            }
+
+            // Clear any existing trade chat messages
+            setTradeChatMessages([]);
+
+            // Add system message
             const systemMessage = {
                 id: generateTempId(),
                 sender_address: 'system',
                 sender_name: 'System',
-                message: `Trade negotiation started with ${negotiation.partnerName}`,
+                message: `Trade negotiation started with ${data.partnerName}`,
                 created_at: new Date().toISOString(),
                 isSystem: true
             };
@@ -338,44 +350,34 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         });
 
         // Add handler for trade lock updates
-        socketRef.current.on('tradeLockUpdate', (data: { offerId: string; status: 'locked' | 'waiting'; items?: any[]; fromAddress?: string; partnerItems?: any[] }) => {
-            console.log('🔒 Trade lock update:', data);
-            
+        socketRef.current.on('tradeLockUpdate', (data: { offerId: string; status: 'locked' | 'waiting'; yourItems?: any[]; partnerItems?: any[]; fromAddress?: string; }) => {
+            console.log('🔒 CLIENT: Received tradeLockUpdate event:', JSON.stringify(data, null, 2));
+
             setActiveTradeNegotiation(prev => {
-                if (!prev || prev.offerId !== data.offerId) return prev;
-                
-                const isFromPartner = data.fromAddress?.toLowerCase() !== walletAddress.toLowerCase();
-                console.log('Update from partner:', isFromPartner, 'Status:', data.status);
-                
-                // Clean and prepare items
-                const cleanItems = (items: any[] = [], prefix: string = '') => items.map(item => ({
-                    ...item,
-                    id: `${prefix}${item.id.replace(/^(locked-|your-|partner-)*/g, '')}`
-                }));
-
-                let yourItems = prev.yourItems;
-                let partnerItems = prev.partnerItems;
-
-                if (isFromPartner) {
-                    // Partner's update
-                    partnerItems = data.items ? cleanItems(data.items, 'partner-') : prev.partnerItems;
-                    if (data.partnerItems) {
-                        yourItems = cleanItems(data.partnerItems, 'your-');
-                        setSelectedTradeItems(yourItems);
-                    }
-                } else {
-                    // Your update
-                    yourItems = data.items ? cleanItems(data.items, 'your-') : prev.yourItems;
-                    partnerItems = data.partnerItems ? cleanItems(data.partnerItems, 'partner-') : prev.partnerItems;
+                if (!prev || prev.offerId !== data.offerId) {
+                    console.log('🔒 CLIENT: Skipping state update - offerId mismatch or no previous state.');
+                    return prev;
                 }
 
-                return {
+                // Directly use the items provided by the server event
+                const updatedYourItems = data.yourItems || []; // Default to empty array if undefined
+                const updatedPartnerItems = data.partnerItems || []; // Default to empty array if undefined
+
+                // Determine if the update is from the partner
+                const isFromPartner = data.fromAddress?.toLowerCase() !== walletAddress.toLowerCase();
+                console.log(`🔒 CLIENT: Update from partner: ${isFromPartner}, Locker Address: ${data.fromAddress}`);
+
+                const newState = {
                     ...prev,
                     status: data.status,
-                    yourItems,
-                    partnerItems,
-                    originalOfferItems: prev.originalOfferItems // Preserve original offer items
+                    yourItems: updatedYourItems,
+                    partnerItems: updatedPartnerItems,
                 };
+
+                console.log('🔒 CLIENT: Updating negotiation state FROM:', JSON.stringify(prev, null, 2));
+                console.log('🔒 CLIENT: Updating negotiation state TO:', JSON.stringify(newState, null, 2));
+
+                return newState;
             });
 
             // Add system message about lock status
@@ -384,14 +386,14 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 sender_address: 'system',
                 sender_name: 'System',
                 message: `Trade ${data.status === 'locked' ? 'locked' : 'unlocked'} by ${
-                    data.fromAddress ? 
-                        (data.fromAddress.toLowerCase() === walletAddress.toLowerCase() ? 'you' : 'partner') : 
+                    data.fromAddress ?
+                        (data.fromAddress.toLowerCase() === walletAddress.toLowerCase() ? 'you' : activeTradeNegotiation?.partnerName || 'partner') :
                         'partner'
                 }`,
                 created_at: new Date().toISOString(),
                 isSystem: true
             };
-            setMessages(prev => [...prev, systemMessage]);
+            setMessages(prevMsgs => [...prevMsgs, systemMessage]);
         });
 
         // Add handler for trade negotiation cancelled
@@ -441,60 +443,60 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         });
 
         // Add handlers for trade completion and failure
-        socketRef.current.on('tradeCompleted', (data: { 
-            offerId: string; 
-            receivedItems: Item[]; 
-            givenItems: Item[]; 
+        socketRef.current.on('tradeCompleted', (data: {
+            offerId: string;
+            receivedItems: Item[];
+            givenItems: Item[];
             newInventory: Record<string, number>;
         }) => {
-            console.log('🎉 Trade completed event received:', data);
+            console.log('🎉 Trade completed:', data);
             
             // Update inventory context
             if (updateInventory) {
-                console.log('Updating inventory with:', data.newInventory);
                 updateInventory(data.newInventory);
-            } else {
-                console.error('updateInventory function not available');
             }
-
-            // Add success message
-            const receivedItemNames = data.receivedItems.map(item => item.name).join(', ');
-            const givenItemNames = data.givenItems.map(item => item.name).join(', ');
-            
-            const systemMessage = {
-                id: generateTempId(),
-                sender_address: 'system',
-                sender_name: 'System',
-                message: `Trade completed successfully!\nReceived: ${receivedItemNames}\nGave: ${givenItemNames}`,
-                created_at: new Date().toISOString(),
-                isSystem: true
-            };
-            setMessages(prev => [...prev, systemMessage]);
 
             // Clear trade state
             setActiveTradeNegotiation(null);
             setSelectedTradeItems([]);
-        });
+            setTradeChatMessages([]);
 
-        socketRef.current.on('tradeFailed', (data: { offerId: string; error: string }) => {
-            console.error('❌ Trade failed event received:', data);
-            
-            // Add error message
+            // Format item names for message
+            const receivedItemNames = data.receivedItems
+                .map(item => item.name)
+                .join(', ');
+            const givenItemNames = data.givenItems
+                .map(item => item.name)
+                .join(', ');
+
+            // Add success message
             const systemMessage = {
                 id: generateTempId(),
                 sender_address: 'system',
                 sender_name: 'System',
-                message: `Trade failed: ${data.error}`,
+                message: `Trade completed successfully!\n\nReceived: ${receivedItemNames}\nGave: ${givenItemNames}`,
                 created_at: new Date().toISOString(),
                 isSystem: true
             };
             setMessages(prev => [...prev, systemMessage]);
 
-            // Reset trade state to unlocked
-            setActiveTradeNegotiation(prev => prev ? {
-                ...prev,
-                status: 'waiting'
-            } : null);
+            // Play success sound if available
+            if (chatSound) {
+                chatSound.currentTime = 0;
+                chatSound.play().catch(console.error);
+            }
+        });
+
+        socketRef.current.on('tradeFailed', (data: { offerId: string; error: string }) => {
+            handleTradeError(data.error);
+            
+            // Reset trade state if needed
+            if (activeTradeNegotiation?.offerId === data.offerId) {
+                setActiveTradeNegotiation(prev => prev ? {
+                    ...prev,
+                    status: 'waiting'
+                } : null);
+            }
         });
     }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory]);
 
@@ -600,9 +602,11 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     };
 
     const handleMakeOffer = (selectedItem: Item) => {
-        console.log('Making new offer for item:', selectedItem);
-        
-        // Create new offer with unique ID
+        if (!socketRef.current?.connected) {
+            handleTradeError('Not connected to server');
+            return;
+        }
+
         const newOffer: TradeOffer = {
             id: `offer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             sellerName: username,
@@ -611,32 +615,26 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             timestamp: new Date().toISOString(),
             status: 'pending'
         };
-        
-        console.log('🟡 Emitting makeTradeOffer with:', newOffer);
-        // Emit the offer to the server
-        if (socketRef.current?.connected) {
-            socketRef.current.emit('makeTradeOffer', {
-                ...newOffer,
-                offerer: walletAddress,
-                offererSocketId: socketRef.current.id,
-                offererItems: [selectedItem],
-                partnerItems: [],
-                partner: '',
-                partnerSocketId: ''
-            });
-        } else {
-            console.error('Socket not connected, cannot make offer');
-            // Show error message to user
-            const systemMessage = {
-                id: generateTempId(),
-                sender_address: 'system',
-                sender_name: 'System',
-                message: 'Error: Could not create offer. Please try again.',
-                created_at: new Date().toISOString(),
-                isSystem: true
-            };
-            setMessages(prev => [...prev, systemMessage]);
-        }
+
+        socketRef.current.emit('makeTradeOffer', {
+            ...newOffer,
+            offerer: walletAddress,
+            offererSocketId: socketRef.current.id,
+            offererItems: [selectedItem],
+            partnerItems: [],
+            partner: '',
+            partnerSocketId: ''
+        });
+
+        // Add loading message
+        setMessages(prev => [...prev, {
+            id: generateTempId(),
+            sender_address: 'system',
+            sender_name: 'System',
+            message: 'Creating trade offer...',
+            created_at: new Date().toISOString(),
+            isSystem: true
+        }]);
     };
 
     const handleCancelOffer = (offerId: string) => {
@@ -651,32 +649,26 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     };
 
     const handleAcceptOffer = (offer: TradeOffer) => {
-        console.log('🤝 Accepting trade offer:', offer);
         if (!socketRef.current?.connected) {
-            console.error('Socket not connected, cannot accept trade');
-            const systemMessage = {
-                id: generateTempId(),
-                sender_address: 'system',
-                sender_name: 'System',
-                message: 'Error: Could not start trade. Please try again.',
-                created_at: new Date().toISOString(),
-                isSystem: true
-            };
-            setMessages(prev => [...prev, systemMessage]);
+            handleTradeError('Not connected to server');
             return;
         }
 
-        // Clear any previously selected items
-        setSelectedTradeItems([]);
-
-        // Emit the trade acceptance to the server
         socketRef.current.emit('acceptTradeOffer', {
             offerId: offer.id,
             acceptedBy: username,
             acceptedByAddress: walletAddress.toLowerCase()
         });
 
-        console.log('🤝 Emitted acceptTradeOffer event');
+        // Add loading message
+        setMessages(prev => [...prev, {
+            id: generateTempId(),
+            sender_address: 'system',
+            sender_name: 'System',
+            message: 'Accepting trade offer...',
+            created_at: new Date().toISOString(),
+            isSystem: true
+        }]);
     };
 
     const handleTradeItemSelect = (item: Item) => {
@@ -697,13 +689,14 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     };
 
     const handleLockTrade = () => {
-        if (!activeTradeNegotiation) return;
+        if (!activeTradeNegotiation || !socketRef.current?.connected) {
+            handleTradeError('Cannot lock trade: negotiation not active or not connected');
+            return;
+        }
 
-        // Filter out any invalid items and create locked items
         const validItems = selectedTradeItems.filter(item => item && item.id);
-        
         if (validItems.length === 0) {
-            console.error('No valid items to lock');
+            handleTradeError('No items selected for trade');
             return;
         }
 
@@ -712,22 +705,21 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             id: item.id.startsWith('locked-') ? item.id : `locked-${item.id}`
         }));
 
-        // Update the trade negotiation state
-        setActiveTradeNegotiation(prev => prev ? {
-            ...prev,
-            status: 'locked',
-            yourItems: lockedItems
-        } : null);
-
-        // Update the selected items state
-        setSelectedTradeItems(lockedItems);
-
-        // Emit socket event for trade lock
-        socketRef.current?.emit('tradeLock', {
+        socketRef.current.emit('tradeLock', {
             offerId: activeTradeNegotiation.offerId,
             items: lockedItems,
-            walletAddress: walletAddress.toLowerCase() // Ensure wallet address is included and normalized
+            walletAddress: walletAddress.toLowerCase()
         });
+
+        // Add loading message
+        setMessages(prev => [...prev, {
+            id: generateTempId(),
+            sender_address: 'system',
+            sender_name: 'System',
+            message: 'Locking trade items...',
+            created_at: new Date().toISOString(),
+            isSystem: true
+        }]);
     };
 
     const handleUnlockTrade = () => {
@@ -828,33 +820,37 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
 
     const handleAcceptTrade = () => {
         if (!activeTradeNegotiation || !socketRef.current?.connected) {
-            console.error('Cannot accept trade: negotiation not active or socket not connected');
+            handleTradeError('Cannot accept trade: negotiation not active or not connected');
             return;
         }
-        
-        console.log('🤝 Accepting trade:', {
-            offerId: activeTradeNegotiation.offerId,
-            acceptedBy: username,
-            acceptedByAddress: walletAddress
-        });
 
-        // Emit accept trade event
         socketRef.current.emit('acceptTrade', {
             offerId: activeTradeNegotiation.offerId,
             acceptedBy: username,
             acceptedByAddress: walletAddress.toLowerCase()
         });
 
-        // Add system message
-        const systemMessage = {
+        // Add loading message
+        setMessages(prev => [...prev, {
             id: generateTempId(),
             sender_address: 'system',
             sender_name: 'System',
             message: 'Processing trade acceptance...',
             created_at: new Date().toISOString(),
             isSystem: true
-        };
-        setMessages(prev => [...prev, systemMessage]);
+        }]);
+    };
+
+    // Add error handling for trade operations
+    const handleTradeError = (error: string) => {
+        setMessages(prev => [...prev, {
+            id: generateTempId(),
+            sender_address: 'system',
+            sender_name: 'System',
+            message: `Error: ${error}`,
+            created_at: new Date().toISOString(),
+            isSystem: true
+        }]);
     };
 
     return (
@@ -1181,22 +1177,32 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                         </div>
                                     </>
                                 ) : (
-                                    <div className={styles.offererTradeSide}>
-                                        <div className={styles.offererTradeHeader}>
-                                            <span>you get:</span>
+                                    <>
+                                        <div className={styles.offererTradeSide}>
+                                            <div className={styles.offererTradeHeader}>
+                                                <span>Your Offer:</span>
+                                            </div>
+                                            <OffererTradeItemGrid 
+                                                items={activeTradeNegotiation?.originalOfferItems || []}
+                                            />
                                         </div>
-                                        <OffererTradeItemGrid 
-                                            items={activeTradeNegotiation?.partnerItems || []}
-                                        />
-                                        {activeTradeNegotiation?.status === 'locked' && (
-                                            <button 
-                                                className={styles.tradeAcceptButton}
-                                                onClick={handleAcceptTrade}
-                                            >
-                                                Accept Trade
-                                            </button>
-                                        )}
-                                    </div>
+                                        <div className={styles.offererTradeSide}>
+                                            <div className={styles.offererTradeHeader}>
+                                                <span>You Get:</span>
+                                            </div>
+                                            <OffererTradeItemGrid 
+                                                items={activeTradeNegotiation?.partnerItems || []}
+                                            />
+                                            {activeTradeNegotiation?.status === 'locked' && (
+                                                <button 
+                                                    className={styles.tradeAcceptButton}
+                                                    onClick={handleAcceptTrade}
+                                                >
+                                                    Accept Trade
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
                                 )}
                             </div>
 

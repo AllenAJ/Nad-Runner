@@ -193,7 +193,7 @@ async function initializeDatabase() {
                 ('bored', 'Bored Eyes', 'An unimpressed expression', 'outfits', 'eyes', 'normal', 700, '/items/Eyes/Bored.png'),
                 ('innocent', 'Innocent Eyes', 'Pure and innocent looking eyes', 'outfits', 'eyes', 'rare', 1600, '/items/Eyes/Innocent.png'),
                 ('musketeer', 'Musketeer Hat', 'A dashing hat worn by brave musketeers', 'outfits', 'head', 'rare', 1500, '/items/Head/Musketeer.png'),
-                ('bandage', 'Bandage', 'A simple bandage wrap for your head', 'outfits', 'head', 'normal', 500, '/items/Head/Bandange.png'),
+                ('bandage', 'Bandage', 'A simple bandage wrap for your head', 'outfits', 'head', 'normal', 500, '/items/Head/Bandage.png'),
                 ('brown_hat', 'Brown Hat', 'A stylish brown hat for casual wear', 'outfits', 'head', 'normal', 800, '/items/Head/Brown_hat.png'),
                 ('halo', 'Halo', 'A divine halo that glows above your head', 'outfits', 'head', 'ultra_rare', 2500, '/items/Head/Halo.png'),
                 ('bow', 'Bow', 'A cute bow to accessorize your look', 'outfits', 'head', 'premium', 1200, '/items/Head/Bow.png'),
@@ -379,6 +379,108 @@ async function initializeDatabase() {
                 BEFORE INSERT ON chat_messages_archive
                 FOR EACH ROW
                 EXECUTE FUNCTION create_partition_and_insert();
+        `);
+
+        // Create trade_history table
+        console.log('Creating trade_history table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS trade_history (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(255) NOT NULL,
+                seller_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                buyer_address VARCHAR(42) REFERENCES users(wallet_address),
+                status VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP WITH TIME ZONE,
+                UNIQUE(trade_id)
+            );
+        `);
+        console.log('Trade history table created successfully');
+
+        // Create trade_items table
+        console.log('Creating trade_items table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS trade_items (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(255) NOT NULL,
+                item_id VARCHAR(50) NOT NULL REFERENCES items(id),
+                from_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                to_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                quantity INTEGER NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)
+            );
+        `);
+        console.log('Trade items table created successfully');
+
+        // Create trade_negotiations table
+        console.log('Creating trade_negotiations table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS trade_negotiations (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(255) NOT NULL,
+                seller_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                buyer_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                status VARCHAR(50) NOT NULL DEFAULT 'waiting',
+                seller_locked BOOLEAN DEFAULT FALSE,
+                buyer_locked BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP WITH TIME ZONE,
+                FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)
+            );
+        `);
+        console.log('Trade negotiations table created successfully');
+
+        // Create trade_chat_messages table
+        console.log('Creating trade_chat_messages table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS trade_chat_messages (
+                id SERIAL PRIMARY KEY,
+                trade_id VARCHAR(255) NOT NULL,
+                sender_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                message TEXT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)
+            );
+        `);
+        console.log('Trade chat messages table created successfully');
+
+        // Create indexes for better performance
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_trade_history_seller ON trade_history(seller_address);
+            CREATE INDEX IF NOT EXISTS idx_trade_history_buyer ON trade_history(buyer_address);
+            CREATE INDEX IF NOT EXISTS idx_trade_items_trade_id ON trade_items(trade_id);
+            CREATE INDEX IF NOT EXISTS idx_trade_negotiations_trade_id ON trade_negotiations(trade_id);
+            CREATE INDEX IF NOT EXISTS idx_trade_chat_messages_trade_id ON trade_chat_messages(trade_id);
+        `);
+
+        // Create function to update trade negotiation status
+        await client.query(`
+            CREATE OR REPLACE FUNCTION update_trade_negotiation_status()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                
+                -- Update status based on locks
+                IF NEW.seller_locked AND NEW.buyer_locked THEN
+                    NEW.status = 'locked';
+                ELSE
+                    NEW.status = 'waiting';
+                END IF;
+                
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        `);
+
+        // Create trigger for trade negotiation status updates
+        await client.query(`
+            DROP TRIGGER IF EXISTS trade_negotiation_status_trigger ON trade_negotiations;
+            CREATE TRIGGER trade_negotiation_status_trigger
+                BEFORE UPDATE ON trade_negotiations
+                FOR EACH ROW
+                EXECUTE FUNCTION update_trade_negotiation_status();
         `);
 
         await client.query('COMMIT');

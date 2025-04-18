@@ -20,6 +20,7 @@ interface TradeOffer {
     status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'locked' | 'waiting';
     timestamp: number;
     item: any;
+    sellerName: string;
 }
 
 interface TradeChatMessage {
@@ -57,6 +58,78 @@ const pool = new Pool({
     password: process.env.DB_PASSWORD,
     port: parseInt(process.env.DB_PORT || '5432')
 });
+
+// Add these helper functions at the top after the interfaces
+const createTradeRecord = async (client: any, tradeId: string, sellerAddress: string, buyerAddress: string | null = null) => {
+    await client.query(
+        `INSERT INTO trade_history (trade_id, seller_address, buyer_address, status)
+         VALUES ($1, $2, $3, CAST($4 AS VARCHAR(50)))`,
+        [tradeId, sellerAddress.toLowerCase(), buyerAddress?.toLowerCase() || null, buyerAddress ? 'negotiating' : 'pending']
+    );
+};
+
+const createTradeNegotiation = async (client: any, tradeId: string, sellerAddress: string, buyerAddress: string) => {
+    await client.query(
+        `INSERT INTO trade_negotiations (trade_id, seller_address, buyer_address, status)
+         VALUES ($1, $2, $3, CAST($4 AS VARCHAR(50)))`,
+        [tradeId, sellerAddress.toLowerCase(), buyerAddress.toLowerCase(), 'waiting']
+    );
+};
+
+const updateTradeStatus = async (client: any, tradeId: string, status: string) => {
+    await client.query(
+        `UPDATE trade_history 
+         SET status = CAST($1 AS VARCHAR(50)), 
+             completed_at = CASE WHEN $1 = 'completed' THEN CURRENT_TIMESTAMP ELSE NULL END
+         WHERE trade_id = $2`,
+        [status, tradeId]
+    );
+};
+
+const recordTradeItems = async (client: any, tradeId: string, items: any[], fromAddress: string, toAddress: string) => {
+    for (const item of items) {
+        // Extract the base item ID by removing any prefixes and timestamps
+        const baseItemId = item.id.split('-')[0]  // Get the base item ID before any timestamp
+            .replace(/^(locked-|your-|partner-|original-)*/g, ''); // Remove any prefixes
+
+        // Verify the item exists in the items table
+        const itemCheck = await client.query(
+            'SELECT id FROM items WHERE id = $1',
+            [baseItemId]
+        );
+
+        if (itemCheck.rows.length === 0) {
+            throw new Error(`Item ${baseItemId} not found in items table`);
+        }
+
+        await client.query(
+            `INSERT INTO trade_items (trade_id, item_id, from_address, to_address, quantity)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [tradeId, baseItemId, fromAddress.toLowerCase(), toAddress.toLowerCase(), 1]
+        );
+    }
+};
+
+const saveTradeChatMessage = async (client: any, tradeId: string, senderAddress: string, message: string) => {
+    await client.query(
+        `INSERT INTO trade_chat_messages (trade_id, sender_address, message)
+         VALUES ($1, $2, $3)`,
+        [tradeId, senderAddress.toLowerCase(), message]
+    );
+};
+
+const updateInventoryForTrade = async (client: any, walletAddress: string, itemId: string, quantityChange: number) => {
+    // Extract the base item ID
+    const baseItemId = itemId.split('-')[0]
+        .replace(/^(locked-|your-|partner-|original-)*/g, '');
+
+    await client.query(
+        `UPDATE player_inventories 
+         SET quantity = quantity + $1
+         WHERE wallet_address = $2 AND item_id = $3`,
+        [quantityChange, walletAddress.toLowerCase(), baseItemId]
+    );
+};
 
 export const setupSocket = (io: SocketServer) => {
     io.on('connection', (socket: Socket) => {
@@ -160,15 +233,35 @@ export const setupSocket = (io: SocketServer) => {
         });
 
         // Trade offer handlers
-        socket.on('makeTradeOffer', (offer: TradeOffer) => {
-            console.log('🟡 New trade offer received from', offer.offerer, ':', offer);
+        socket.on('makeTradeOffer', async (offer: TradeOffer) => {
+            console.log('🟡 New trade offer received:', offer);
+            const client = await wsPool.connect();
             
-            // Add to active offers
-            activeOffers.push(offer);
-            console.log('🟡 Updated active offers:', activeOffers);
-            
-            // Broadcast to all clients including sender
-            io.emit('newTradeOffer', offer);
+            try {
+                await client.query('BEGIN');
+                
+                // First ensure the seller exists in the users table
+                await client.query(
+                    `INSERT INTO users (wallet_address, username)
+                     VALUES ($1, $2)
+                     ON CONFLICT (wallet_address) DO UPDATE
+                     SET username = $2`,
+                    [offer.offerer.toLowerCase(), offer.sellerName]
+                );
+                
+                // Create the trade record without a buyer
+                await createTradeRecord(client, offer.id, offer.offerer);
+                
+                activeOffers.push(offer);
+                io.emit('newTradeOffer', offer);
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Failed to create trade offer:', error);
+                socket.emit('error', 'Failed to create trade offer');
+            } finally {
+                client.release();
+            }
         });
 
         socket.on('cancelTradeOffer', (offerId: string) => {
@@ -185,53 +278,85 @@ export const setupSocket = (io: SocketServer) => {
         });
 
         // Trade negotiation handlers
-        socket.on('tradeLock', (data: { offerId: string; items: any[]; walletAddress: string }) => {
-            console.log('🔒 Trade lock received:', data);
-            const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
-            
-            if (negotiation) {
-                // Update negotiation status
-                negotiation.status = 'locked';
-                
-                // Clean the items by removing any existing prefixes and standardizing IDs
-                const cleanedItems = data.items.map(item => ({
-                    ...item,
-                    id: item.id.replace(/^(locked-|your-)*/g, '') // Remove any existing prefixes
-                }));
-                
-                // Store the items being offered
-                const isFromBuyer = negotiation.buyerAddress.toLowerCase() === data.walletAddress.toLowerCase();
-                if (isFromBuyer) {
-                    negotiation.buyerItems = cleanedItems;
-                } else {
-                    negotiation.sellerItems = cleanedItems;
-                }
-                
-                // Notify both parties
-                const seller = users.find(u => u.walletAddress === negotiation.sellerAddress);
-                const buyer = users.find(u => u.walletAddress === negotiation.buyerAddress);
-                
-                // For seller's view
-                if (seller) {
-                    io.to(seller.socketId).emit('tradeLockUpdate', {
+        socket.on('tradeLock', async (data: { offerId: string; items: any[]; walletAddress: string }) => {
+            const client = await wsPool.connect();
+            console.log('🔒 SERVER: tradeLock received:', JSON.stringify(data, null, 2));
+
+            try {
+                await client.query('BEGIN');
+                const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
+
+                if (negotiation) {
+                    const lockerAddress = data.walletAddress.toLowerCase();
+                    const isSeller = negotiation.sellerAddress.toLowerCase() === lockerAddress;
+                    const partnerAddress = isSeller ? negotiation.buyerAddress : negotiation.sellerAddress;
+
+                    console.log(`🔒 SERVER: Processing lock for ${lockerAddress} (isSeller: ${isSeller}), Partner: ${partnerAddress}`);
+
+                    // Update negotiation status in DB
+                    await client.query(
+                        `UPDATE trade_negotiations 
+                         SET ${isSeller ? 'seller_locked' : 'buyer_locked'} = true
+                         WHERE trade_id = $1`,
+                        [data.offerId]
+                    );
+
+                    // Update in-memory negotiation state for items
+                    const cleanedItems = data.items.map(item => ({
+                        ...item,
+                        id: item.id.replace(/^(locked-|your-|partner-|original-)*/g, '')
+                    }));
+
+                    if (isSeller) {
+                        negotiation.sellerItems = cleanedItems;
+                        console.log('🔒 SERVER: Updated sellerItems in memory:', negotiation.sellerItems);
+                    } else {
+                        negotiation.buyerItems = cleanedItems;
+                        console.log('🔒 SERVER: Updated buyerItems in memory:', negotiation.buyerItems);
+                    }
+                    negotiation.status = 'locked'; // Assuming lock implies locked status until accept/cancel
+
+                    // Find sockets for both parties
+                    const locker = users.find(u => u.walletAddress === lockerAddress);
+                    const partner = users.find(u => u.walletAddress === partnerAddress);
+
+                    // Prepare data for locker
+                    const lockerData = {
                         offerId: data.offerId,
                         status: 'locked',
-                        items: isFromBuyer ? cleanedItems : negotiation.sellerItems,
-                        fromAddress: data.walletAddress,
-                        partnerItems: isFromBuyer ? negotiation.sellerItems : cleanedItems
-                    });
-                }
-                
-                // For buyer's view
-                if (buyer) {
-                    io.to(buyer.socketId).emit('tradeLockUpdate', {
+                        yourItems: isSeller ? negotiation.sellerItems : negotiation.buyerItems,
+                        partnerItems: isSeller ? negotiation.buyerItems : negotiation.sellerItems,
+                        fromAddress: lockerAddress
+                    };
+
+                    // Prepare data for partner
+                    const partnerData = {
                         offerId: data.offerId,
                         status: 'locked',
-                        items: isFromBuyer ? negotiation.buyerItems : cleanedItems,
-                        fromAddress: data.walletAddress,
-                        partnerItems: isFromBuyer ? cleanedItems : negotiation.buyerItems
-                    });
+                        yourItems: isSeller ? negotiation.buyerItems : negotiation.sellerItems, // Partner's perspective
+                        partnerItems: isSeller ? negotiation.sellerItems : negotiation.buyerItems, // Partner's perspective
+                        fromAddress: lockerAddress
+                    };
+
+                    // Emit to locker
+                    if (locker) {
+                        console.log('🔒 SERVER: Emitting tradeLockUpdate to locker:', JSON.stringify(lockerData, null, 2));
+                        io.to(locker.socketId).emit('tradeLockUpdate', lockerData);
+                    }
+
+                    // Emit to partner
+                    if (partner) {
+                         console.log('🔒 SERVER: Emitting tradeLockUpdate to partner:', JSON.stringify(partnerData, null, 2));
+                        io.to(partner.socketId).emit('tradeLockUpdate', partnerData);
+                    }
                 }
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Failed to lock trade:', error);
+                socket.emit('error', 'Failed to lock trade');
+            } finally {
+                client.release();
             }
         });
 
@@ -285,31 +410,67 @@ export const setupSocket = (io: SocketServer) => {
             }
         });
 
-        socket.on('tradeChatMessage', (data: { offerId: string; message: TradeChatMessage }) => {
-            console.log('💬 Trade chat message received:', data);
-            const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
+        socket.on('tradeChatMessage', async (data: { offerId: string; message: TradeChatMessage }) => {
+            const client = await wsPool.connect();
             
-            if (negotiation) {
-                // Broadcast to everyone in the trade negotiation including sender
-                const seller = users.find(u => u.walletAddress.toLowerCase() === negotiation.sellerAddress.toLowerCase());
-                const buyer = users.find(u => u.walletAddress.toLowerCase() === negotiation.buyerAddress.toLowerCase());
+            try {
+                await client.query('BEGIN');
+                await saveTradeChatMessage(client, data.offerId, data.message.senderAddress, data.message.content);
                 
-                if (seller) {
-                    io.to(seller.socketId).emit('tradeChatMessage', data.message);
+                const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
+                if (negotiation) {
+                    // Broadcast to everyone in the trade negotiation including sender
+                    const seller = users.find(u => u.walletAddress.toLowerCase() === negotiation.sellerAddress.toLowerCase());
+                    const buyer = users.find(u => u.walletAddress.toLowerCase() === negotiation.buyerAddress.toLowerCase());
+                    
+                    if (seller) {
+                        io.to(seller.socketId).emit('tradeChatMessage', data.message);
+                    }
+                    
+                    if (buyer) {
+                        io.to(buyer.socketId).emit('tradeChatMessage', data.message);
+                    }
                 }
                 
-                if (buyer) {
-                    io.to(buyer.socketId).emit('tradeChatMessage', data.message);
-                }
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Failed to save trade chat message:', error);
+            } finally {
+                client.release();
             }
         });
 
-        // Update the acceptTradeOffer handler to initialize a trade negotiation
-        socket.on('acceptTradeOffer', (data: { offerId: string; acceptedBy: string; acceptedByAddress: string }) => {
+        // Update the acceptTradeOffer handler
+        socket.on('acceptTradeOffer', async (data: { offerId: string; acceptedBy: string; acceptedByAddress: string }) => {
             console.log('🤝 Trade acceptance received:', data);
-            const offer = activeOffers.find(o => o.id === data.offerId);
+            const client = await wsPool.connect();
             
-            if (offer) {
+            try {
+                await client.query('BEGIN');
+                
+                // First ensure the buyer exists in the users table
+                await client.query(
+                    `INSERT INTO users (wallet_address, username)
+                     VALUES ($1, $2)
+                     ON CONFLICT (wallet_address) DO UPDATE
+                     SET username = $2`,
+                    [data.acceptedByAddress.toLowerCase(), data.acceptedBy]
+                );
+
+                const offer = activeOffers.find(o => o.id === data.offerId);
+                if (!offer) {
+                    throw new Error('Trade offer not found');
+                }
+
+                // Update the trade record with the buyer
+                await client.query(
+                    `UPDATE trade_history 
+                     SET buyer_address = $1, status = 'negotiating'
+                     WHERE trade_id = $2`,
+                    [data.acceptedByAddress.toLowerCase(), data.offerId]
+                );
+
                 // Create a new trade negotiation
                 const negotiation: TradeNegotiation = {
                     offerId: offer.id,
@@ -320,30 +481,56 @@ export const setupSocket = (io: SocketServer) => {
                     sellerItems: [offer.item] // Include the original offered item
                 };
                 
+                await createTradeNegotiation(client, data.offerId, offer.offerer, data.acceptedByAddress);
+                
+                // Add to active negotiations
                 activeNegotiations.push(negotiation);
+                
+                // Remove from active offers
+                activeOffers = activeOffers.filter(o => o.id !== data.offerId);
                 
                 // Find the seller and buyer socket IDs
                 const seller = users.find(u => u.walletAddress.toLowerCase() === offer.offerer.toLowerCase());
                 const buyer = users.find(u => u.walletAddress.toLowerCase() === data.acceptedByAddress.toLowerCase());
                 
                 if (seller && buyer) {
-                    // Notify both parties
+                    // Notify seller
                     io.to(seller.socketId).emit('tradeNegotiationStarted', {
-                        ...negotiation,
+                        offerId: data.offerId,
                         partnerName: data.acceptedBy,
-                        partnerAddress: data.acceptedByAddress
+                        partnerAddress: data.acceptedByAddress,
+                        status: 'waiting',
+                        yourItems: [offer.item], // Original offer items
+                        partnerItems: [],
+                        originalOfferItems: [offer.item],
+                        isOfferer: true
                     });
                     
+                    // Notify buyer
                     io.to(buyer.socketId).emit('tradeNegotiationStarted', {
-                        ...negotiation,
+                        offerId: data.offerId,
                         partnerName: seller.username,
-                        partnerAddress: seller.walletAddress
+                        partnerAddress: seller.walletAddress,
+                        status: 'waiting',
+                        yourItems: [],
+                        partnerItems: [offer.item],
+                        originalOfferItems: [offer.item],
+                        isOfferer: false
                     });
                     
-                    // Remove the offer from active offers
-                    activeOffers = activeOffers.filter(o => o.id !== data.offerId);
-                    io.emit('tradeOfferCancelled', data.offerId); // Broadcast removal to all clients
+                    // Broadcast removal to all clients
+                    io.emit('tradeOfferCancelled', data.offerId);
+                } else {
+                    throw new Error('One or both users not found');
                 }
+                
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Failed to accept trade:', error);
+                socket.emit('error', 'Failed to accept trade: ' + (error as Error).message);
+            } finally {
+                client.release();
             }
         });
 
@@ -406,91 +593,126 @@ export const setupSocket = (io: SocketServer) => {
             }
         });
 
+        // Update the acceptTrade handler
         socket.on('acceptTrade', async (data: { offerId: string; acceptedBy: string; acceptedByAddress: string }) => {
-            console.log('🤝 Trade acceptance received:', data);
+            const client = await wsPool.connect();
+            console.log('🤝 Processing trade acceptance:', data);
             
-            const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
-            const offer = activeOffers.find(o => o.id === data.offerId);
-            
-            if (!negotiation || !offer) {
-                socket.emit('tradeFailed', { 
-                    offerId: data.offerId, 
-                    error: 'Trade negotiation not found' 
-                });
-                return;
-            }
-
             try {
-                // Update negotiation status
-                negotiation.status = 'completed';
-
-                // Get the buyer and seller sockets
-                const buyerSocket = io.sockets.sockets.get(offer.partnerSocketId);
-                const sellerSocket = io.sockets.sockets.get(offer.offererSocketId);
-
-                if (!buyerSocket || !sellerSocket) {
-                    throw new Error('One or both parties disconnected');
-                }
-
-                // Calculate new inventories for both parties
-                const buyerNewItems = calculateNewInventory(
-                    negotiation.buyerItems,
-                    negotiation.sellerItems
-                );
+                await client.query('BEGIN');
+                const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
                 
-                const sellerNewItems = calculateNewInventory(
-                    negotiation.sellerItems,
-                    negotiation.buyerItems
-                );
+                if (negotiation) {
+                    console.log('Found negotiation:', {
+                        buyerItems: negotiation.buyerItems,
+                        sellerItems: negotiation.sellerItems
+                    });
 
-                // Emit trade completion events to both parties
-                buyerSocket.emit('tradeCompleted', {
-                    offerId: data.offerId,
-                    receivedItems: negotiation.sellerItems,
-                    givenItems: negotiation.buyerItems,
-                    newInventory: buyerNewItems
-                });
+                    // Record final trade items
+                    await recordTradeItems(client, data.offerId, negotiation.buyerItems, negotiation.buyerAddress, negotiation.sellerAddress);
+                    await recordTradeItems(client, data.offerId, negotiation.sellerItems, negotiation.sellerAddress, negotiation.buyerAddress);
+                    
+                    // Process buyer's items (items buyer is giving to seller)
+                    for (const item of negotiation.buyerItems) {
+                        const baseItemId = item.id.split('-')[0].replace(/^(locked-|your-|partner-|original-)*/g, '');
+                        console.log('Processing buyer item:', baseItemId);
+                        
+                        // Remove from buyer's inventory
+                        await client.query(
+                            `UPDATE player_inventories 
+                             SET quantity = quantity - 1
+                             WHERE wallet_address = $1 AND item_id = $2`,
+                            [negotiation.buyerAddress.toLowerCase(), baseItemId]
+                        );
+                        
+                        // Add to seller's inventory
+                        await client.query(
+                            `INSERT INTO player_inventories (wallet_address, item_id, quantity)
+                             VALUES ($1, $2, 1)
+                             ON CONFLICT (wallet_address, item_id) 
+                             DO UPDATE SET quantity = player_inventories.quantity + 1`,
+                            [negotiation.sellerAddress.toLowerCase(), baseItemId]
+                        );
+                    }
+                    
+                    // Process seller's items (items seller is giving to buyer)
+                    for (const item of negotiation.sellerItems) {
+                        const baseItemId = item.id.split('-')[0].replace(/^(locked-|your-|partner-|original-)*/g, '');
+                        console.log('Processing seller item:', baseItemId);
+                        
+                        // Remove from seller's inventory
+                        await client.query(
+                            `UPDATE player_inventories 
+                             SET quantity = quantity - 1
+                             WHERE wallet_address = $1 AND item_id = $2`,
+                            [negotiation.sellerAddress.toLowerCase(), baseItemId]
+                        );
+                        
+                        // Add to buyer's inventory
+                        await client.query(
+                            `INSERT INTO player_inventories (wallet_address, item_id, quantity)
+                             VALUES ($1, $2, 1)
+                             ON CONFLICT (wallet_address, item_id) 
+                             DO UPDATE SET quantity = player_inventories.quantity + 1`,
+                            [negotiation.buyerAddress.toLowerCase(), baseItemId]
+                        );
+                    }
+                    
+                    // Update trade status
+                    await updateTradeStatus(client, data.offerId, 'completed');
+                    
+                    // Get updated inventories for both parties
+                    const buyerInventory = await client.query(
+                        `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
+                        [negotiation.buyerAddress.toLowerCase()]
+                    );
+                    
+                    const sellerInventory = await client.query(
+                        `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
+                        [negotiation.sellerAddress.toLowerCase()]
+                    );
 
-                sellerSocket.emit('tradeCompleted', {
-                    offerId: data.offerId,
-                    receivedItems: negotiation.buyerItems,
-                    givenItems: negotiation.sellerItems,
-                    newInventory: sellerNewItems
-                });
-
-                // Remove completed trade from active lists
-                activeOffers = activeOffers.filter(o => o.id !== data.offerId);
-                activeNegotiations = activeNegotiations.filter(n => n.offerId !== data.offerId);
-
-                // Broadcast trade offer removal
-                io.emit('tradeOfferCancelled', data.offerId);
-
+                    console.log('Updated inventories:', {
+                        buyer: buyerInventory.rows,
+                        seller: sellerInventory.rows
+                    });
+                    
+                    // Find the buyer and seller sockets
+                    const buyer = users.find(u => u.walletAddress.toLowerCase() === negotiation.buyerAddress.toLowerCase());
+                    const seller = users.find(u => u.walletAddress.toLowerCase() === negotiation.sellerAddress.toLowerCase());
+                    
+                    if (buyer && seller) {
+                        // Emit completion events with updated inventories
+                        io.to(buyer.socketId).emit('tradeCompleted', {
+                            offerId: data.offerId,
+                            receivedItems: negotiation.sellerItems,
+                            givenItems: negotiation.buyerItems,
+                            newInventory: Object.fromEntries(buyerInventory.rows.map(row => [row.item_id, row.quantity]))
+                        });
+                        
+                        io.to(seller.socketId).emit('tradeCompleted', {
+                            offerId: data.offerId,
+                            receivedItems: negotiation.buyerItems,
+                            givenItems: negotiation.sellerItems,
+                            newInventory: Object.fromEntries(sellerInventory.rows.map(row => [row.item_id, row.quantity]))
+                        });
+                    }
+                    
+                    // Remove from active negotiations
+                    activeNegotiations = activeNegotiations.filter(n => n.offerId !== data.offerId);
+                }
+                
+                await client.query('COMMIT');
             } catch (error) {
-                console.error('Trade completion failed:', error);
+                await client.query('ROLLBACK');
+                console.error('Failed to complete trade:', error);
                 socket.emit('tradeFailed', {
                     offerId: data.offerId,
                     error: 'Failed to complete trade: ' + (error as Error).message
                 });
+            } finally {
+                client.release();
             }
         });
-
-        // Helper function to calculate new inventory
-        function calculateNewInventory(receivedItems: any[], givenItems: any[]) {
-            const inventory: { [key: string]: number } = {};
-            
-            // Add received items
-            receivedItems.forEach(item => {
-                const itemId = item.id.replace(/^(locked-|your-|partner-)*/g, '');
-                inventory[itemId] = (inventory[itemId] || 0) + 1;
-            });
-            
-            // Subtract given items
-            givenItems.forEach(item => {
-                const itemId = item.id.replace(/^(locked-|your-|partner-)*/g, '');
-                inventory[itemId] = (inventory[itemId] || 0) - 1;
-            });
-            
-            return inventory;
-        }
     });
 }; 
