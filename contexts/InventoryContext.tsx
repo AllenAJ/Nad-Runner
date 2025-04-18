@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Item, ItemCategory, Rarity, ItemCounts, OutfitLoadout, InventoryContextType } from '../types/inventory';
+import { Item, ItemCategory, Rarity, ItemCounts, OutfitLoadout, InventoryContextType, SubCategory } from '../types/inventory';
 import { useAccount } from 'wagmi';
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -20,6 +20,333 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [activeLoadoutId, setActiveLoadoutId] = useState<string>();
     const [equippedPowerups, setEquippedPowerups] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [equippedItems, setEquippedItems] = useState<{ [key in SubCategory]?: string }>({});
+
+    // First, define the equipItem function before it's used by other functions
+    const equipItem = useCallback(async (itemId: string, category: SubCategory, equipped: boolean = true) => {
+        if (!address) return false;
+        
+        try {
+            const response = await fetch('/api/inventory/equip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    itemId: itemId,
+                    equipped: equipped,
+                    categoryType: category
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Failed to equip item:', errorData);
+                return false;
+            }
+
+            // Update local state to reflect the change
+            setInventoryItems(prevItems => 
+                prevItems.map(item => {
+                    // If item is in the same category, unequip it
+                    if (item.subCategory === category && item.id !== itemId) {
+                        return { ...item, equipped: false };
+                    }
+                    // If this is the target item, set its equipped status
+                    if (item.id === itemId) {
+                        return { ...item, equipped: equipped };
+                    }
+                    return item;
+                })
+            );
+
+            // Update equipped items state
+            setEquippedItems(prev => ({
+                ...prev,
+                [category]: equipped ? itemId : undefined
+            }));
+
+            return true;
+        } catch (error) {
+            console.error('Error equipping item:', error);
+            return false;
+        }
+    }, [address]);
+    
+    // Then define any other functions that depend on equipItem
+
+    // Add a function to create a new loadout
+    const createOutfitLoadout = useCallback(async (name: string) => {
+        if (!address) return;
+        
+        try {
+            // Create a new loadout using the current equipped items
+            const loadoutData = {
+                walletAddress: address,
+                loadoutName: name,
+                bodyItem: equippedItems.body,
+                eyesItem: equippedItems.eyes,
+                furItem: equippedItems.fur,
+                headItem: equippedItems.head,
+                minipetItem: equippedItems.minipet,
+                miscItem: equippedItems.misc,
+                mouthItem: equippedItems.mouth,
+                noseItem: equippedItems.nose,
+                skinItem: equippedItems.skin,
+                isActive: false
+            };
+            
+            const response = await fetch('/api/inventory/loadout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loadoutData),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to create loadout');
+            }
+            
+            const result = await response.json();
+            
+            // Add the new loadout to state
+            const newLoadout: OutfitLoadout = {
+                id: result.loadoutId.toString(),
+                name,
+                body: equippedItems.body,
+                eyes: equippedItems.eyes,
+                fur: equippedItems.fur,
+                head: equippedItems.head,
+                minipet: equippedItems.minipet,
+                misc: equippedItems.misc,
+                mouth: equippedItems.mouth,
+                nose: equippedItems.nose,
+                skin: equippedItems.skin,
+                isActive: false
+            };
+            
+            setOutfitLoadouts(prev => [...prev, newLoadout]);
+            
+            return newLoadout;
+        } catch (error) {
+            console.error('Error creating outfit loadout:', error);
+        }
+    }, [address, equippedItems]);
+
+    // Update an existing loadout
+    const updateOutfitLoadout = useCallback(async (loadout: OutfitLoadout) => {
+        if (!address) return;
+        
+        try {
+            // Update the loadout with the current equipped items or specified loadout values
+            const loadoutData = {
+                walletAddress: address,
+                loadoutId: loadout.id,
+                loadoutName: loadout.name,
+                bodyItem: loadout.body || equippedItems.body,
+                eyesItem: loadout.eyes || equippedItems.eyes,
+                furItem: loadout.fur || equippedItems.fur,
+                headItem: loadout.head || equippedItems.head,
+                minipetItem: loadout.minipet || equippedItems.minipet,
+                miscItem: loadout.misc || equippedItems.misc,
+                mouthItem: loadout.mouth || equippedItems.mouth,
+                noseItem: loadout.nose || equippedItems.nose,
+                skinItem: loadout.skin || equippedItems.skin,
+                isActive: loadout.id === activeLoadoutId
+            };
+            
+            const response = await fetch('/api/inventory/loadout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loadoutData),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to update loadout');
+            }
+            
+            // Update the loadout in state
+            setOutfitLoadouts(prev => 
+                prev.map(l => l.id === loadout.id ? loadout : l)
+            );
+            
+            return loadout;
+        } catch (error) {
+            console.error('Error updating outfit loadout:', error);
+        }
+    }, [address, equippedItems, activeLoadoutId]);
+
+    // Delete a loadout
+    const deleteOutfitLoadout = useCallback(async (id: string) => {
+        if (!address) return false;
+        
+        try {
+            const isActive = id === activeLoadoutId;
+            
+            const response = await fetch('/api/inventory/loadout', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    loadoutId: id,
+                    isActive
+                }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete loadout');
+            }
+            
+            // Remove the loadout from state
+            setOutfitLoadouts(prev => prev.filter(loadout => loadout.id !== id));
+            
+            // If this was the active loadout, clear the active ID
+            if (isActive) {
+                setActiveLoadoutId(undefined);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error deleting outfit loadout:', error);
+            return false;
+        }
+    }, [address, activeLoadoutId]);
+
+    // Set a loadout as active and equip all its items
+    const setActiveLoadout = useCallback(async (id: string) => {
+        if (!address) return false;
+        
+        try {
+            // Find the loadout
+            const loadout = outfitLoadouts.find(l => l.id === id);
+            if (!loadout) {
+                throw new Error('Loadout not found');
+            }
+            
+            // Activate the loadout in the database
+            const response = await fetch('/api/inventory/loadout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    loadoutId: id,
+                    loadoutName: loadout.name,
+                    bodyItem: loadout.body,
+                    eyesItem: loadout.eyes,
+                    furItem: loadout.fur,
+                    headItem: loadout.head,
+                    minipetItem: loadout.minipet,
+                    miscItem: loadout.misc,
+                    mouthItem: loadout.mouth,
+                    noseItem: loadout.nose,
+                    skinItem: loadout.skin,
+                    isActive: true
+                }),
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to activate loadout');
+            }
+            
+            // Set as active in state
+            setActiveLoadoutId(id);
+            
+            // Update outfitLoadouts to reflect the new active loadout
+            setOutfitLoadouts(prev => 
+                prev.map(l => ({
+                    ...l,
+                    isActive: l.id === id
+                }))
+            );
+            
+            // Equip all items from this loadout
+            const equipPromises = [];
+            if (loadout.body) equipPromises.push(equipItem(loadout.body, 'body'));
+            if (loadout.eyes) equipPromises.push(equipItem(loadout.eyes, 'eyes'));
+            if (loadout.fur) equipPromises.push(equipItem(loadout.fur, 'fur'));
+            if (loadout.head) equipPromises.push(equipItem(loadout.head, 'head'));
+            if (loadout.minipet) equipPromises.push(equipItem(loadout.minipet, 'minipet'));
+            if (loadout.misc) equipPromises.push(equipItem(loadout.misc, 'misc'));
+            if (loadout.mouth) equipPromises.push(equipItem(loadout.mouth, 'mouth'));
+            if (loadout.nose) equipPromises.push(equipItem(loadout.nose, 'nose'));
+            if (loadout.skin) equipPromises.push(equipItem(loadout.skin, 'skin'));
+            
+            await Promise.all(equipPromises);
+            
+            return true;
+        } catch (error) {
+            console.error('Error setting active loadout:', error);
+            return false;
+        }
+    }, [address, outfitLoadouts, equipItem]);
+
+    // Add a useEffect to initialize equippedItems from inventoryItems
+    useEffect(() => {
+        if (inventoryItems.length > 0) {
+            const equippedByCategory: { [key in SubCategory]?: string } = {};
+            
+            inventoryItems.forEach(item => {
+                if (item.equipped && item.subCategory) {
+                    equippedByCategory[item.subCategory] = item.id;
+                }
+            });
+            
+            setEquippedItems(equippedByCategory);
+        }
+    }, [inventoryItems]);
+
+    // Add a useEffect to fetch loadouts when the address changes
+    useEffect(() => {
+        const fetchLoadouts = async () => {
+            if (!address) return;
+            
+            try {
+                const response = await fetch(`/api/inventory/loadout?walletAddress=${address}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch loadouts');
+                }
+                
+                const data = await response.json();
+                
+                // Transform the data to match frontend format
+                const transformedLoadouts: OutfitLoadout[] = data.loadouts.map((loadout: any) => ({
+                    id: loadout.loadout_id.toString(),
+                    name: loadout.name,
+                    body: loadout.body_item,
+                    eyes: loadout.eyes_item,
+                    fur: loadout.fur_item,
+                    head: loadout.head_item,
+                    minipet: loadout.minipet_item,
+                    misc: loadout.misc_item,
+                    mouth: loadout.mouth_item,
+                    nose: loadout.nose_item,
+                    skin: loadout.skin_item,
+                    isActive: loadout.is_active
+                }));
+                
+                setOutfitLoadouts(transformedLoadouts);
+                
+                // Set active loadout if found
+                const activeLoadout = transformedLoadouts.find(l => l.isActive);
+                if (activeLoadout) {
+                    setActiveLoadoutId(activeLoadout.id);
+                }
+            } catch (error) {
+                console.error('Error fetching loadouts:', error);
+            }
+        };
+        
+        fetchLoadouts();
+    }, [address]);
 
     // Fetch inventory items from the database
     useEffect(() => {
@@ -136,28 +463,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return items[itemId] || 0;
     }, [items]);
 
-    const createOutfitLoadout = useCallback((name: string) => {
-        const id = Math.random().toString(36).substring(2, 9);
-        setOutfitLoadouts(prev => [...prev, { id, name }]);
-    }, []);
-
-    const deleteOutfitLoadout = useCallback((id: string) => {
-        setOutfitLoadouts(prev => prev.filter(loadout => loadout.id !== id));
-        if (activeLoadoutId === id) {
-            setActiveLoadoutId(undefined);
-        }
-    }, [activeLoadoutId]);
-
-    const updateOutfitLoadout = useCallback((loadout: OutfitLoadout) => {
-        setOutfitLoadouts(prev => 
-            prev.map(l => l.id === loadout.id ? loadout : l)
-        );
-    }, []);
-
-    const setActiveLoadout = useCallback((id: string) => {
-        setActiveLoadoutId(id);
-    }, []);
-
     const equipPowerup = useCallback((itemId: string) => {
         setEquippedPowerups(prev => [...prev, itemId]);
     }, []);
@@ -176,12 +481,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setItems(newItems);
     };
 
+    // Update the value object to include the new function and state
     const value: InventoryContextType = {
         items,
         itemCounts,
         outfitLoadouts,
         activeLoadoutId,
         equippedPowerups,
+        equippedItems, // Add equipped items by category
         addItem,
         removeItem,
         hasItem,
@@ -196,6 +503,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         countItem,
         isLoading,
         updateInventory,
+        equipItem, // Add the new function
     };
 
     return (

@@ -5,6 +5,7 @@ import { TradeSection } from './TradeSection';
 import { useInventory } from '../../contexts/InventoryContext';
 import { Item as InventoryItem, Rarity, SubCategory } from '../../types/inventory';
 import { RARITY_COLORS, INITIAL_ITEMS } from '../../constants/inventory';
+import { Alert } from '../Game/Alert';
 
 interface Item {
     id: string;
@@ -215,6 +216,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const tradeChatEndRef = useRef<HTMLDivElement>(null);
     const [users, setUsers] = useState<{ walletAddress: string; username: string }[]>([]);
     const [isTradeOfferer, setIsTradeOfferer] = useState(false);
+    const [alertState, setAlertState] = useState<{ show: boolean; message: string; type?: 'info' | 'warning' | 'error' }>({ show: false, message: '' });
 
     // Convert inventory items to the format we need, handling undefined case
     const availableItems: Item[] = React.useMemo(() => {
@@ -256,9 +258,28 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             setIsConnected(true);
         });
 
-        socketRef.current.on('disconnect', () => {
-            console.log('Disconnected from chat server');
+        socketRef.current.on('disconnect', (reason: string) => {
+            console.log('Disconnected from chat server:', reason);
             setIsConnected(false);
+            setUsers([]);
+            setOffers([]);
+            setActiveTradeNegotiation(null);
+            
+            setAlertState({ 
+                show: true, 
+                message: `Disconnected from server: ${reason}. Returning to menu.`,
+                type: 'error' 
+            });
+        });
+
+        socketRef.current.on('connect_error', (error: Error) => {
+            console.error('Connection error:', error);
+            setIsConnected(false);
+            setAlertState({ 
+                show: true, 
+                message: `Connection error: ${error.message}. Returning to menu.`,
+                type: 'error' 
+            });
         });
 
         // Add handler for initial active offers
@@ -556,26 +577,46 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         e.preventDefault();
         const trimmedMessage = newMessage.trim();
         
-        if (!trimmedMessage || !isConnected) return;
+        if (!trimmedMessage || !isConnected || !socketRef.current) return;
+
+        const timestamp = new Date().toISOString();
+        const tempId = generateTempId(); // Generate a temporary ID for optimistic update
+
+        // 1. Optimistically add the message to the local state
+        const sentMessage: ChatMessage = {
+            id: tempId, // Use temp ID
+            sender_address: walletAddress.toLowerCase(),
+            sender_name: username,
+            message: trimmedMessage,
+            created_at: timestamp,
+            isSystem: false
+        };
+        setMessages(prev => [...prev, sentMessage]);
+        setNewMessage(''); // Clear input field immediately
+        scrollToBottom(); // Scroll down
 
         try {
             if (chatSound) {
                 chatSound.currentTime = 0;
-                await chatSound.play();
+                await chatSound.play().catch(console.error); // Added catch for safety
             }
 
-            // Emit the message to the server first
-            socketRef.current?.emit('message', {
+            // 2. Emit the message to the server
+            socketRef.current.emit('message', {
                 walletAddress: walletAddress.toLowerCase(),
                 username,
                 message: trimmedMessage,
-                timestamp: new Date().toISOString(),
+                timestamp: timestamp, // Use the same timestamp
             });
 
-            // Clear the input field
-            setNewMessage('');
+            // Note: We keep the server listener filtering out our own messages
+            // to avoid duplicates if the server echoes messages back to the sender.
+
         } catch (error) {
             console.error('Error sending message:', error);
+            // Optional: Remove the optimistically added message on error
+            setMessages(prev => prev.filter(msg => msg.id !== tempId));
+            handleTradeError('Failed to send message.'); // Show error to user
         }
     };
 
@@ -583,20 +624,42 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         if (activeTradeNegotiation) {
             // If we're in a trade negotiation
             if (selectedSlotIndex !== null) {
+                // --- Quantity Check Start ---
+                const baseItemId = item.id.split('-')[0].replace(/^(locked-|your-|partner-|original-)*/g, '');
+                const inventoryItem = availableItems.find(invItem => invItem.id.split('-')[0].replace(/^(locked-|your-|partner-|original-)*/g, '') === baseItemId);
+                const ownedQuantity = inventoryItem ? inventoryItem.quantity : 0;
+
+                const currentSelectionCount = selectedTradeItems.reduce((count, selectedItem) => {
+                    if (selectedItem && selectedItem.id.split('-')[0].replace(/^(locked-|your-|partner-|original-)*/g, '') === baseItemId) {
+                        return count + 1;
+                    }
+                    return count;
+                }, 0);
+
+                // Check if adding this item exceeds owned quantity
+                if (currentSelectionCount >= ownedQuantity) {
+                    handleTradeError(`You only have ${ownedQuantity} of ${item.name} and have already selected ${currentSelectionCount}.`);
+                    setIsSelectingItem(false); // Close the selection overlay
+                    setSelectedSlotIndex(null);
+                    return; // Prevent adding the item
+                }
+                // --- Quantity Check End ---
+
                 const uniqueItem = {
                     ...item,
-                    id: `your-${item.id}-${Date.now()}` // Add prefix and timestamp to make unique
+                    // Use a simpler unique ID strategy if needed, or ensure base ID comparison works
+                    // id: `your-${baseItemId}-${Date.now()}` // Example unique ID
                 };
                 setSelectedTradeItems(prev => {
                     const newItems = [...prev];
-                    newItems[selectedSlotIndex] = uniqueItem;
+                    newItems[selectedSlotIndex] = uniqueItem; // Place item in the selected slot
                     return newItems;
                 });
                 setSelectedSlotIndex(null);
             }
         } else {
-            // Normal offer creation
-        handleMakeOffer(item);
+            // Normal offer creation (only allows one item)
+            handleMakeOffer(item);
         }
         setIsSelectingItem(false);
     };
@@ -856,6 +919,18 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     return (
         <div className={styles.wrapper}>
             <div className={styles.chatContainer}>
+                {/* Alert Component */}
+                {alertState.show && (
+                    <Alert 
+                        message={alertState.message}
+                        type={alertState.type}
+                        onClose={() => {
+                            setAlertState({ show: false, message: '' });
+                            onBackToMenu();
+                        }}
+                    />
+                )}
+
                 {/* Marketplace Header */}
                 <div className={styles.marketplaceHeader}>
                     <div className={styles.marketplaceTitle}>

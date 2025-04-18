@@ -539,32 +539,69 @@ export const setupSocket = (io: SocketServer) => {
             const user = users.find(u => u.socketId === socket.id);
             if (user) {
                 console.log(`${user.username} disconnected`);
+                const disconnectedAddress = user.walletAddress.toLowerCase();
+
                 // Remove user from users array
                 users = users.filter(u => u.socketId !== socket.id);
-                // Remove their active offers
-                activeOffers = activeOffers.filter(offer => offer.partner !== user.walletAddress);
-                // Remove their active negotiations
-                const userNegotiations = activeNegotiations.filter(
-                    n => n.buyerAddress === user.walletAddress || n.sellerAddress === user.walletAddress
-                );
                 
-                // Notify other parties in negotiations that the user disconnected
-                userNegotiations.forEach(negotiation => {
-                    const otherPartyAddress = negotiation.buyerAddress === user.walletAddress 
-                        ? negotiation.sellerAddress 
-                        : negotiation.buyerAddress;
-                    
-                    const otherParty = users.find(u => u.walletAddress === otherPartyAddress);
-                    if (otherParty) {
-                        io.to(otherParty.socketId).emit('tradeNegotiationCancelled', {
-                            offerId: negotiation.offerId,
-                            reason: 'User disconnected'
-                        });
-                    }
+                // Cancel any pending offers from this user
+                const offersToCancel = activeOffers.filter(offer => offer.offerer.toLowerCase() === disconnectedAddress);
+                offersToCancel.forEach(offer => {
+                    console.log(`🔴 Cancelling pending offer ${offer.id} from disconnected user ${user.username}`);
+                    activeOffers = activeOffers.filter(o => o.id !== offer.id);
+                    io.emit('tradeOfferCancelled', offer.id);
+                    // Also update DB status for pending offers if needed (optional, depends on if they exist in DB yet)
+                    // updateTradeStatus(client, offer.id, 'cancelled'); // Requires client connection
                 });
                 
+                // Find active negotiations involving this user
+                const userNegotiations = activeNegotiations.filter(
+                    n => n.buyerAddress.toLowerCase() === disconnectedAddress || 
+                         n.sellerAddress.toLowerCase() === disconnectedAddress
+                );
+                
+                if (userNegotiations.length > 0) {
+                    const client = await wsPool.connect();
+                    try {
+                        await client.query('BEGIN');
+                        
+                        // Notify partners and update DB for each cancelled negotiation
+                        for (const negotiation of userNegotiations) {
+                            const partnerAddress = negotiation.buyerAddress.toLowerCase() === disconnectedAddress 
+                                ? negotiation.sellerAddress.toLowerCase() 
+                                : negotiation.buyerAddress.toLowerCase();
+                            
+                            const partner = users.find(u => u.walletAddress.toLowerCase() === partnerAddress);
+                            if (partner) {
+                                console.log(`🔴 Notifying partner ${partner.username} about cancelled negotiation ${negotiation.offerId}`);
+                                io.to(partner.socketId).emit('tradeNegotiationCancelled', {
+                                    offerId: negotiation.offerId,
+                                    reason: 'Partner disconnected' // More specific reason
+                                });
+                            }
+                            
+                            // Update trade status in both tables to cancelled
+                            console.log(`🔴 Updating DB status to cancelled for trade ${negotiation.offerId}`);
+                            await client.query(
+                                `UPDATE trade_negotiations SET status = CAST($1 AS VARCHAR(50)) WHERE trade_id = $2`,
+                                ['cancelled', negotiation.offerId]
+                            );
+                            await updateTradeStatus(client, negotiation.offerId, 'cancelled'); 
+                        }
+                        
+                        await client.query('COMMIT');
+                    } catch (error) {
+                        await client.query('ROLLBACK');
+                        console.error('Error cancelling trades on disconnect:', error);
+                    } finally {
+                        client.release();
+                    }
+                }
+                
+                // Clean up in-memory negotiations list *after* notifying/DB updates
                 activeNegotiations = activeNegotiations.filter(
-                    n => n.buyerAddress !== user.walletAddress && n.sellerAddress !== user.walletAddress
+                    n => n.buyerAddress.toLowerCase() !== disconnectedAddress && 
+                         n.sellerAddress.toLowerCase() !== disconnectedAddress
                 );
                 
                 // Broadcast updated online users list

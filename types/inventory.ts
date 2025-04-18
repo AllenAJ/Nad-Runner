@@ -66,6 +66,7 @@ export interface OutfitLoadout {
     mouth?: string;
     nose?: string;
     skin?: string;
+    isActive?: boolean;
 }
 
 export interface ItemCounts {
@@ -85,6 +86,7 @@ export interface InventoryContextType {
     outfitLoadouts: OutfitLoadout[];
     activeLoadoutId?: string;
     equippedPowerups: string[];
+    equippedItems: { [key in SubCategory]?: string };
     addItem: (itemId: string, count?: number) => void;
     removeItem: (itemId: string, count?: number) => void;
     hasItem: (itemId: string) => boolean;
@@ -99,4 +101,5 @@ export interface InventoryContextType {
     countItem: (itemId: string) => number;
     isLoading: boolean;
     updateInventory: (newItems: { [key: string]: number }) => void;
+    equipItem: (itemId: string, category: SubCategory, equipped?: boolean) => Promise<boolean>;
 } 

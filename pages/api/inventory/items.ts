@@ -64,7 +64,7 @@ export default async function handler(
                 pi.equipped
             FROM player_inventories pi
             JOIN items i ON pi.item_id = i.id
-            WHERE pi.wallet_address = $1
+            WHERE pi.wallet_address = $1 AND pi.quantity > 0
         `, [normalizedAddress]);
 
         // Get loadouts

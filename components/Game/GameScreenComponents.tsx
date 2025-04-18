@@ -7,8 +7,6 @@ import inventoryStyles from '../../styles/Inventory.module.css';
 import { Category, ItemCategory, SubCategory } from '../../types/inventory';
 import { LayeredCharacter } from '../Character/LayeredCharacter';
 
-
-
 // Add button sounds at the top
 const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
 const buttonClickSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnclick.mp3') : null;
@@ -23,6 +21,22 @@ const playSound = (sound: HTMLAudioElement | null) => {
     }
 };
 
+// Add LoadingSpinner component
+const LoadingSpinner: React.FC = () => (
+    <div className={inventoryStyles.loadingWrapper}>
+        <div className={inventoryStyles.loadingSpinner}>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+    </div>
+);
 
 export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
     const handleButtonClick = (callback: () => void) => {
@@ -64,23 +78,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         itemCounts,
         getItemsByCategory,
         countItem,
-        isLoading
+        isLoading,
+        equippedItems,
+        equipItem
     } = useInventory();
 
     const [selectedCategory, setSelectedCategory] = useState<Category>('outfits');
     const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | 'all'>('all');
-    const [equippedItems, setEquippedItems] = useState<EquippedItems>({
-        body: null,
-        eyes: null,
-        fur: null,
-        head: null,
-        minipet: null,
-        misc: null,
-        mouth: null,
-        nose: null,
-        skin: null,
-        powerups: null
-    });
+    const [isEquipping, setIsEquipping] = useState(false);
 
     const handleButtonClick = (callback: () => void) => {
         playSound(buttonClickSound);
@@ -91,12 +96,24 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         handleButtonClick(onBackToMenu);
     };
 
-    const handleEquipItem = (slot: keyof EquippedItems, itemId: string | null) => {
+    const handleEquipItem = async (slot: SubCategory, itemId: string | null) => {
         playSound(buttonClickSound);
-        setEquippedItems(prev => ({
-            ...prev,
-            [slot]: itemId
-        }));
+        setIsEquipping(true);
+        
+        try {
+            if (itemId) {
+                await equipItem(itemId, slot, true);
+            } else {
+                const currentEquipped = equippedItems[slot];
+                if (currentEquipped) {
+                    await equipItem(currentEquipped, slot, false);
+                }
+            }
+        } catch (error) {
+            console.error(`Error equipping ${slot} item:`, error);
+        } finally {
+            setIsEquipping(false);
+        }
     };
 
     const renderCharacterPreview = () => (
@@ -168,7 +185,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         </div>
     );
 
-    const renderItemGrid = (items: any[], category: keyof EquippedItems) => (
+    const renderItemGrid = (items: any[], category: SubCategory) => (
         <div className={inventoryStyles.itemGrid}>
             <div 
                 className={`${inventoryStyles.itemCard} ${!equippedItems[category] ? inventoryStyles.selected : ''}`}
@@ -176,15 +193,15 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             >
                 <div className={inventoryStyles.noItem}></div>
             </div>
-            {isLoading ? (
+            {isLoading || isEquipping ? (
                 <div className={inventoryStyles.loadingContainer}>
-                    Loading items...
+                    <LoadingSpinner />
                 </div>
             ) : items.map((item) => (
                 <div 
                     key={item.id} 
-                    className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as keyof EquippedItems] === item.id ? inventoryStyles.selected : ''}`}
-                    onClick={() => handleEquipItem(item.subCategory as keyof EquippedItems, item.id)}
+                    className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as SubCategory] === item.id ? inventoryStyles.selected : ''}`}
+                    onClick={() => handleEquipItem(item.subCategory as SubCategory, item.id)}
                     data-rarity={item.rarity}
                 >
                     <div 
@@ -214,7 +231,6 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
 
     const renderInventoryContent = () => {
         if (selectedCategory === 'outfits') {
-            // Show specific category items when a subcategory is selected
             if (selectedSubCategory !== 'all') {
                 const categoryTitles: { [key: string]: string } = {
                     body: 'Body Items',
@@ -240,15 +256,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                             {renderItemGrid(
                                 getItemsByCategory(selectedSubCategory as ItemCategory),
                                 selectedSubCategory === 'speed' || selectedSubCategory === 'jump' || selectedSubCategory === 'shield' 
-                                    ? 'powerups' 
-                                    : (selectedSubCategory as keyof EquippedItems)
+                                    ? selectedSubCategory as SubCategory
+                                    : selectedSubCategory as SubCategory
                             )}
                         </div>
                     </div>
                 );
             }
 
-            // Show all items when "ALL" is selected
             const allItems = [
                 ...getItemsByCategory('body'),
                 ...getItemsByCategory('eyes'),
@@ -265,13 +280,12 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 <div className={inventoryStyles.inventoryContent}>
                     <div className={inventoryStyles.categorySection}>
                         <h3 className={inventoryStyles.categoryTitle}>All Items</h3>
-                        {renderItemGrid(allItems, 'skin')}
+                        {renderItemGrid(allItems, 'skin' as SubCategory)}
                     </div>
                 </div>
             );
         }
 
-        // For powerups category
         return (
             <div className={inventoryStyles.inventoryContent}>
                 <div className={inventoryStyles.categorySection}>
@@ -280,7 +294,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         ...getItemsByCategory('speed'),
                         ...getItemsByCategory('jump'),
                         ...getItemsByCategory('shield')
-                    ], 'powerups')}
+                    ], 'speed' as SubCategory)}
                 </div>
             </div>
         );
