@@ -420,21 +420,22 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         // Add handler for trade negotiation cancelled
         socketRef.current.on('tradeNegotiationCancelled', (data: { offerId: string; reason: string }) => {
             console.log('❌ Trade negotiation cancelled:', data);
-            if (activeTradeNegotiation?.offerId === data.offerId) {
-                setActiveTradeNegotiation(null);
-                setSelectedTradeItems([]);
-                
-                // Show cancellation message
-                const systemMessage = {
-                    id: generateTempId(),
-                    sender_address: 'system',
-                    sender_name: 'System',
-                    message: `Trade cancelled: ${data.reason}`,
-                    created_at: new Date().toISOString(),
-                    isSystem: true
-                };
-                setMessages(prev => [...prev, systemMessage]);
-            }
+            // Remove the conditional check to ensure UI always closes
+            setActiveTradeNegotiation(null);
+            setSelectedTradeItems([]);
+            setIsTradeOfferer(false); // Reset the offerer status
+            setTradeChatMessages([]); // Clear trade chat
+            
+            // Show cancellation message
+            const systemMessage = {
+                id: generateTempId(),
+                sender_address: 'system',
+                sender_name: 'System',
+                message: `Trade cancelled: ${data.reason}`,
+                created_at: new Date().toISOString(),
+                isSystem: true
+            };
+            setMessages(prev => [...prev, systemMessage]);
         });
 
         // Add handler for trade chat messages
@@ -820,8 +821,14 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const handleRejectTrade = () => {
         if (!activeTradeNegotiation) return;
         
-        // Here you would emit the trade rejection event to the server
-        console.log('Rejecting trade');
+        // Emit rejection event to server
+        socketRef.current?.emit('rejectTrade', {
+            offerId: activeTradeNegotiation.offerId,
+            rejectedBy: username,
+            rejectedByAddress: walletAddress.toLowerCase()
+        });
+
+        // Clear local state
         setActiveTradeNegotiation(null);
         setSelectedTradeItems([]);
     };

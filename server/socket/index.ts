@@ -751,5 +751,52 @@ export const setupSocket = (io: SocketServer) => {
                 client.release();
             }
         });
+
+        // Inside the setupSocket function, after the existing trade-related events
+        socket.on('rejectTrade', async (data: { offerId: string; rejectedBy: string; rejectedByAddress: string }) => {
+            const client = await wsPool.connect();
+            console.log('❌ Trade rejection received:', data);
+            
+            try {
+                await client.query('BEGIN');
+                const negotiation = activeNegotiations.find(n => n.offerId === data.offerId);
+                
+                if (negotiation) {
+                    // Find the other party's address
+                    const partnerAddress = negotiation.buyerAddress.toLowerCase() === data.rejectedByAddress.toLowerCase()
+                        ? negotiation.sellerAddress.toLowerCase()
+                        : negotiation.buyerAddress.toLowerCase();
+                    
+                    // Find the other party's socket
+                    const partner = users.find(u => u.walletAddress.toLowerCase() === partnerAddress);
+                    
+                    if (partner) {
+                        // Notify the other party
+                        io.to(partner.socketId).emit('tradeNegotiationCancelled', {
+                            offerId: data.offerId,
+                            reason: `${data.rejectedBy} left the trade`
+                        });
+                    }
+                    
+                    // Update trade status in database
+                    await client.query(
+                        `UPDATE trade_negotiations SET status = CAST($1 AS VARCHAR(50)) WHERE trade_id = $2`,
+                        ['cancelled', data.offerId]
+                    );
+                    await updateTradeStatus(client, data.offerId, 'cancelled');
+                    
+                    // Remove from active negotiations
+                    activeNegotiations = activeNegotiations.filter(n => n.offerId !== data.offerId);
+                }
+                
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Failed to process trade rejection:', error);
+                socket.emit('error', 'Failed to process trade rejection');
+            } finally {
+                client.release();
+            }
+        });
     });
 }; 
