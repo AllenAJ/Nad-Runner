@@ -373,48 +373,25 @@
   gap: 8px;
 }
 
-/* Ensure base traderItem has necessary layout */
 .traderItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 8px 1px 8px 2px;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
-  background-color: rgba(255, 255, 255, 0.05);
+  /* border: 1px solid rgba(0, 0, 0, 0.1); */
+  transition: all 0.2s ease;
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
-  position: relative;
+  background-color: #1f2937;
 }
 
 .traderItem:hover {
   transform: translateX(2px);
 }
 
-/* Skin-specific BACKGROUND IMAGE styles */
-.skin-red-skin {
-  background-image: url('/items/skin/red_skin.svg');
-  border-color: rgba(239, 68, 68, 0.4);
-}
-
-.skin-blue-skin {
-  background-image: url('/items/skin/blue_skin.svg');
-  border-color: rgba(59, 130, 246, 0.4);
-}
-
-.skin-green-skin {
-  background-image: url('/items/skin/green_skin.svg');
-  border-color: rgba(34, 197, 94, 0.4);
-}
-
-.skin-yellow-skin {
-  background-image: url('/items/skin/yellow_skin.svg');
-  border-color: rgba(234, 179, 8, 0.4);
-}
-
-/* Make sure role styles don't conflict (maybe remove their backgrounds?) */
+/* Role-based card styles */
 .traderItem.admin {
   border-color: rgba(220, 38, 38, 0.5);
 }
@@ -427,32 +404,10 @@
   border-color: rgba(251, 191, 36, 0.5);
 }
 
-/* Keep other styles like .traderStatus, .traderName, .chatting */
-.traderStatus {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.traderName {
-  flex-grow: 1;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: white;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  z-index: 1;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
-}
-
-.chatting {
-  position: relative;
-  width: 16px;
-  height: 16px;
-  opacity: 0.7;
-  flex-shrink: 0;
+/* Status colors */
+.online {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
 }
 
 .chatting::before {
@@ -1590,4 +1545,14 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-} 
+}
+
+/* Add style for the level badge */
+.traderLevelBadge {
+  width: 20px; /* Adjust size as needed */
+  height: 25px; /* Adjust size as needed */
+  margin-right: 0px; /* Add some space between badge and name */
+  object-fit: fill;
+  flex-shrink: 0; /* Prevent shrinking */
+  vertical-align: middle; /* Align nicely with text */
+}

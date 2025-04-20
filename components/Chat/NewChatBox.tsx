@@ -68,8 +68,8 @@ interface TradeChatMessage {
 interface OnlineUser {
     username: string;
     walletAddress: string;
-    equippedSkinId: string | null; // Revert back to ID
-    // equippedSkinImageUrl: string | null; // Remove image URL
+    equippedSkinId: string | null;
+    level: number | null;
 }
 
 interface ChatBoxProps {
@@ -1128,23 +1128,30 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                     isChatting: index === 4
                                 };
 
-                                // Generate dynamic class based on skin ID
-                                const skinClass = user.equippedSkinId ? styles[`skin-${user.equippedSkinId.replace('_', '-')}`] : '';
                                 const roleClass = mockUserData.role ? styles[mockUserData.role] : '';
-                                const finalClassName = `${styles.traderItem} ${roleClass} ${skinClass}`.trim(); // Combine classes
+                                const finalClassName = `${styles.traderItem} ${roleClass}`.trim(); // Base + role class
+
+                                // Construct PNG path 
+                                const skinPngPath = user.equippedSkinId ? `/items/skin/${user.equippedSkinId}.png` : null; 
+                                // Construct Level Badge path (handle potential non-numeric levels like 'A')
+                                const levelBadgePath = user.level ? `/Level/${user.level}.png` : null;
+
+                                // Prepare inline style for background image
+                                const dynamicStyle: React.CSSProperties = skinPngPath 
+                                    ? { backgroundImage: `url('${skinPngPath}')` }
+                                    : {};
 
                                 return (
                                     <div 
                                         key={user.walletAddress} 
-                                        className={finalClassName} // Apply combined class name
+                                        className={finalClassName} // Apply base + role class
+                                        style={dynamicStyle} // Apply background image style
                                     >
                                         <span className={`${styles.traderStatus} ${styles.online}`} />
-                                        {/* REMOVE SVG image and placeholder */}
-                                        {/* {skinSvgPath ? (
-                                            <img src={skinSvgPath} alt={`${user.username}'s skin`} className={styles.traderSkinSvg} />
-                                        ) : (
-                                            <div className={styles.traderSkinPlaceholder}></div> 
-                                        )} */}
+                                        {/* Add Level badge */} 
+                                        {levelBadgePath && (
+                                            <img src={levelBadgePath} alt={`Level ${user.level}`} className={styles.traderLevelBadge} />
+                                        )}
                                         <span className={styles.traderName}>{user.username}</span>
                                         {/* Keep mock chatting indicator */}
                                         {mockUserData.isChatting && (

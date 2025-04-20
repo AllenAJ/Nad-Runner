@@ -8,6 +8,7 @@ interface User {
     username: string;
     socketId: string;
     equippedSkinId: string | null;
+    level: number | null;
 }
 
 interface TradeOffer {
@@ -246,27 +247,29 @@ export const setupSocket = (io: SocketServer) => {
             
             console.log('🟣 User joining:', username, 'Current active offers:', activeOffers);
             
-            // --- Fetch Equipped Skin ID --- 
+            // --- Fetch Equipped Skin & Level --- 
             let equippedSkinId: string | null = null;
+            let level: number | null = null; // Variable for level
             let client;
             try {
                 client = await wsPool.connect();
-                const skinRes = await client.query(
-                    `SELECT pi.item_id 
-                     FROM player_inventories pi
-                     JOIN items i ON pi.item_id = i.id
-                     WHERE pi.wallet_address = $1 
-                       AND pi.equipped = TRUE 
-                       AND i.category = 'outfits' 
-                       AND i.sub_category = 'skin'
-                     LIMIT 1`,
+                // Query both inventory and profile
+                const userDataRes = await client.query(
+                    `SELECT 
+                        (SELECT pi.item_id 
+                         FROM player_inventories pi JOIN items i ON pi.item_id = i.id 
+                         WHERE pi.wallet_address = $1 AND pi.equipped = TRUE AND i.sub_category = 'skin' LIMIT 1) as skin_id, 
+                        (SELECT pp.level FROM player_profiles pp WHERE pp.wallet_address = $1 LIMIT 1) as player_level
+                    `,
                     [normalizedWalletAddress]
                 );
-                if (skinRes.rows.length > 0) {
-                    equippedSkinId = skinRes.rows[0].item_id;
-                    console.log(`🟣 Found equipped skin ID from inventory for ${username}: ${equippedSkinId}`);
+
+                if (userDataRes.rows.length > 0) {
+                    equippedSkinId = userDataRes.rows[0].skin_id;
+                    level = userDataRes.rows[0].player_level;
+                    console.log(`🟣 Found user data for ${username}: Skin=${equippedSkinId}, Level=${level}`);
                 } else {
-                    console.log(`🟣 No equipped skin found in inventory for ${username}`);
+                     console.log(`🟣 No profile/inventory data found for ${username}`);
                 }
             } catch (dbError) {
                 console.error(`Error fetching equipped skin for ${username}:`, dbError);
@@ -283,18 +286,20 @@ export const setupSocket = (io: SocketServer) => {
                 walletAddress: normalizedWalletAddress,
                 username,
                 socketId: socket.id,
-                equippedSkinId
+                equippedSkinId,
+                level // Store the fetched level
             });
 
             // Send current active offers to the new user
             socket.emit('activeOffers', activeOffers);
             console.log('🟣 Sent active offers to', username, ':', activeOffers);
             
-            // Broadcast updated online users list (with skin ID)
+            // Broadcast updated online users list (with skin info)
             io.emit('onlineUsers', users.map(u => ({ 
                 username: u.username,
                 walletAddress: u.walletAddress, 
-                equippedSkinId: u.equippedSkinId
+                equippedSkinId: u.equippedSkinId,
+                level: u.level // Include level in emitted data
             })));
             
             console.log(`${username} joined the marketplace`);
@@ -429,7 +434,7 @@ export const setupSocket = (io: SocketServer) => {
                 });
                 return;
             }
-
+            
             const client = await wsPool.connect();
             console.log('🔒 SERVER: tradeLock received:', JSON.stringify(data, null, 2));
 
@@ -450,7 +455,7 @@ export const setupSocket = (io: SocketServer) => {
                 let negotiationState = negotiationRes.rows[0]; // Use let as we modify it
                 // --- End Fetch ---
 
-                const lockerAddress = data.walletAddress.toLowerCase();
+                    const lockerAddress = data.walletAddress.toLowerCase();
                 const isSeller = negotiationState.seller_address.toLowerCase() === lockerAddress;
                 // Seller should not lock in this flow
                 if (isSeller) {
@@ -473,7 +478,7 @@ export const setupSocket = (io: SocketServer) => {
                 console.log(`🔒 tradeLock: Updating DB for ${data.offerId} with buyer_items:`, JSON.stringify(validatedItems));
 
                 const updateRes = await client.query(
-                    `UPDATE trade_negotiations 
+                        `UPDATE trade_negotiations 
                      SET buyer_locked = $1,
                          buyer_items = $2::jsonb,
                          seller_locked = $3,
@@ -493,13 +498,13 @@ export const setupSocket = (io: SocketServer) => {
                 // *** ADD LOGGING AFTER UPDATE ***
                 console.log(`🔒 tradeLock: State returned from DB update for ${data.offerId}:`, JSON.stringify(negotiationState));
 
-                // Find sockets for both parties
-                const locker = users.find(u => u.walletAddress === lockerAddress);
+                    // Find sockets for both parties
+                    const locker = users.find(u => u.walletAddress === lockerAddress);
                 const partner = users.find(u => u.walletAddress === negotiationState.seller_address.toLowerCase()); // Seller is partner
 
                 // --- Prepare Emission Data based on DB State ---
                 const lockerData = { // Data for BUYER
-                    offerId: data.offerId,
+                        offerId: data.offerId,
                     status: negotiationState.status,
                     yourItems: negotiationState.buyer_items, 
                     partnerItems: negotiationState.seller_items, // Seller's original items
@@ -509,7 +514,7 @@ export const setupSocket = (io: SocketServer) => {
                 };
 
                 const partnerData = { // Data for SELLER
-                    offerId: data.offerId,
+                        offerId: data.offerId,
                     status: negotiationState.status,
                     yourItems: negotiationState.seller_items, // Seller's original items
                     partnerItems: negotiationState.buyer_items, // Buyer's locked items
@@ -527,15 +532,15 @@ export const setupSocket = (io: SocketServer) => {
                 });
 
                 // Emit to both parties
-                if (locker) {
-                    console.log('🔒 SERVER: Emitting tradeLockUpdate to locker:', JSON.stringify(lockerData, null, 2));
-                    io.to(locker.socketId).emit('tradeLockUpdate', lockerData);
-                }
+                    if (locker) {
+                        console.log('🔒 SERVER: Emitting tradeLockUpdate to locker:', JSON.stringify(lockerData, null, 2));
+                        io.to(locker.socketId).emit('tradeLockUpdate', lockerData);
+                    }
 
-                if (partner) {
-                    console.log('🔒 SERVER: Emitting tradeLockUpdate to partner:', JSON.stringify(partnerData, null, 2));
-                    io.to(partner.socketId).emit('tradeLockUpdate', partnerData);
-                }
+                    if (partner) {
+                         console.log('🔒 SERVER: Emitting tradeLockUpdate to partner:', JSON.stringify(partnerData, null, 2));
+                        io.to(partner.socketId).emit('tradeLockUpdate', partnerData);
+                    }
 
                 await client.query('COMMIT');
             } catch (error) {
@@ -558,7 +563,7 @@ export const setupSocket = (io: SocketServer) => {
                 });
                 return;
             }
-
+            
             const client = await wsPool.connect();
             console.log('🔓 Trade unlock received:', data);
 
@@ -653,7 +658,7 @@ export const setupSocket = (io: SocketServer) => {
                 // Notify both parties
                 const seller = users.find(u => u.walletAddress === negotiationState.seller_address.toLowerCase());
                 const buyer = users.find(u => u.walletAddress === negotiationState.buyer_address.toLowerCase());
-
+                
                 if (seller) {
                     io.to(seller.socketId).emit('tradeLockUpdate', sellerData);
                 }
@@ -750,7 +755,7 @@ export const setupSocket = (io: SocketServer) => {
                     `UPDATE trade_history SET status = 'negotiating', buyer_address = $1 WHERE trade_id = $2`,
                     [data.acceptedByAddress.toLowerCase(), data.offerId]
                 );
-                
+
                 // Find original offer details from activeOffers (needed for item info)
                 const offer = activeOffers.find(o => o.id === data.offerId);
                 if (!offer) {
@@ -789,7 +794,7 @@ export const setupSocket = (io: SocketServer) => {
                     status: 'waiting',
                     timestamp: Date.now()
                 };
-
+                
                 // Find the seller and buyer socket IDs
                 const seller = users.find(u => u.walletAddress.toLowerCase() === offer.offerer.toLowerCase());
                 const buyer = users.find(u => u.walletAddress.toLowerCase() === data.acceptedByAddress.toLowerCase());
@@ -882,20 +887,20 @@ export const setupSocket = (io: SocketServer) => {
                 const partnerAddress = negotiationState.seller_address.toLowerCase() === data.rejectedByAddress.toLowerCase()
                     ? negotiationState.buyer_address.toLowerCase()
                     : negotiationState.seller_address.toLowerCase();
-                
-                // Find the other party's socket
-                const partner = users.find(u => u.walletAddress.toLowerCase() === partnerAddress);
-                
-                if (partner) {
-                    // Notify the other party
-                    io.to(partner.socketId).emit('tradeNegotiationCancelled', {
-                        offerId: data.offerId,
-                        reason: `${data.rejectedBy} left the trade`
-                    });
-                }
-                
+                    
+                    // Find the other party's socket
+                    const partner = users.find(u => u.walletAddress.toLowerCase() === partnerAddress);
+                    
+                    if (partner) {
+                        // Notify the other party
+                        io.to(partner.socketId).emit('tradeNegotiationCancelled', {
+                            offerId: data.offerId,
+                            reason: `${data.rejectedBy} left the trade`
+                        });
+                    }
+                    
                 // Update trade status in database (both tables)
-                await client.query(
+                    await client.query(
                     `UPDATE trade_negotiations SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE trade_id = $1`,
                     [data.offerId]
                 );
@@ -906,11 +911,11 @@ export const setupSocket = (io: SocketServer) => {
                 const offerIndex = activeOffers.findIndex(o => o.id === data.offerId);
                 if (offerIndex !== -1) {
                     activeOffers[offerIndex].status = 'pending';
-                    // Broadcast offer status update to all clients
-                    io.emit('offerStatusUpdate', {
-                        offerId: data.offerId,
-                        status: 'pending'
-                    });
+                        // Broadcast offer status update to all clients
+                        io.emit('offerStatusUpdate', {
+                            offerId: data.offerId,
+                            status: 'pending'
+                        });
                 } else {
                     // If offer is not in activeOffers (e.g., completed/cancelled before rejection), that's fine.
                     console.log(`Offer ${data.offerId} not found in activeOffers during rejection, likely already resolved.`);
@@ -971,108 +976,108 @@ export const setupSocket = (io: SocketServer) => {
                 // Record final trade items using negotiationState data
                 await recordTradeItems(client, data.offerId, negotiationState.buyer_items, negotiationState.buyer_address, negotiationState.seller_address);
                 await recordTradeItems(client, data.offerId, negotiationState.seller_items, negotiationState.seller_address, negotiationState.buyer_address);
-                
-                // Process buyer's items (items buyer is giving to seller)
+                    
+                    // Process buyer's items (items buyer is giving to seller)
                 for (const item of negotiationState.buyer_items) { // Use DB data
                     // --- Corrected Base Item ID Extraction ---
                     let baseItemId = item.id.replace(/^(locked-|your-|partner-|original-)*/g, ''); 
                     baseItemId = baseItemId.split('-')[0]; 
                     // --- End Correction ---
-                    console.log('Processing buyer item:', baseItemId);
-                    
-                    // Remove from buyer's inventory
-                    await client.query(
-                        `UPDATE player_inventories 
-                         SET quantity = quantity - 1
-                         WHERE wallet_address = $1 AND item_id = $2`,
+                        console.log('Processing buyer item:', baseItemId);
+                        
+                        // Remove from buyer's inventory
+                        await client.query(
+                            `UPDATE player_inventories 
+                             SET quantity = quantity - 1
+                             WHERE wallet_address = $1 AND item_id = $2`,
                         [negotiationState.buyer_address.toLowerCase(), baseItemId] // Use DB address
-                    );
-                    
-                    // Add to seller's inventory
-                    await client.query(
-                        `INSERT INTO player_inventories (wallet_address, item_id, quantity)
-                         VALUES ($1, $2, 1)
-                         ON CONFLICT (wallet_address, item_id) 
-                         DO UPDATE SET quantity = player_inventories.quantity + 1`,
+                        );
+                        
+                        // Add to seller's inventory
+                        await client.query(
+                            `INSERT INTO player_inventories (wallet_address, item_id, quantity)
+                             VALUES ($1, $2, 1)
+                             ON CONFLICT (wallet_address, item_id) 
+                             DO UPDATE SET quantity = player_inventories.quantity + 1`,
                         [negotiationState.seller_address.toLowerCase(), baseItemId] // Use DB address
-                    );
-                }
-                
-                // Process seller's items (items seller is giving to buyer)
+                        );
+                    }
+                    
+                    // Process seller's items (items seller is giving to buyer)
                 for (const item of negotiationState.seller_items) { // Use DB data
                     // --- Corrected Base Item ID Extraction ---
                     let baseItemId = item.id.replace(/^(locked-|your-|partner-|original-)*/g, ''); 
                     baseItemId = baseItemId.split('-')[0]; 
                     // --- End Correction ---
-                    console.log('Processing seller item:', baseItemId);
-                    
-                    // Remove from seller's inventory
-                    await client.query(
-                        `UPDATE player_inventories 
-                         SET quantity = quantity - 1
-                         WHERE wallet_address = $1 AND item_id = $2`,
+                        console.log('Processing seller item:', baseItemId);
+                        
+                        // Remove from seller's inventory
+                        await client.query(
+                            `UPDATE player_inventories 
+                             SET quantity = quantity - 1
+                             WHERE wallet_address = $1 AND item_id = $2`,
                         [negotiationState.seller_address.toLowerCase(), baseItemId] // Use DB address
-                    );
-                    
-                    // Add to buyer's inventory
-                    await client.query(
-                        `INSERT INTO player_inventories (wallet_address, item_id, quantity)
-                         VALUES ($1, $2, 1)
-                         ON CONFLICT (wallet_address, item_id) 
-                         DO UPDATE SET quantity = player_inventories.quantity + 1`,
+                        );
+                        
+                        // Add to buyer's inventory
+                        await client.query(
+                            `INSERT INTO player_inventories (wallet_address, item_id, quantity)
+                             VALUES ($1, $2, 1)
+                             ON CONFLICT (wallet_address, item_id) 
+                             DO UPDATE SET quantity = player_inventories.quantity + 1`,
                         [negotiationState.buyer_address.toLowerCase(), baseItemId] // Use DB address
-                    );
-                }
-                
+                        );
+                    }
+                    
                 // Update trade status in history table
-                await updateTradeStatus(client, data.offerId, 'completed');
+                    await updateTradeStatus(client, data.offerId, 'completed');
 
                 // Update negotiation table status (optional, but good practice)
                 await client.query(
                     `UPDATE trade_negotiations SET status = 'completed' WHERE trade_id = $1`,
                     [data.offerId]
                 );
-                
-                // Get updated inventories for both parties
-                const buyerInventory = await client.query(
-                    `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
+                    
+                    // Get updated inventories for both parties
+                    const buyerInventory = await client.query(
+                        `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
                     [negotiationState.buyer_address.toLowerCase()] // Use DB address
-                );
-                
-                const sellerInventory = await client.query(
-                    `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
+                    );
+                    
+                    const sellerInventory = await client.query(
+                        `SELECT item_id, quantity FROM player_inventories WHERE wallet_address = $1`,
                     [negotiationState.seller_address.toLowerCase()] // Use DB address
-                );
+                    );
 
-                console.log('Updated inventories:', {
-                    buyer: buyerInventory.rows,
-                    seller: sellerInventory.rows
-                });
-                
-                // Find the buyer and seller sockets
-                const buyer = users.find(u => u.walletAddress.toLowerCase() === negotiationState.buyer_address.toLowerCase()); // Use DB address
-                const seller = users.find(u => u.walletAddress.toLowerCase() === negotiationState.seller_address.toLowerCase()); // Use DB address
-                
-                if (buyer && seller) {
-                    // Emit completion events with correct received/given items based on negotiationState
-                    io.to(buyer.socketId).emit('tradeCompleted', {
-                        offerId: data.offerId,
-                        receivedItems: negotiationState.seller_items, // Buyer receives seller's items
-                        givenItems: negotiationState.buyer_items,     // Buyer gives their items
-                        newInventory: Object.fromEntries(buyerInventory.rows.map(row => [row.item_id, row.quantity]))
+                    console.log('Updated inventories:', {
+                        buyer: buyerInventory.rows,
+                        seller: sellerInventory.rows
                     });
                     
-                    io.to(seller.socketId).emit('tradeCompleted', {
-                        offerId: data.offerId,
+                    // Find the buyer and seller sockets
+                const buyer = users.find(u => u.walletAddress.toLowerCase() === negotiationState.buyer_address.toLowerCase()); // Use DB address
+                const seller = users.find(u => u.walletAddress.toLowerCase() === negotiationState.seller_address.toLowerCase()); // Use DB address
+                    
+                    if (buyer && seller) {
+                    // Emit completion events with correct received/given items based on negotiationState
+                        io.to(buyer.socketId).emit('tradeCompleted', {
+                            offerId: data.offerId,
+                        receivedItems: negotiationState.seller_items, // Buyer receives seller's items
+                        givenItems: negotiationState.buyer_items,     // Buyer gives their items
+                            newInventory: Object.fromEntries(buyerInventory.rows.map(row => [row.item_id, row.quantity]))
+                        });
+                        
+                        io.to(seller.socketId).emit('tradeCompleted', {
+                            offerId: data.offerId,
                         receivedItems: negotiationState.buyer_items, // Seller receives buyer's items
                         givenItems: negotiationState.seller_items,    // Seller gives their original item(s)
-                        newInventory: Object.fromEntries(sellerInventory.rows.map(row => [row.item_id, row.quantity]))
-                    });
-                }
-                
+                            newInventory: Object.fromEntries(sellerInventory.rows.map(row => [row.item_id, row.quantity]))
+                        });
+                    }
+                    
                 // Remove the offer from activeOffers 
-                activeOffers = activeOffers.filter(o => o.id !== data.offerId);
-                io.emit('offerRemoved', data.offerId);
+                    activeOffers = activeOffers.filter(o => o.id !== data.offerId);
+                    io.emit('offerRemoved', data.offerId);
                 
                 await client.query('COMMIT');
             } catch (error) {
@@ -1149,7 +1154,7 @@ export const setupSocket = (io: SocketServer) => {
             }
         });
     });
-};
+}; 
 
 // --- Helper Functions for Disconnect Logic ---
 
