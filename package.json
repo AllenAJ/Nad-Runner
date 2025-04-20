@@ -10,6 +10,9 @@
     "init-db": "ts-node scripts/init-db.ts"
   },
   "dependencies": {
+    "@nestjs/common": "^11.0.20",
+    "@nestjs/platform-socket.io": "^11.0.20",
+    "@nestjs/websockets": "^11.0.20",
     "@openzeppelin/contracts": "^5.2.0",
     "@tanstack/react-query": "^5.62.11",
     "@types/express": "^5.0.1",
@@ -27,6 +30,7 @@
     "pg": "^8.14.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "ts-node": "^10.9.2",

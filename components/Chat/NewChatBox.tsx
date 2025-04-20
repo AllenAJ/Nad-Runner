@@ -22,7 +22,7 @@ interface TradeOffer {
     sellerAddress: string;
     item: Item;
     timestamp: string;
-    status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+    status: 'pending' | 'negotiating' | 'accepted' | 'rejected' | 'cancelled';
 }
 
 interface ChatMessage {
@@ -51,6 +51,8 @@ interface ClientTradeNegotiation {
     yourItems: Item[];
     partnerItems: Item[];
     originalOfferItems: Item[];
+    isLocked?: boolean;
+    isPartnerLocked?: boolean;
 }
 
 interface TradeChatMessage {
@@ -60,6 +62,14 @@ interface TradeChatMessage {
     senderAddress: string;
     content: string;
     timestamp: string;
+}
+
+// Define structure for online user data
+interface OnlineUser {
+    username: string;
+    walletAddress: string;
+    equippedSkinId: string | null; // Revert back to ID
+    // equippedSkinImageUrl: string | null; // Remove image URL
 }
 
 interface ChatBoxProps {
@@ -214,7 +224,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [tradeChatMessages, setTradeChatMessages] = useState<TradeChatMessage[]>([]);
     const [tradeChatInput, setTradeChatInput] = useState('');
     const tradeChatEndRef = useRef<HTMLDivElement>(null);
-    const [users, setUsers] = useState<{ walletAddress: string; username: string }[]>([]);
+    const [users, setUsers] = useState<OnlineUser[]>([]);
     const [isTradeOfferer, setIsTradeOfferer] = useState(false);
     const [alertState, setAlertState] = useState<{ show: boolean; message: string; type?: 'info' | 'warning' | 'error' }>({ show: false, message: '' });
 
@@ -313,14 +323,29 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             }
         });
 
-        socketRef.current.on('onlineUsers', (users: string[]) => {
-            setOnlineUsers(users);
-            setUsers(users.map(u => ({ walletAddress: u, username: '' })));
+        // Update onlineUsers listener
+        socketRef.current.on('onlineUsers', (receivedUsers: OnlineUser[]) => {
+            console.log('Received online users:', receivedUsers);
+            setUsers(receivedUsers);
         });
 
         socketRef.current.on('error', (error: string) => {
-            handleTradeError(error);
+            // Keep this generic error handler for now, but prioritize serverAlert
+            console.error('Generic socket error:', error);
+            // Optionally show a generic alert if specific serverAlert isn't used
+            // handleTradeError(`Socket error: ${error}`); 
         });
+
+        // *** ADDED: Listener for specific server alerts ***
+        socketRef.current.on('serverAlert', (data: { message: string; type?: 'info' | 'warning' | 'error' }) => {
+            console.log(`🚨 Server Alert (${data.type || 'info'}):`, data.message);
+            setAlertState({ 
+                show: true, 
+                message: data.message,
+                type: data.type || 'info' 
+            });
+        });
+        // *** END ADDED ***
 
         // Update the tradeNegotiationStarted handler
         socketRef.current.on('tradeNegotiationStarted', (data: {
@@ -343,7 +368,9 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 status: data.status,
                 yourItems: data.yourItems || [],
                 partnerItems: data.partnerItems || [],
-                originalOfferItems: data.originalOfferItems || []
+                originalOfferItems: data.originalOfferItems || [],
+                isLocked: data.isOfferer,
+                isPartnerLocked: !data.isOfferer
             });
 
             // Set initial selected items if you're the offerer
@@ -371,32 +398,39 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         });
 
         // Add handler for trade lock updates
-        socketRef.current.on('tradeLockUpdate', (data: { offerId: string; status: 'locked' | 'waiting'; yourItems?: any[]; partnerItems?: any[]; fromAddress?: string; }) => {
+        socketRef.current.on('tradeLockUpdate', (data: { 
+            offerId: string; 
+            status: 'waiting' | 'locked'; 
+            yourItems: any[]; 
+            partnerItems: any[]; 
+            fromAddress: string;
+            locked: boolean;
+            partnerLocked: boolean;
+        }) => {
             console.log('🔒 CLIENT: Received tradeLockUpdate event:', JSON.stringify(data, null, 2));
 
             setActiveTradeNegotiation(prev => {
                 if (!prev || prev.offerId !== data.offerId) {
-                    console.log('🔒 CLIENT: Skipping state update - offerId mismatch or no previous state.');
+                    console.log('🔒 CLIENT: No active negotiation found for this update');
                     return prev;
                 }
-
-                // Directly use the items provided by the server event
-                const updatedYourItems = data.yourItems || []; // Default to empty array if undefined
-                const updatedPartnerItems = data.partnerItems || []; // Default to empty array if undefined
-
-                // Determine if the update is from the partner
-                const isFromPartner = data.fromAddress?.toLowerCase() !== walletAddress.toLowerCase();
-                console.log(`🔒 CLIENT: Update from partner: ${isFromPartner}, Locker Address: ${data.fromAddress}`);
 
                 const newState = {
                     ...prev,
                     status: data.status,
-                    yourItems: updatedYourItems,
-                    partnerItems: updatedPartnerItems,
+                    yourItems: data.yourItems || [],
+                    partnerItems: data.partnerItems || [],
+                    isLocked: data.locked,
+                    isPartnerLocked: data.partnerLocked
                 };
 
-                console.log('🔒 CLIENT: Updating negotiation state FROM:', JSON.stringify(prev, null, 2));
-                console.log('🔒 CLIENT: Updating negotiation state TO:', JSON.stringify(newState, null, 2));
+                console.log('🔒 CLIENT: Updating negotiation state:', {
+                    from: JSON.stringify(prev, null, 2),
+                    to: JSON.stringify(newState, null, 2),
+                    isSeller: prev.originalOfferItems && prev.originalOfferItems.length > 0,
+                    locked: data.locked,
+                    partnerLocked: data.partnerLocked
+                });
 
                 return newState;
             });
@@ -406,15 +440,11 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 id: generateTempId(),
                 sender_address: 'system',
                 sender_name: 'System',
-                message: `Trade ${data.status === 'locked' ? 'locked' : 'unlocked'} by ${
-                    data.fromAddress ?
-                        (data.fromAddress.toLowerCase() === walletAddress.toLowerCase() ? 'you' : activeTradeNegotiation?.partnerName || 'partner') :
-                        'partner'
-                }`,
+                message: `Trade state update: ${data.locked ? 'You are locked' : 'You are unlocked'}, ${data.partnerLocked ? 'Partner is locked' : 'Partner is unlocked'}`,
                 created_at: new Date().toISOString(),
                 isSystem: true
             };
-            setMessages(prevMsgs => [...prevMsgs, systemMessage]);
+            setMessages(prev => [...prev, systemMessage]);
         });
 
         // Add handler for trade negotiation cancelled
@@ -520,7 +550,22 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 } : null);
             }
         });
-    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory]);
+
+        // Add the new socket event handler in setupSocketListeners
+        socketRef.current.on('offerStatusUpdate', (data: { offerId: string; status: 'pending' | 'negotiating' | 'accepted' | 'rejected' | 'cancelled' }) => {
+            console.log('📊 Offer status update:', data);
+            setOffers(prev => prev.map(offer => 
+                offer.id === data.offerId 
+                    ? { ...offer, status: data.status }
+                    : offer
+            ));
+        });
+
+        socketRef.current.on('offerRemoved', (offerId: string) => {
+            console.log('🗑️ Offer removed:', offerId);
+            setOffers(prev => prev.filter(offer => offer.id !== offerId));
+        });
+    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory, offers]);
 
     useEffect(() => {
         // Only create socket connection if it doesn't exist
@@ -958,8 +1003,16 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                             {offers.map(offer => (
                                 <div 
                                     key={offer.id} 
-                                    className={`${styles.offerCard} ${offer.sellerAddress === walletAddress ? styles.waiting : ''}`}
+                                    className={`${styles.offerCard} ${
+                                        offer.status === 'negotiating' ? styles.negotiating : 
+                                        offer.sellerAddress === walletAddress ? styles.waiting : ''
+                                    }`}
                                 >
+                                    {offer.status === 'negotiating' && (
+                                        <div className={styles.negotiatingOverlay}>
+                                            <span>In Trade</span>
+                                        </div>
+                                    )}
                                     <div className={styles.offerHeader}>
                                         <span className={styles.offerSellerName}>{offer.sellerName}</span>
                                     </div>
@@ -986,21 +1039,21 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                             <span className={styles.offerItemRarity}>
                                                 {offer.item.rarity}
                                             </span>
-                                            {offer.sellerAddress === walletAddress && (
-                                                <span className={styles.offerWaitingText}>
-                                                    Waiting for interested traders...
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                     <div className={styles.offerActions}>
                                         {offer.sellerAddress === walletAddress ? (
-                                            <button 
-                                                className={styles.offerCancelButton}
-                                                onClick={() => handleCancelOffer(offer.id)}
-                                            >
-                                                Cancel
-                                            </button>
+                                            <>
+                                                <span className={styles.offerWaitingText}>
+                                                    Waiting for interested traders...
+                                                </span>
+                                                <button 
+                                                    className={styles.offerCancelButton}
+                                                    onClick={() => handleCancelOffer(offer.id)}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </>
                                         ) : (
                                             <button 
                                                 className={styles.tradeButton}
@@ -1063,24 +1116,37 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                     {/* Online Traders Panel */}
                     <div className={styles.tradersPanel}>
                         <div className={styles.tradersPanelHeader}>
-                            <h3>ONLINE TRADERS {onlineUsers.length}</h3>
+                            <h3>ONLINE TRADERS {users.length}</h3>
                         </div>
                         <div className={styles.tradersList}>
-                            {onlineUsers.map((user, index) => {
-                                // Mock data for demonstration - replace with actual user data
+                            {users.map((user, index) => {
+                                // Mock data - REMOVE THIS LATER if real roles/chatting status comes from server
                                 const mockUserData = {
-                                    name: user,
-                                    status: 'online',
-                                    role: index === 0 ? 'admin' : 
-                                          index === 1 ? 'helper' : 
-                                          index === 2 ? 'vip' : undefined,
+                                    role: index === 0 && user.username === 'Allen' ? 'admin' : 
+                                          index === 1 && user.username === 'HelperBot' ? 'helper' : 
+                                          index === 2 && user.username === 'VIP_Player' ? 'vip' : undefined,
                                     isChatting: index === 4
                                 };
 
+                                // Generate dynamic class based on skin ID
+                                const skinClass = user.equippedSkinId ? styles[`skin-${user.equippedSkinId.replace('_', '-')}`] : '';
+                                const roleClass = mockUserData.role ? styles[mockUserData.role] : '';
+                                const finalClassName = `${styles.traderItem} ${roleClass} ${skinClass}`.trim(); // Combine classes
+
                                 return (
-                                    <div key={index} className={`${styles.traderItem} ${mockUserData.role ? styles[mockUserData.role] : ''}`}>
+                                    <div 
+                                        key={user.walletAddress} 
+                                        className={finalClassName} // Apply combined class name
+                                    >
                                         <span className={`${styles.traderStatus} ${styles.online}`} />
-                                        <span className={styles.traderName}>{mockUserData.name}</span>
+                                        {/* REMOVE SVG image and placeholder */}
+                                        {/* {skinSvgPath ? (
+                                            <img src={skinSvgPath} alt={`${user.username}'s skin`} className={styles.traderSkinSvg} />
+                                        ) : (
+                                            <div className={styles.traderSkinPlaceholder}></div> 
+                                        )} */}
+                                        <span className={styles.traderName}>{user.username}</span>
+                                        {/* Keep mock chatting indicator */}
                                         {mockUserData.isChatting && (
                                             <span className={styles.chatting} />
                                         )}
@@ -1275,14 +1341,6 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                             <OffererTradeItemGrid 
                                                 items={activeTradeNegotiation?.partnerItems || []}
                                             />
-                                            {activeTradeNegotiation?.status === 'locked' && (
-                                                <button 
-                                                    className={styles.tradeAcceptButton}
-                                                    onClick={handleAcceptTrade}
-                                                >
-                                                    Accept Trade
-                                                </button>
-                                            )}
                                         </div>
                                     </>
                                 )}
@@ -1290,15 +1348,41 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
 
                             <div className={styles.tradeActions}>
                                 {isTradeOfferer ? (
-                                    <button 
-                                        className={styles.tradeRejectButton}
-                                        onClick={handleRejectTrade}
-                                    >
-                                        Reject
-                                    </button>
+                                    <>
+                                        {(() => {
+                                            if (!activeTradeNegotiation || typeof activeTradeNegotiation.isPartnerLocked === 'undefined') {
+                                                return <div>Loading...</div>; // Or some placeholder
+                                            }
+
+                                            const isPartnerLocked = activeTradeNegotiation.isPartnerLocked;
+
+                                            if (isPartnerLocked) { // Buyer (Partner) is locked - Show Accept, Unlock, Reject
+                                                return (
+                                                    <>
+                                                        <button className={styles.tradeAcceptButton} onClick={handleAcceptTrade}>
+                                                            Accept Trade
+                                                        </button>
+                                                        <button className={styles.tradeUnlockButton} onClick={handleUnlockTrade}> 
+                                                            Unlock Partner {/* Renamed for clarity */}
+                                                        </button>
+                                                        <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                );
+                                            } else { // Buyer (Partner) is NOT locked - Show only Reject
+                                                 return (
+                                                     <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
+                                                         Reject
+                                                     </button>
+                                                 );
+                                            }
+                                        })()}
+                                    </>
                                 ) : (
                                     <>
-                                        {activeTradeNegotiation.status === 'locked' ? (
+                                        {/* Buyer: Show Unlock if they are locked (by themselves) */}
+                                        {activeTradeNegotiation.isLocked ? (
                                             <button 
                                                 className={styles.tradeUnlockButton}
                                                 onClick={handleUnlockTrade}
@@ -1325,10 +1409,18 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                             </div>
 
                             <div className={`${styles.tradeStatus} ${styles[activeTradeNegotiation.status + 'Status']}`}>
-                                {isTradeOfferer && activeTradeNegotiation.status === 'waiting' && 'Waiting for partner to lock...'}
-                                {!isTradeOfferer && activeTradeNegotiation.status === 'waiting' && 'Select items to trade...'}
-                                {activeTradeNegotiation.status === 'locked' && 'Trade locked! Waiting for partner...'}
-                                {activeTradeNegotiation.status === 'cancelled' && 'Trade cancelled'}
+                                {isTradeOfferer ? (
+                                    // Seller Status Messages - Revised Flow V2
+                                    activeTradeNegotiation.isPartnerLocked ? 
+                                        'Partner locked. Accept, Reject, or ask Partner to Unlock & Modify.' :
+                                    'Waiting for partner to lock items...'
+                                ) : (
+                                    // Buyer Status Messages - Revised Flow V2
+                                    activeTradeNegotiation.isLocked ? // Buyer is locked
+                                        'You locked items. Waiting for seller response...' :
+                                    // Buyer is not locked (initial state or after unlock)
+                                    'Select items to trade and click OK, COOL!'
+                                )}
                             </div>
 
                             <div className={styles.tradeChatSection}>

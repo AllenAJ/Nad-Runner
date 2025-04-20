@@ -266,24 +266,24 @@
 }
 
 .offerWaitingText {
-  color: #4a9eff;
-  font-size: 14px;
-  margin-top: 8px;
+  font-size: 0.8em;
+  color: #a0a0a0;
+  margin-right: auto;
 }
 
 .offerCancelButton {
-  background-color: #dc2626;
+  padding: 6px 12px;
+  font-size: 0.9em;
+  background-color: #dc3545;
   color: white;
   border: none;
-  padding: 4px 12px;
   border-radius: 4px;
-  font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .offerCancelButton:hover {
-  background: #b91c1c;
+  background-color: #c82333;
 }
 
 /* Trading area controls */
@@ -373,50 +373,61 @@
   gap: 8px;
 }
 
+/* Ensure base traderItem has necessary layout */
 .traderItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.05);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
 }
 
 .traderItem:hover {
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
   transform: translateX(2px);
 }
 
-/* Role-based card styles */
-.traderItem.admin {
-  background: linear-gradient(to right, rgba(220, 38, 38, 0.2), rgba(220, 38, 38, 0.1));
-  border-color: rgba(220, 38, 38, 0.3);
+/* Skin-specific BACKGROUND IMAGE styles */
+.skin-red-skin {
+  background-image: url('/items/skin/red_skin.svg');
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
-.traderItem.admin:hover {
-  background: linear-gradient(to right, rgba(220, 38, 38, 0.25), rgba(220, 38, 38, 0.15));
+.skin-blue-skin {
+  background-image: url('/items/skin/blue_skin.svg');
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.skin-green-skin {
+  background-image: url('/items/skin/green_skin.svg');
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.skin-yellow-skin {
+  background-image: url('/items/skin/yellow_skin.svg');
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+/* Make sure role styles don't conflict (maybe remove their backgrounds?) */
+.traderItem.admin {
+  border-color: rgba(220, 38, 38, 0.5);
 }
 
 .traderItem.helper {
-  background: linear-gradient(to right, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.1));
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-.traderItem.helper:hover {
-  background: linear-gradient(to right, rgba(37, 99, 235, 0.25), rgba(37, 99, 235, 0.15));
+  border-color: rgba(37, 99, 235, 0.5);
 }
 
 .traderItem.vip {
-  background: linear-gradient(to right, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
-  border-color: rgba(251, 191, 36, 0.3);
+  border-color: rgba(251, 191, 36, 0.5);
 }
 
-.traderItem.vip:hover {
-  background: linear-gradient(to right, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.15));
-}
-
+/* Keep other styles like .traderStatus, .traderName, .chatting */
 .traderStatus {
   width: 8px;
   height: 8px;
@@ -425,16 +436,15 @@
 }
 
 .traderName {
-  flex: 1;
+  flex-grow: 1;
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   color: white;
-}
-
-/* Status colors */
-.online {
-  background-color: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 1;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 .chatting {
@@ -442,6 +452,7 @@
   width: 16px;
   height: 16px;
   opacity: 0.7;
+  flex-shrink: 0;
 }
 
 .chatting::before {
@@ -487,22 +498,22 @@
 }
 
 .sender {
-  color: #4ade80; /* Default green color */
+  color: #4ade80;
   margin-right: 4px;
   font-weight: normal;
 }
 
 /* Role-based sender colors */
 .admin .sender {
-  color: #ef4444; /* Red for admin */
+  color: #ef4444;
 }
 
 .helper .sender {
-  color: #3b82f6; /* Blue for helper */
+  color: #3b82f6;
 }
 
 .vip .sender {
-  color: #f59e0b; /* Orange for VIP */
+  color: #f59e0b;
 }
 
 .message p {
@@ -513,7 +524,7 @@
 }
 
 .timestamp {
-  display: none; /* Hide timestamp to match the simple format */
+  display: none;
 }
 
 .messageForm {
@@ -1030,9 +1041,9 @@
   background-color: #4ade80;
   color: white;
   border: none;
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.9em;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1101,20 +1112,20 @@
 
 .offerActions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
+  padding: 8px 12px;
+  gap: 10px;
   margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .tradeButton {
   background-color: #00b300;
   color: white;
   border: none;
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.9em;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1551,4 +1562,32 @@
 .offererTradeSide {
   display: flex;
   flex-direction: column;
+}
+
+.offerCard.negotiating {
+    opacity: 0.8;
+    pointer-events: none;
+    position: relative;
+}
+
+.negotiatingOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.negotiatingOverlay span {
+    color: #fff;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 } 

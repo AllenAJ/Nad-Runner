@@ -424,13 +424,38 @@ async function initializeDatabase() {
                 status VARCHAR(50) NOT NULL DEFAULT 'waiting',
                 seller_locked BOOLEAN DEFAULT FALSE,
                 buyer_locked BOOLEAN DEFAULT FALSE,
+                seller_items JSONB DEFAULT '[]'::jsonb,
+                buyer_items JSONB DEFAULT '[]'::jsonb,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP WITH TIME ZONE,
-                FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)
+                FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id),
+                CONSTRAINT valid_seller_items CHECK (jsonb_typeof(seller_items) = 'array'),
+                CONSTRAINT valid_buyer_items CHECK (jsonb_typeof(buyer_items) = 'array')
             );
         `);
         console.log('Trade negotiations table created successfully');
+
+        // Add columns to trade_negotiations table if they don't exist
+        console.log('Adding columns to trade_negotiations table if they dont exist...');
+        await client.query(`
+            DO $$ 
+            BEGIN 
+                BEGIN
+                    ALTER TABLE trade_negotiations 
+                    ADD COLUMN IF NOT EXISTS seller_items JSONB DEFAULT '[]'::jsonb;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
+
+                BEGIN
+                    ALTER TABLE trade_negotiations 
+                    ADD COLUMN IF NOT EXISTS buyer_items JSONB DEFAULT '[]'::jsonb;
+                EXCEPTION
+                    WHEN duplicate_column THEN NULL;
+                END;
+            END $$;
+        `);
 
         // Create trade_chat_messages table
         console.log('Creating trade_chat_messages table...');

@@ -100,6 +100,47 @@ const io = new Server(httpServer, {
 // Set up socket event handlers
 setupSocket(io);
 
+// --- Add logic to cancel incomplete trades on startup ---
+async function cancelIncompleteTrades() {
+    console.log('Checking for incomplete trades from previous session...');
+    const client = await wsPool.connect();
+    try {
+        // Find trades stuck in 'waiting' or potentially 'locked' (if your flow used that)
+        const incompleteTradesRes = await client.query(
+            `SELECT trade_id FROM trade_negotiations WHERE status = 'waiting'`
+        );
+
+        if (incompleteTradesRes.rows.length > 0) {
+            const tradeIdsToCancel = incompleteTradesRes.rows.map(row => row.trade_id);
+            console.log(`Found ${tradeIdsToCancel.length} incomplete negotiations to cancel:`, tradeIdsToCancel);
+
+            await client.query('BEGIN');
+            // Update negotiations table
+            await client.query(
+                `UPDATE trade_negotiations SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 
+                 WHERE trade_id = ANY($1::text[]) AND status = 'waiting'`,
+                [tradeIdsToCancel]
+            );
+            // Update history table
+            await client.query(
+                `UPDATE trade_history SET status = 'cancelled' 
+                 WHERE trade_id = ANY($1::text[]) AND status = 'negotiating'`,
+                [tradeIdsToCancel] 
+            );
+            await client.query('COMMIT');
+            console.log('Incomplete trades cancelled successfully.');
+        } else {
+            console.log('No incomplete trades found.');
+        }
+    } catch (error) {
+        if(client) await client.query('ROLLBACK');
+        console.error('Error cancelling incomplete trades on startup:', error);
+    } finally {
+        if (client) client.release();
+    }
+}
+// -------------------------------------------------------
+
 // Add message cleanup job - runs daily at midnight
 const cleanupJob = new CronJob('0 0 * * *', async () => {
     const client = await wsPool.connect();
@@ -128,4 +169,6 @@ cleanupJob.start();
 const PORT = process.env.PORT || 3001;
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`WebSocket server running on port ${PORT}`);
+    // Call the cleanup function after server starts listening
+    cancelIncompleteTrades().catch(console.error); 
 });
