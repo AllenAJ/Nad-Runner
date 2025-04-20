@@ -69,7 +69,7 @@ interface OnlineUser {
     username: string;
     walletAddress: string;
     equippedSkinId: string | null;
-    level: number | null;
+    level: number | string | null;
 }
 
 interface ChatBoxProps {
@@ -208,6 +208,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [newMessage, setNewMessage] = useState('');
     const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'authenticating' | 'loading' | 'ready'>('connecting');
     const socketRef = useRef<Socket>();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [activeRarityFilter, setActiveRarityFilter] = useState('');
@@ -266,11 +268,14 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         socketRef.current.on('connect', () => {
             console.log('Connected to chat server');
             setIsConnected(true);
+            setConnectionStatus('authenticating');
         });
 
         socketRef.current.on('disconnect', (reason: string) => {
             console.log('Disconnected from chat server:', reason);
             setIsConnected(false);
+            setIsInitialized(false);
+            setConnectionStatus('connecting');
             setUsers([]);
             setOffers([]);
             setActiveTradeNegotiation(null);
@@ -327,6 +332,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         socketRef.current.on('onlineUsers', (receivedUsers: OnlineUser[]) => {
             console.log('Received online users:', receivedUsers);
             setUsers(receivedUsers);
+            setIsInitialized(true); // Mark as initialized when we receive users
+            setConnectionStatus('ready');
         });
 
         socketRef.current.on('error', (error: string) => {
@@ -970,6 +977,25 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
 
     return (
         <div className={styles.wrapper}>
+            {(!isConnected || !isInitialized) && (
+                <div className={styles.loadingOverlay}>
+                    <div className={styles.loadingContent}>
+                        <div className={styles.loadingSpinner} />
+                        <h3>
+                            {connectionStatus === 'connecting' && 'Connecting to Server...'}
+                            {connectionStatus === 'authenticating' && 'Authenticating...'}
+                            {connectionStatus === 'loading' && 'Loading Market Data...'}
+                            {connectionStatus === 'ready' && 'Entering Market...'}
+                        </h3>
+                        <p>
+                            {connectionStatus === 'connecting' && 'Establishing secure connection...'}
+                            {connectionStatus === 'authenticating' && 'Verifying your credentials...'}
+                            {connectionStatus === 'loading' && 'Fetching latest market information...'}
+                            {connectionStatus === 'ready' && 'Almost there...'}
+                        </p>
+                    </div>
+                </div>
+            )}
             <div className={styles.chatContainer}>
                 {/* Alert Component */}
                 {alertState.show && (

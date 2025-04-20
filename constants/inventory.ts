@@ -610,6 +610,19 @@ export const INITIAL_ITEMS: Item[] = [
         color: '#B8860B'
     },
     {
+        id: 'team_skin',
+        key: 'team_skin',
+        name: 'Team Skin',
+        description: 'Show your team spirit!',
+        category: 'outfits',
+        subCategory: 'skin',
+        rarity: 'rare',
+        price: 0,
+        imageUrl: '/items/team_skin.svg',
+        purchaseDate: new Date(),
+        color: undefined
+    },
+    {
         id: 'basic_helmet',
         key: 'basic_helmet',
         name: 'Basic Helmet',

@@ -1003,64 +1003,157 @@
     }
 }
 
+/* Alert Styles - Revised */
 .canvasAlertOverlay {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.6); /* Standard overlay */
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 100;
+    z-index: 1000;
+    padding: 20px;
 }
 
 .canvasAlertContainer {
-    background-color: #1a1a1a;
-    border-radius: 8px;
-    padding: 20px;
-    min-width: 200px;
-    max-width: 80%;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff; /* White background */
+    padding: 25px 30px;
+    border-radius: 10px; /* Slightly less rounded */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Softer shadow */
+    min-width: 300px;
+    max-width: 480px;
+    border: 1px solid #ddd; /* Subtle border */
+    display: flex;
+    flex-direction: column;
+    font-family: inherit; /* Use default font */
 }
+
+/* Animation - Simple Fade In */
+.alertFadeIn {
+    animation: alertFadeIn 0.3s ease-out forwards;
+}
+
+/* Keep the original fade-in keyframes */
+@keyframes alertFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px); /* Subtle lift */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Optional subtle bounce-in (uncomment if preferred over fade) */
+/*
+@keyframes alertSubtleBounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    80% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.alertFadeIn { // Rename animation if using bounce
+    animation: alertSubtleBounceIn 0.3s ease-out forwards;
+}
+*/
 
 .canvasAlertContent {
+    color: #333;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.canvasAlertContent p {
-    margin-bottom: 20px;
-    color: white;
-    font-size: 1em;
+.alertBody {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    text-align: left;
+}
+
+.alertIcon {
+    width: 32px; /* Standard icon size */
+    height: 32px;
+    flex-shrink: 0;
+    stroke-width: 2; /* Standard stroke */
+}
+
+.alertMessage {
+    margin: 0;
+    font-size: 1.1rem; /* Keep slightly larger font */
+    line-height: 1.5;
+    flex-grow: 1;
+    color: #111;
 }
 
 .canvasAlertCloseButton {
-    background-color: #4a4a4a;
+    background-color: #6366F1; /* Primary button color */
     color: white;
-    border: none;
-    padding: 8px 24px;
-    border-radius: 4px;
+    border: none; /* Remove border */
+    padding: 10px 25px; /* Adjust padding */
+    border-radius: 6px; /* Standard border-radius */
     cursor: pointer;
-    font-size: 0.9em;
-    transition: background-color 0.2s;
+    font-size: 1rem;
+    font-weight: 500; /* Standard weight */
+    text-transform: none; /* Normal case */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    align-self: flex-end; /* Button to the right */
+    margin-top: 10px;
+    box-shadow: none; /* Remove hard shadow */
 }
 
 .canvasAlertCloseButton:hover {
-    background-color: #5a5a5a;
+    background-color: #4F46E5; /* Darker hover */
+    transform: none; /* No hover transform */
+    box-shadow: none;
 }
 
-.alertinfo {
-    border-left: 4px solid #3498db;
+.canvasAlertCloseButton:active {
+    background-color: #4338CA; /* Darker active */
+    transform: none;
+    box-shadow: none;
 }
 
-.alertwarning {
-    border-left: 4px solid #f1c40f;
+/* Type-specific styles - Use icon color only */
+.alert-info .alertIcon {
+    color: #3b82f6; /* Tailwind Blue 500 */
 }
+/* Remove button color overrides for info */
+.alert-info .canvasAlertCloseButton {}
+.alert-info .canvasAlertCloseButton:hover {}
+.alert-info .canvasAlertCloseButton:active {}
 
-.alerterror {
-    border-left: 4px solid #e74c3c;
+.alert-warning .alertIcon {
+    color: #f97316; /* Tailwind Orange 500 */
 }
+/* Remove button color overrides for warning */
+.alert-warning .canvasAlertCloseButton {}
+.alert-warning .canvasAlertCloseButton:hover {}
+.alert-warning .canvasAlertCloseButton:active {}
+
+.alert-error .alertIcon {
+    color: #ef4444; /* Tailwind Red 500 */
+}
+/* Remove button color overrides for error */
+.alert-error .canvasAlertCloseButton {}
+.alert-error .canvasAlertCloseButton:hover {}
+.alert-error .canvasAlertCloseButton:active {}
+
+
+/* --- End Alert Styles --- */
 
 .playerCard {
     background: white;
@@ -1607,4 +1700,38 @@
     width: 24px;
     height: 24px;
     color: #000;
+}
+
+.loadingDetail {
+    color: #8a8a8a;
+    font-size: 0.9em;
+    margin-top: 8px;
+    text-align: center;
+    font-style: italic;
+}
+
+.assetProgress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    border-radius: 8px;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.assetItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8a8a8a;
+    font-size: 0.9em;
+    transition: color 0.3s ease;
+}
+
+.assetItem.loaded {
+    color: #4CAF50;
 }

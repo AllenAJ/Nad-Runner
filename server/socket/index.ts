@@ -8,7 +8,7 @@ interface User {
     username: string;
     socketId: string;
     equippedSkinId: string | null;
-    level: number | null;
+    level: number | string | null;
 }
 
 interface TradeOffer {
@@ -249,7 +249,7 @@ export const setupSocket = (io: SocketServer) => {
             
             // --- Fetch Equipped Skin & Level --- 
             let equippedSkinId: string | null = null;
-            let level: number | null = null; // Variable for level
+            let level: number | string | null = null;
             let client;
             try {
                 client = await wsPool.connect();
@@ -268,6 +268,15 @@ export const setupSocket = (io: SocketServer) => {
                     equippedSkinId = userDataRes.rows[0].skin_id;
                     level = userDataRes.rows[0].player_level;
                     console.log(`🟣 Found user data for ${username}: Skin=${equippedSkinId}, Level=${level}`);
+
+                    // --- Special Badge Logic --- 
+                    const targetAdminAddress = '0xdcdcc0643f2b7336030cd46fde8bc00c8ea74547';
+                    if (normalizedWalletAddress === targetAdminAddress) {
+                        level = 'A'; // Override level for the specific address
+                        console.log(`🟣 Overriding level to 'A' for admin user ${username}`);
+                    }
+                    // --- End Special Badge Logic ---
+
                 } else {
                      console.log(`🟣 No profile/inventory data found for ${username}`);
                 }
@@ -287,7 +296,7 @@ export const setupSocket = (io: SocketServer) => {
                 username,
                 socketId: socket.id,
                 equippedSkinId,
-                level // Store the fetched level
+                level
             });
 
             // Send current active offers to the new user
@@ -299,7 +308,7 @@ export const setupSocket = (io: SocketServer) => {
                 username: u.username,
                 walletAddress: u.walletAddress, 
                 equippedSkinId: u.equippedSkinId,
-                level: u.level // Include level in emitted data
+                level: u.level
             })));
             
             console.log(`${username} joined the marketplace`);

@@ -32,7 +32,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     setLoadingMessage("Loading player data...");
                     const response = await fetch(`/api/user/data?walletAddress=${walletAddress}`);
                     if (response.status === 404) {
-                        // User doesn't exist yet, this is expected for new users
                         setLoadingMessage("Welcome! Please create a username to continue.");
                         if (onPlayerDataLoaded) {
                             onPlayerDataLoaded(null);
@@ -84,10 +83,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
             </div>
 
             {!isConnected ? (
-                // Wallet connection screen (centered and prominent)
                 <div className={styles.walletConnectionContainer}>
-
-                    
                     <h2 className={styles.connectionTitle}>
                         Welcome to NadRunner!
                     </h2>
@@ -104,7 +100,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     </button>
                 </div>
             ) : (
-                // Regular loading screen when wallet is connected
                 <div className={styles.loadingContainer}>
                     <div className={styles.loadingBarContainer}>
                         <div className={styles.loadingBar}>
