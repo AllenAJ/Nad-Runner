@@ -81,11 +81,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleShopClick = () => {
-        setAlert({
-            show: true,
-            message: 'Shop coming soon!',
-            type: 'info'
-        });
+        onNavigateTo('shop');
     };
 
     const handleInventoryClick = () => {

@@ -10,8 +10,8 @@ import { LayeredCharacter } from '../Character/LayeredCharacter';
 import { LoadingScreen } from './LoadingScreens';
 import { MainMenu } from './MainMenu';
 import { GameOverScreen } from './GameOverScreen';
+import Shop from '../../src/components/Shop';
 import { 
-    ShopScreen, 
     InventoryScreen, 
     MultiplayerScreen 
 } from './GameScreenComponents';
@@ -111,6 +111,31 @@ export default function GameContainer() {
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const gameOverSoundRef = useRef<HTMLAudioElement | null>(null);
+
+    // Handler to update coin balance from Shop/other components
+    const handleUpdateCoins = (newBalance: number) => {
+        setPlayerData(prevData => {
+            if (!prevData) return null;
+            // Ensure playerStats exists before updating
+            const currentStats = prevData.playerStats || {
+                // Provide default structure if somehow missing, though unlikely
+                highScore: 0, boxJumps: 0, highScoreBoxJumps: 0, coins: 0, 
+                rounds: 0, level: 1, xp: 0, xpToNextLevel: 150, status: '', username: ''
+            };
+            return {
+                ...prevData,
+                playerStats: {
+                    ...currentStats,
+                    coins: newBalance
+                }
+            };
+        });
+        // Optionally, update userData if it also stores coins separately
+        setUserData(prevUserData => {
+             if (!prevUserData) return null;
+             return { ...prevUserData, coins: newBalance };
+        });
+    };
 
     // Initialize the game
     useEffect(() => {
@@ -689,7 +714,13 @@ export default function GameContainer() {
                     />
                 );
             case 'shop':
-                return <ShopScreen onBackToMenu={() => navigateTo('menu')} />;
+                return (
+                    <Shop 
+                        walletAddress={walletAddress} 
+                        onClose={() => navigateTo('menu')} 
+                        updateCoins={handleUpdateCoins}
+                    />
+                );
             case 'inventory':
                 return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
             case 'multiplayer':

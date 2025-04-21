@@ -149,6 +149,13 @@ async function initializeDatabase() {
             END $$;
         `);
 
+        // Create index on items(category) for faster lookups by category
+        console.log('Creating index on items(category)...');
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
+        `);
+        console.log('Index on items(category) created successfully');
+
         // Create player_inventories table
         console.log('Creating player_inventories table...');
         await client.query(`
@@ -163,6 +170,22 @@ async function initializeDatabase() {
             );
         `);
         console.log('Player inventories table created successfully');
+
+        // Create index on wallet_address for faster inventory lookups
+        console.log('Creating index on player_inventories(wallet_address)...');
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_player_inventories_wallet_address 
+            ON player_inventories(wallet_address);
+        `);
+        console.log('Index on player_inventories(wallet_address) created successfully');
+
+        // Create index on (wallet_address, equipped) for faster equip/unequip operations
+        console.log('Creating index on player_inventories(wallet_address, equipped)...');
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_player_inventories_wallet_equipped 
+            ON player_inventories(wallet_address, equipped);
+        `);
+        console.log('Index on player_inventories(wallet_address, equipped) created successfully');
 
         // Create outfit_loadouts table
         console.log('Creating outfit_loadouts table...');
@@ -185,6 +208,13 @@ async function initializeDatabase() {
             );
         `);
         console.log('Outfit loadouts table created successfully');
+
+        // Create index on outfit_loadouts(wallet_address, is_active) for faster active loadout lookups
+        console.log('Creating index on outfit_loadouts(wallet_address, is_active)...');
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_outfit_loadouts_wallet_active ON outfit_loadouts(wallet_address, is_active);
+        `);
+        console.log('Index on outfit_loadouts(wallet_address, is_active) created successfully');
 
         // Create initial items
         console.log('Creating initial items...');
