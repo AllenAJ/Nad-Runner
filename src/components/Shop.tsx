@@ -1,6 +1,21 @@
 // src/components/Shop.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Shop.module.css';
+import { LayeredCharacter } from '../../components/Character/LayeredCharacter';
+
+// Add button sounds
+const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
+const buttonClickSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnclick.mp3') : null;
+
+// Helper function to play sounds
+const playSound = (sound: HTMLAudioElement | null) => {
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(error => {
+            console.log('Sound playback failed:', error);
+        });
+    }
+};
 
 // Reuse the ShopItem type, maybe move to a shared types file later
 interface ShopItem {
@@ -24,12 +39,28 @@ interface ShopProps {
     updateCoins?: (newBalance: number) => void; // Callback to update coin display elsewhere
 }
 
+interface PreviewState {
+    background?: string;
+    character?: string;
+    effect?: string;
+    head?: string;
+    mouth?: string;
+    eyes?: string;
+    nose?: string;
+    minipet?: string;
+}
+
+type PurchaseStatus = {
+    [key: string]: 'idle' | 'buying' | 'success' | 'error';
+};
+
 const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
     const [activeTab, setActiveTab] = useState<'normal' | 'premium'>('normal');
     const [items, setItems] = useState<ShopItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [purchaseStatus, setPurchaseStatus] = useState<{ [itemId: string]: 'buying' | 'error' | 'success' | null }>({});
+    const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus>({});
+    const [previewState, setPreviewState] = useState<PreviewState>({});
 
     const fetchItems = useCallback(async () => {
         if (!walletAddress) {
@@ -96,8 +127,11 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
         if (!walletAddress || item.owned || purchaseStatus[item.id] === 'buying' || item.type !== activeTab) {
             return;
         }
-
-        setPurchaseStatus(prev => ({ ...prev, [item.id]: 'buying' }));
+        
+        setPurchaseStatus(prev => ({
+            ...prev,
+            [item.id]: 'buying'
+        }));
         setError(null);
 
         try {
@@ -111,7 +145,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 body: JSON.stringify({
                     itemId: item.id,
                     timestamp: Date.now(),
-                    section: activeTab // Include section for additional validation
+                    section: activeTab
                 }),
             });
 
@@ -131,8 +165,11 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 throw new Error(result.message || 'Purchase validation failed');
             }
 
-            setPurchaseStatus(prev => ({ ...prev, [item.id]: 'success' }));
-            
+            setPurchaseStatus(prev => ({
+                ...prev,
+                [item.id]: 'success'
+            }));
+
             // Update the items list by fetching fresh data
             await fetchItems();
 
@@ -141,18 +178,28 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 updateCoins(result.newCoinBalance);
             }
 
-            // Reset purchase status after a delay
             setTimeout(() => {
-                setPurchaseStatus(prev => ({ ...prev, [item.id]: null }));
+                setPurchaseStatus(prev => {
+                    const newStatus = { ...prev };
+                    delete newStatus[item.id];
+                    return newStatus;
+                });
             }, 2000);
 
         } catch (e) {
             console.error("Failed to purchase item:", e);
             setError(e instanceof Error ? e.message : "Purchase failed.");
-            setPurchaseStatus(prev => ({ ...prev, [item.id]: 'error' }));
-            
+            setPurchaseStatus(prev => ({
+                ...prev,
+                [item.id]: 'error'
+            }));
+
             setTimeout(() => {
-                setPurchaseStatus(prev => ({ ...prev, [item.id]: null }));
+                setPurchaseStatus(prev => {
+                    const newStatus = { ...prev };
+                    delete newStatus[item.id];
+                    return newStatus;
+                });
             }, 3000);
         }
     };
@@ -165,76 +212,139 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
         activeTab === 'normal' ? item.type === 'normal' : item.type === 'premium'
     );
 
+    const handlePreviewItem = (item: ShopItem) => {
+        setPreviewState(prev => {
+            const isCurrentlyPreviewing = prev[item.sub_category as keyof PreviewState] === item.id;
+            if (isCurrentlyPreviewing) {
+                // Remove preview
+                const newState = { ...prev };
+                delete newState[item.sub_category as keyof PreviewState];
+                return newState;
+            } else {
+                // Set new preview
+                return {
+                    ...prev,
+                    [item.sub_category]: item.id
+                };
+            }
+        });
+    };
+
+    const handleBackToMenu = () => {
+        playSound(buttonClickSound);
+        if (onClose) onClose();
+    };
+
     return (
         <div className={styles.container}>
-            <div className={styles.header}>
-                <h1>Shop</h1>
-                {onClose && <button onClick={onClose}>Close</button>}
-            </div>
-
-            <div className={styles.tabsContainer}>
-                <button
-                    className={`${styles.tabButton} ${activeTab === 'normal' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('normal')}
-                >
-                    Normal Items
-                </button>
-                <button
-                    className={`${styles.tabButton} ${activeTab === 'premium' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('premium')}
-                >
-                    Premium Items
-                </button>
-            </div>
-
-            {error && <div className={styles.error}>{error}</div>}
-
-            {loading ? (
-                <div className={styles.loading}>Loading items...</div>
-            ) : (
-                <div className={styles.itemsGrid}>
-                    {filteredItems.map((item) => (
-                        <div key={item.id} className={styles.itemContainer}>
-                            <div
-                                className={styles.itemCard}
-                                data-rarity={item.rarity}
-                            >
-                                <div 
-                                    className={styles.itemImage}
-                                >
-                                    <img
-                                        src={getPreviewImageUrl(item.image_url)}
-                                        alt={item.name}
-                                        width={32}
-                                        height={32}
-                                        loading="lazy"
-                                    />
-                                </div>
-                                {item.owned && <div className={styles.itemCount}>x1</div>}
-                            </div>
-                            
-                            <div className={styles.itemDetails}>
-                                <div className={styles.itemName}>{item.name}</div>
-                                <div className={styles.itemDescription}>{item.description}</div>
-                                {!item.owned && (
-                                    <>
-                                        <div className={styles.itemPrice}>
-                                            {item.price} {item.type === 'normal' ? '🪙' : '💎'}
-                                        </div>
-                                        <button
-                                            className={styles.buyButton}
-                                            onClick={() => handleBuyItem(item)}
-                                            disabled={purchaseStatus[item.id] === 'buying'}
-                                        >
-                                            {purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+            {/* Left Section - Character Preview */}
+            <div className={styles.leftSection}>
+                <div className={styles.characterPreview}>
+                    <LayeredCharacter
+                        width={200}
+                        height={200}
+                        showShadow={true}
+                        equippedHead={previewState.head}
+                        equippedMouth={previewState.mouth}
+                        equippedEyes={previewState.eyes}
+                        equippedNose={previewState.nose}
+                        equippedMinipet={previewState.minipet}
+                    />
+                    <button 
+                        className={styles.resetPreviewButton}
+                        onClick={() => setPreviewState({})}
+                    >
+                        Reset Preview
+                    </button>
                 </div>
-            )}
+            </div>
+
+            {/* Right Section - Shop Items */}
+            <div className={styles.rightSection}>
+                <div className={styles.header}>
+                    <h1>Shop</h1>
+                    {onClose && (
+                        <button 
+                            className={styles.backButton}
+                            onClick={handleBackToMenu}
+                            onMouseEnter={() => playSound(buttonHoverSound)}
+                        >
+                            Back to Menu
+                        </button>
+                    )}
+                </div>
+
+                <div className={styles.tabsContainer}>
+                    <button
+                        className={`${styles.tabButton} ${activeTab === 'normal' ? styles.active : ''}`}
+                        onClick={() => setActiveTab('normal')}
+                    >
+                        Normal Items
+                    </button>
+                    <button
+                        className={`${styles.tabButton} ${activeTab === 'premium' ? styles.active : ''}`}
+                        onClick={() => setActiveTab('premium')}
+                    >
+                        Premium Items
+                    </button>
+                </div>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                {loading ? (
+                    <div className={styles.loading}>Loading items...</div>
+                ) : (
+                    <div className={styles.itemsGrid}>
+                        {filteredItems.map((item) => (
+                            <div key={item.id} className={styles.itemContainer}>
+                                <div
+                                    className={`${styles.itemCard} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.previewActive : ''}`}
+                                    data-rarity={item.rarity}
+                                    onClick={() => handlePreviewItem(item)}
+                                >
+                                    <div className={styles.itemImage}>
+                                        <img
+                                            src={getPreviewImageUrl(item.image_url)}
+                                            alt={item.name}
+                                            width={32}
+                                            height={32}
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                    {item.owned && <div className={styles.itemCount}>x1</div>}
+                                </div>
+                                
+                                <div className={styles.itemDetails}>
+                                    <div className={styles.itemName}>{item.name}</div>
+                                    <div className={styles.itemDescription}>{item.description}</div>
+                                    {!item.owned && (
+                                        <>
+                                            <div className={styles.itemPrice}>
+                                                {item.price} {item.type === 'normal' ? '🪙' : '💎'}
+                                            </div>
+                                            <div className={styles.buttonContainer}>
+                                                <button
+                                                    className={`${styles.tryButton} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.active : ''}`}
+                                                    onClick={() => handlePreviewItem(item)}
+                                                >
+                                                    {previewState[item.sub_category as keyof PreviewState] === item.id ? 'Stop Try' : 'Try'}
+                                                </button>
+                                                <button
+                                                    className={styles.buyButton}
+                                                    onClick={() => handleBuyItem(item)}
+                                                    disabled={purchaseStatus[item.id] === 'buying'}
+                                                >
+                                                    {purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
