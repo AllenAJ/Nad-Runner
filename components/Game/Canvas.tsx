@@ -154,6 +154,7 @@ interface GameState {
         width: number;
         height: number;
     } | null;
+    backgroundX: number; // Add this for background position
     lastSpawnTime?: number;
 }
 
@@ -199,6 +200,9 @@ if (box2Image) box2Image.src = '/assets/box2.png';
 
 const box3Image = typeof window !== 'undefined' ? new window.Image() : null;
 if (box3Image) box3Image.src = '/assets/box3.png';
+
+const cityBackgroundImage = typeof window !== 'undefined' ? new window.Image() : null;
+if (cityBackgroundImage) cityBackgroundImage.src = '/bg/city_background.svg'; // Updated path
 
 // Mobile-specific constants
 const MOBILE_SCALE = 1;
@@ -278,6 +282,7 @@ const INITIAL_STATE: GameState = {
     justJumped: false,
     canBoxJump: false,
     currentBox: null,
+    backgroundX: 0, // Initialize background position
 };
 
 const PLAYER_SIZE = 50;
@@ -407,6 +412,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             isColliding: false,
             canBoxJump: false,
             currentBox: null,
+            backgroundX: 0, // Reset background position
         };
     };
 
@@ -718,6 +724,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Update score with multiplier
         state.score += deltaTime * 10 * state.powerupEffects.scoreMultiplier;
+        return false;
     };
 
     const HITBOX_PADDING = 5; // Smaller hitbox than the sprite
@@ -982,6 +989,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.timeSinceStart = 0;
             state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT, MAX_GAME_SPEED);
         }
+
+        // Update background position for parallax effect (no modulo here)
+        const backgroundScrollSpeed = state.gameSpeed * 0.2; // Adjust multiplier for speed
+        state.backgroundX -= backgroundScrollSpeed;
 
         // Update chog rotation
         state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
@@ -1371,8 +1382,32 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.translate(shakeOffsetX, shakeOffsetY);
 
         // Clear canvas
-        ctx.fillStyle = '#87CEEB';
+        ctx.fillStyle = '#87CEEB'; // Or use SVG's sky gradient if preferred
         ctx.fillRect(0, 0, width, height);
+
+        // Draw scrolling city background
+        if (cityBackgroundImage && cityBackgroundImage.complete && cityBackgroundImage.width > 0) {
+            const bgRatio = height / cityBackgroundImage.height; // Scale based on canvas height
+            const bgWidth = cityBackgroundImage.width * bgRatio; // Scaled width of the bg image
+            const bgHeight = height;
+
+            if (bgWidth > 0) {
+                // Calculate the effective X offset for drawing, ensuring it wraps correctly
+                // Add bgWidth before modulo to handle negative backgroundX values properly
+                const effectiveX = ((state.backgroundX % bgWidth) + bgWidth) % bgWidth;
+
+                // Draw the first instance of the background
+                ctx.drawImage(cityBackgroundImage, effectiveX, 0, bgWidth, bgHeight);
+
+                // Draw the second instance immediately to the left of the first to cover the wrap-around
+                ctx.drawImage(cityBackgroundImage, effectiveX - bgWidth, 0, bgWidth, bgHeight);
+                
+                // OPTIONAL: Draw a third instance if canvas is wider than 2x bgWidth (unlikely needed with wide SVG)
+                // if (width > bgWidth) { // Draw if needed to fill space beyond the second image
+                //     ctx.drawImage(cityBackgroundImage, effectiveX + bgWidth, 0, bgWidth, bgHeight);
+                // }
+            }
+        }
 
         // Draw cartoon-style ground
         ctx.save();
@@ -1734,7 +1769,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         // Add debug visualization at the end
         drawDebugInfo(ctx, state);
 
-        ctx.restore();
+        ctx.restore(); // Restore from screen shake
     };
 
     const gameLoop = (currentTime: number) => {

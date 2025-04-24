@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import styles from './GameContainer.module.css';
 import { Alert } from './Alert';
@@ -75,16 +75,38 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         message: string;
         type?: 'info' | 'warning' | 'error';
     }>({ show: false, message: '' });
+    const [showShopPopup, setShowShopPopup] = useState(false);
+
+    // State for button interactions
+    const [isPetsHovering, setIsPetsHovering] = useState(false);
+    const [isPetsActive, setIsPetsActive] = useState(false);
+    const [isAccessoriesHovering, setIsAccessoriesHovering] = useState(false);
+    const [isAccessoriesActive, setIsAccessoriesActive] = useState(false);
 
     const handleMultiplayerClick = () => {
         onNavigateTo('multiplayer');
     };
 
-    const handleShopClick = () => {
+    const handleShopButtonClick = () => {
+        playSound(buttonClickSound);
+        setShowShopPopup(true);
+    };
+
+    const handleAccessoriesClick = () => {
+        playSound(buttonClickSound);
+        setShowShopPopup(false);
         onNavigateTo('shop');
     };
 
+    const handlePetsClick = () => {
+        playSound(buttonClickSound);
+        // TODO: Implement Pets navigation or functionality
+        console.log("Pets button clicked - functionality TBD");
+        setShowShopPopup(false);
+    };
+
     const handleInventoryClick = () => {
+        playSound(buttonClickSound);
         onNavigateTo('inventory');
     };
 
@@ -97,6 +119,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     const handleButtonClick = (callback: () => void) => {
         playSound(buttonClickSound);
         callback();
+    };
+
+    // Function to determine image source based on state
+    const getButtonImageSrc = (buttonType: 'pets' | 'accessories') => {
+        if (buttonType === 'pets') {
+            if (isPetsActive) return '/ShopUI/petButton_hover.png';
+            if (isPetsHovering) return '/ShopUI/petButton_hover.png';
+            return '/ShopUI/petButton.png';
+        } else { // accessories
+            // Using hover state for active as no specific down image provided
+            if (isAccessoriesActive || isAccessoriesHovering) return '/ShopUI/accessoriesButton_hover.png'; 
+            return '/ShopUI/accessoriesButton.png';
+        }
     };
 
     if (isConnected && isNewUser) {
@@ -204,14 +239,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             </button>
                             <button
                                 className={styles.menuButton}
-                                onClick={() => handleButtonClick(handleShopClick)}
+                                onClick={handleShopButtonClick}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 SHOP
                             </button>
                             <button
                                 className={styles.menuButton}
-                                onClick={() => handleButtonClick(handleInventoryClick)}
+                                onClick={handleInventoryClick}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 INVENTORY
@@ -250,6 +285,53 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Shop Options Popup */}
+            {showShopPopup && (
+                <div className={styles.shopPopupOverlay}>
+                    <div className={styles.shopPopupContainer}>
+                        <button 
+                            className={styles.shopPopupCloseButton} 
+                            onClick={() => setShowShopPopup(false)}
+                            onMouseEnter={() => playSound(buttonHoverSound)}
+                        >X</button>
+                        <button 
+                            className={styles.shopOptionButton} 
+                            onClick={handlePetsClick}
+                            onMouseEnter={() => { setIsPetsHovering(true); playSound(buttonHoverSound); }}
+                            onMouseLeave={() => { setIsPetsHovering(false); setIsPetsActive(false); }}
+                            onMouseDown={() => setIsPetsActive(true)}
+                            onMouseUp={() => setIsPetsActive(false)}
+                        >
+                            <Image 
+                                key={getButtonImageSrc('pets')} // Add key to force re-render on src change
+                                src={getButtonImageSrc('pets')}
+                                alt="Pets" 
+                                width={304} 
+                                height={118}
+                                priority
+                            />
+                        </button>
+                        <button 
+                            className={styles.shopOptionButton} 
+                            onClick={handleAccessoriesClick}
+                            onMouseEnter={() => { setIsAccessoriesHovering(true); playSound(buttonHoverSound); }}
+                            onMouseLeave={() => { setIsAccessoriesHovering(false); setIsAccessoriesActive(false); }}
+                            onMouseDown={() => setIsAccessoriesActive(true)}
+                            onMouseUp={() => setIsAccessoriesActive(false)}
+                        >
+                            <Image 
+                                key={getButtonImageSrc('accessories')} // Add key to force re-render on src change
+                                src={getButtonImageSrc('accessories')}
+                                alt="Accessories" 
+                                width={314} 
+                                height={118}
+                                priority
+                            />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

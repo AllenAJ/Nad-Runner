@@ -12,6 +12,7 @@
     box-sizing: border-box; /* Ensure padding is included in width calculation */
 }
 
+
 .header {
     display: flex;
     justify-content: space-between;
@@ -591,3 +592,300 @@
     z-index: 1000;
     border-radius: 0.5rem;
 }
+
+
+/* Shop Styles */
+
+.container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    gap: 24px;
+    padding: 24px;
+    background: url('/bg/1.png') no-repeat center center;
+    background-size: cover;
+    color: #fff;
+}
+
+.leftSection {
+    width: 35%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    /* background: rgba(245, 245, 245, 0.1);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding-bottom: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.1); */
+}
+
+.rightSection {
+    width: 65%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.characterPreview {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.header {
+    padding: 0 0 16px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: #fff;
+}
+
+.backButton {
+    width: 180px;
+    padding: 14px;
+    border: 3px solid #000000;
+    border-radius: 12px;
+    background: white;
+    color: #000000;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 4px 4px 0px #000000;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.backButton:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000000;
+}
+
+.backButton:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #000000;
+}
+
+.tabsContainer {
+    margin-bottom: 24px;
+}
+
+.tabButton {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tabButton.active {
+    background-color: rgba(74, 144, 226, 0.6);
+    color: white;
+    border: 1px solid rgba(74, 144, 226, 0.8);
+}
+
+.itemsGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-right: 16px;
+}
+
+.itemContainer {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.itemContainer:hover {
+    transform: translateY(-2px);
+}
+
+.itemCard {
+    position: relative;
+    min-width: 42px;
+    height: 42px;
+    background: #00000047;
+    border: 2px solid #363232;
+    border-radius: 8px;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    transform-origin: center center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.itemDetails {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.itemName {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: #fff;
+}
+
+.itemDescription {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 8px;
+}
+
+.itemPrice {
+    font-size: 14px;
+    color: #fff;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.buttonContainer {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.tryButton {
+    width: auto;
+    min-width: 80px;
+    padding: 8px 16px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.tryButton:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.tryButton.active {
+    background-color: #4a90e2;
+}
+
+.tryButton.active:hover {
+    background-color: #357abd;
+}
+
+.buyButton {
+    width: auto;
+    min-width: 80px;
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.buyButton:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+.buyButton:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.error {
+    color: #ff6b6b;
+    text-align: center;
+    padding: 16px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(8px);
+}
+
+.loading {
+    text-align: center;
+    padding: 16px;
+    color: #fff;
+}
+
+/* Rarity-based styles */
+.itemCard[data-rarity="normal"] {
+    border-color: #cccccc;
+    box-shadow: 0 0 5px rgba(204, 204, 204, 0.3);
+}
+
+.itemCard[data-rarity="premium"] {
+    border-color: #4a90e2;
+    box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+}
+
+.itemCard.previewActive {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+}
+
+.resetPreviewButton {
+    padding: 8px 16px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.resetPreviewButton:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.resetPreviewButton:active {
+    transform: translateY(1px);
+} 

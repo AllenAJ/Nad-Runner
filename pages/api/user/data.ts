@@ -59,7 +59,6 @@ export default async function handler(
 
     // Convert wallet address to lowercase for consistency
     const normalizedWalletAddress = walletAddress.toLowerCase();
-    const defaultUsername = `Player_${normalizedWalletAddress.slice(0, 6)}`;
 
     try {
         // Get player profile data
@@ -73,37 +72,9 @@ export default async function handler(
         `, [normalizedWalletAddress]);
 
         if (result.rows.length === 0) {
-            // If no profile exists, create one
-            const insertResult = await pool.query<PlayerData>(`
-                WITH new_user AS (
-                    INSERT INTO users (wallet_address, username)
-                    VALUES ($1, $2)
-                    ON CONFLICT (wallet_address) DO UPDATE
-                    SET last_login = CURRENT_TIMESTAMP
-                    RETURNING wallet_address
-                )
-                INSERT INTO player_profiles (wallet_address)
-                SELECT wallet_address FROM new_user
-                ON CONFLICT (wallet_address) DO UPDATE
-                SET last_updated = CURRENT_TIMESTAMP
-                RETURNING *
-            `, [normalizedWalletAddress, defaultUsername]);
-
-            // Return the newly created profile
-            const newProfile = insertResult.rows[0];
-            return res.status(200).json({
-                playerStats: {
-                    highScore: newProfile.high_score,
-                    boxJumps: newProfile.box_jumps,
-                    highScoreBoxJumps: newProfile.high_score_box_jumps,
-                    coins: newProfile.coins,
-                    rounds: newProfile.rounds,
-                    level: newProfile.level,
-                    xp: newProfile.xp,
-                    xpToNextLevel: newProfile.xp_to_next_level,
-                    status: newProfile.status,
-                    username: defaultUsername
-                }
+            // If no profile exists, return a 404 status
+            return res.status(404).json({
+                error: 'User profile not found'
             });
         }
 

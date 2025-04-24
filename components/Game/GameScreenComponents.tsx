@@ -38,26 +38,6 @@ const LoadingSpinner: React.FC = () => (
     </div>
 );
 
-export const ShopScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
-    const handleButtonClick = (callback: () => void) => {
-        playSound(buttonClickSound);
-        callback();
-    };
-
-    return (
-        <div className={styles.shopScreen}>
-            <h2>Shop</h2>
-            <p>Coming soon...</p>
-            <button 
-                onClick={() => handleButtonClick(onBackToMenu)}
-                onMouseEnter={() => playSound(buttonHoverSound)}
-                className={styles.backButton}
-            >
-                Back to Menu
-            </button>
-        </div>
-    );
-};
 
 type EquippedItems = {
     body: string | null;

@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Shop.module.css';
 import { LayeredCharacter } from '../../components/Character/LayeredCharacter';
+import inventoryStyles from '../../styles/Inventory.module.css';
+import Image from 'next/image';
 
 // Add button sounds
 const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
@@ -237,113 +239,158 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
 
     return (
         <div className={styles.container}>
-            {/* Left Section - Character Preview */}
-            <div className={styles.leftSection}>
-                <div className={styles.characterPreview}>
-                    <LayeredCharacter
-                        width={200}
-                        height={200}
-                        showShadow={true}
-                        equippedHead={previewState.head}
-                        equippedMouth={previewState.mouth}
-                        equippedEyes={previewState.eyes}
-                        equippedNose={previewState.nose}
-                        equippedMinipet={previewState.minipet}
-                    />
+            <div className={styles.header}>
+                <h1>Shop</h1>
+                {onClose && (
                     <button 
-                        className={styles.resetPreviewButton}
-                        onClick={() => setPreviewState({})}
+                        className={styles.backButton}
+                        onClick={handleBackToMenu}
+                        onMouseEnter={() => playSound(buttonHoverSound)}
                     >
-                        Reset Preview
+                        Back to Menu
                     </button>
-                </div>
+                )}
             </div>
 
-            {/* Right Section - Shop Items */}
-            <div className={styles.rightSection}>
-                <div className={styles.header}>
-                    <h1>Shop</h1>
-                    {onClose && (
-                        <button 
-                            className={styles.backButton}
-                            onClick={handleBackToMenu}
-                            onMouseEnter={() => playSound(buttonHoverSound)}
-                        >
-                            Back to Menu
-                        </button>
-                    )}
+            <div className={styles.mainContent}>
+                {/* Left Section - Character Preview */}
+                <div className={styles.leftSection}>
+                    <div className={styles.characterPreview}>
+                        <LayeredCharacter
+                            width={200}
+                            height={200}
+                            showShadow={true}
+                            equippedHead={previewState.head}
+                            equippedMouth={previewState.mouth}
+                            equippedEyes={previewState.eyes}
+                            equippedNose={previewState.nose}
+                            equippedMinipet={previewState.minipet}
+                        />
+                        <div className={styles.characterControls}>
+                            <button className={styles.controlButton}>
+                                <Image 
+                                    src="/ShopUI/accessoriesCircleLeftButton.png" 
+                                    alt="Rotate Left" 
+                                    width={40} 
+                                    height={40}
+                                />
+                            </button>
+                            <button className={styles.controlButton}>
+                                <Image 
+                                    src="/ShopUI/accessoriesResetButton.png" 
+                                    alt="Reset View" 
+                                    width={40} 
+                                    height={40}
+                                />
+                            </button>
+                            <button className={styles.controlButton}>
+                                <Image 
+                                    src="/ShopUI/accessoriesCircleRightButton.png" 
+                                    alt="Rotate Right" 
+                                    width={40} 
+                                    height={40}
+                                />
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div className={styles.tabsContainer}>
+                {/* Center Section - Category Buttons */}
+                <div className={styles.categoryButtons}>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'normal' ? styles.active : ''}`}
                         onClick={() => setActiveTab('normal')}
                     >
-                        Normal Items
+                        <Image 
+                            src={activeTab === 'normal' ? '/ShopUI/normalItemButton_hover.png' : '/ShopUI/normalItemButton.png'}
+                            alt="Normal Items"
+                            width={182}
+                            height={86}
+                            priority
+                        />
                     </button>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'premium' ? styles.active : ''}`}
                         onClick={() => setActiveTab('premium')}
                     >
-                        Premium Items
+                        <Image 
+                            src={activeTab === 'premium' ? '/ShopUI/premiumItemButton_hover.png' : '/ShopUI/premiumItemButton.png'}
+                            alt="Premium Items"
+                            width={182}
+                            height={86}
+                            priority
+                        />
                     </button>
                 </div>
 
-                {error && <div className={styles.error}>{error}</div>}
+                {/* Right Section - Shop Items */}
+                <div className={styles.rightSection}>
+                    {error && <div className={styles.error}>{error}</div>}
 
-                {loading ? (
-                    <div className={styles.loading}>Loading items...</div>
-                ) : (
-                    <div className={styles.itemsGrid}>
-                        {filteredItems.map((item) => (
-                            <div key={item.id} className={styles.itemContainer}>
-                                <div
-                                    className={`${styles.itemCard} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.previewActive : ''}`}
-                                    data-rarity={item.rarity}
-                                    onClick={() => handlePreviewItem(item)}
-                                >
-                                    <div className={styles.itemImage}>
-                                        <img
-                                            src={getPreviewImageUrl(item.image_url)}
-                                            alt={item.name}
-                                            width={32}
-                                            height={32}
-                                            loading="lazy"
-                                        />
+                    {loading ? (
+                        <div className={styles.loading}>Loading items...</div>
+                    ) : (
+                        <div className={styles.itemsGrid}>
+                            {filteredItems.map((item) => (
+                                <div key={item.id} className={styles.itemContainer}>
+                                    <div
+                                        className={`${styles.itemCard} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.previewActive : ''}`}
+                                        data-rarity={item.rarity}
+                                        onClick={() => handlePreviewItem(item)}
+                                    >
+                                        <div className={styles.itemImage}>
+                                            <img
+                                                src={getPreviewImageUrl(item.image_url)}
+                                                alt={item.name}
+                                                width={32}
+                                                height={32}
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                        {item.owned && <div className={styles.itemCount}>x1</div>}
                                     </div>
-                                    {item.owned && <div className={styles.itemCount}>x1</div>}
+                                    
+                                    <div className={styles.itemDetails}>
+                                        <div className={styles.itemName}>{item.name}</div>
+                                        <div className={styles.itemDescription}>{item.description}</div>
+                                        {!item.owned && (
+                                            <>
+                                                <div className={styles.itemPrice}>
+                                                    {item.price} {item.type === 'normal' ? '🪙' : '💎'}
+                                                </div>
+                                                <div className={styles.buttonContainer}>
+                                                    <button
+                                                        className={styles.tryButton}
+                                                        onClick={() => handlePreviewItem(item)}
+                                                    >
+                                                        <Image 
+                                                            src="/ShopUI/tryButton.png"
+                                                            alt="Try"
+                                                            width={80}
+                                                            height={40}
+                                                        />
+                                                    </button>
+                                                    <button
+                                                        className={styles.buyButton}
+                                                        onClick={() => handleBuyItem(item)}
+                                                        disabled={purchaseStatus[item.id] === 'buying'}
+                                                    >
+                                                        <Image 
+                                                            src="/ShopUI/buyButton.png"
+                                                            alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
+                                                            width={80}
+                                                            height={40}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                                
-                                <div className={styles.itemDetails}>
-                                    <div className={styles.itemName}>{item.name}</div>
-                                    <div className={styles.itemDescription}>{item.description}</div>
-                                    {!item.owned && (
-                                        <>
-                                            <div className={styles.itemPrice}>
-                                                {item.price} {item.type === 'normal' ? '🪙' : '💎'}
-                                            </div>
-                                            <div className={styles.buttonContainer}>
-                                                <button
-                                                    className={`${styles.tryButton} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.active : ''}`}
-                                                    onClick={() => handlePreviewItem(item)}
-                                                >
-                                                    {previewState[item.sub_category as keyof PreviewState] === item.id ? 'Stop Try' : 'Try'}
-                                                </button>
-                                                <button
-                                                    className={styles.buyButton}
-                                                    onClick={() => handleBuyItem(item)}
-                                                    disabled={purchaseStatus[item.id] === 'buying'}
-                                                >
-                                                    {purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
