@@ -64,12 +64,14 @@ export default async function handler(
         res.status(200).json({
             user: user,
             playerStats: {
+                username: user.username,
                 highScore: user.high_score,
                 boxJumps: user.box_jumps,
                 highScoreBoxJumps: user.high_score_box_jumps,
                 coins: user.coins,
                 rounds: user.rounds,
-                level: user.level
+                level: user.level,
+                xp: user.xp,
             },
             inventoryStats: inventoryStats.rows[0] || {
                 total_items: 0,

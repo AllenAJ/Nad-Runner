@@ -542,21 +542,11 @@ export default function GameContainer() {
     const handleUsernameSubmit = async (username: string) => {
         try {
             const normalizedWalletAddress = walletAddress.toLowerCase();
-            // First check if user exists
-            const checkResponse = await fetch(`/api/user/check?walletAddress=${normalizedWalletAddress}`);
-            const checkData = await checkResponse.json();
             
-            if (checkResponse.ok) {
-                // User exists, set the data and continue
-                setUserData(checkData.user);
-                setPlayerData({
-                    playerStats: checkData.playerStats
-                });
-                setIsNewUser(false);
-                return;
-            }
+            // Removed the initial /api/user/check call as it's redundant here
+            // We only reach this function if isNewUser is true.
 
-            // If user doesn't exist, create new user
+            // Directly proceed to create new user
             const createResponse = await fetch('/api/user/create', {
                 method: 'POST',
                 headers: {
@@ -574,8 +564,9 @@ export default function GameContainer() {
                 throw new Error(createData.error || 'Failed to create user');
             }
 
-            setUserData(createData.user);
-            // Set player data for new user
+            setUserData(createData.user); // Set user data from the creation response
+            
+            // Set player data for the new user using the submitted username
             setPlayerData({
                 playerStats: {
                     highScore: 0,
@@ -587,13 +578,15 @@ export default function GameContainer() {
                     xp: 0,
                     xpToNextLevel: 150,
                     status: 'Newbie',
-                    username: username
+                    username: username // Use the submitted username here
                 }
             });
-            setIsNewUser(false);
+            setIsNewUser(false); // Update the state to indicate user now exists
         } catch (error) {
             console.error('Error in handleUsernameSubmit:', error);
-            throw error;
+            // Optionally, re-throw or set an error state to show in the UI
+            // For now, just logging the error.
+            // throw error; 
         }
     };
 
