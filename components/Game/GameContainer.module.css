@@ -1807,3 +1807,36 @@
 .shopOptionButton:active {
     transform: scale(0.98);
 }
+
+.primaryButton:disabled,
+.menuButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none; /* Ensure no mouse events trigger */
+    box-shadow: 2px 2px 0px #000000; /* Flatten shadow */
+    transform: translate(2px, 2px); /* Flatten transform */
+}
+
+.primaryButton:disabled:hover,
+.menuButton:disabled:hover {
+    transform: translate(2px, 2px); /* Keep flattened on hover */
+    box-shadow: 2px 2px 0px #000000;
+    background: #9CA3AF; /* Generic disabled background for primary */
+}
+
+.menuButton:disabled:hover {
+    background: white; /* Keep original background for menu buttons */
+}
+
+/* Ensure hover effect on non-disabled primary is specific */
+.primaryButton:not(:disabled):hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000000;
+    background: #4F46E5;
+}
+
+/* Ensure hover effect on non-disabled menu is specific */
+.menuButton:not(:disabled):hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #000000;
+}

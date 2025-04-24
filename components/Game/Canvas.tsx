@@ -156,6 +156,18 @@ interface GameState {
     } | null;
     backgroundX: number; // Add this for background position
     lastSpawnTime?: number;
+    coins: Array<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        collected: boolean;
+        frame: number;
+        lastFrameUpdate: number;
+        value: number;
+    }>;
+    coinCount: number;
+    coinImages: (HTMLImageElement | null)[];
 }
 
 interface Obstacle {
@@ -283,6 +295,13 @@ const INITIAL_STATE: GameState = {
     canBoxJump: false,
     currentBox: null,
     backgroundX: 0, // Initialize background position
+    coins: [],
+    coinCount: 0,
+    coinImages: Array.from({ length: 16 }, (_, i) => {
+        const img = typeof window !== 'undefined' ? new window.Image() : null;
+        if (img) img.src = `/Coin/${i + 1}.svg`;
+        return img;
+    }),
 };
 
 const PLAYER_SIZE = 50;
@@ -1015,6 +1034,113 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         updatePlayer(deltaTime);
         updateObstacles(deltaTime);
         updatePowerups(deltaTime);
+        
+        // Update coins
+        updateCoins(deltaTime);
+    };
+
+    const updateCoins = (deltaTime: number) => {
+        const state = gameStateRef.current;
+        const groundHeight = getGroundHeight(height);
+
+        // Move existing coins
+        state.coins = state.coins.filter(coin => {
+            if (coin.collected) return false;
+
+            // Move coin with game speed
+            coin.x -= state.gameSpeed;
+
+            // Update coin animation frame every 50ms
+            const now = Date.now();
+            if (now - coin.lastFrameUpdate > 50) {
+                coin.frame = (coin.frame + 1) % 16; // 16 frames total
+                coin.lastFrameUpdate = now;
+            }
+
+            // Check for coin collection
+            const playerHitbox = {
+                x: state.playerX,
+                y: state.playerY,
+                width: PLAYER_SIZE,
+                height: PLAYER_SIZE
+            };
+
+            const coinHitbox = {
+                x: coin.x,
+                y: coin.y,
+                width: coin.width,
+                height: coin.height
+            };
+
+            if (checkCollision(playerHitbox, coinHitbox)) {
+                collectCoin(coin);
+                return false;
+            }
+
+            // Keep coin if still on screen
+            return coin.x + coin.width > 0;
+        });
+
+        // Spawn new coins
+        if (Math.random() < 0.03 && state.coins.length < 5) { // Adjust spawn rate as needed
+            const coinSize = 30;
+            const minHeight = height - groundHeight - PLAYER_SIZE * 3;
+            const maxHeight = height - groundHeight - coinSize;
+            const coinY = minHeight + Math.random() * (maxHeight - minHeight);
+
+            state.coins.push({
+                x: width + coinSize,
+                y: coinY,
+                width: coinSize,
+                height: coinSize,
+                collected: false,
+                frame: 0,
+                lastFrameUpdate: Date.now(),
+                value: 10
+            });
+        }
+    };
+
+    const collectCoin = (coin: GameState['coins'][0]) => {
+        const state = gameStateRef.current;
+        
+        // Add score
+        state.score += coin.value * state.powerupEffects.scoreMultiplier;
+        state.coinCount++;
+
+        // Play coin collection sound
+        const coinSound = new Audio('/assets/audio/coin.mp3');
+        coinSound.volume = 0.3;
+        coinSound.play().catch(error => {
+            console.log('Coin sound playback failed:', error);
+        });
+
+        // Add floating text
+        state.floatingTexts.push({
+            text: `+${coin.value}`,
+            x: coin.x,
+            y: coin.y,
+            opacity: 1,
+            createdAt: Date.now()
+        });
+
+        // Add sparkle particles
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const speed = 2 + Math.random() * 2;
+            state.particles.push({
+                x: coin.x + coin.width / 2,
+                y: coin.y + coin.height / 2,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: Math.random() * 0.2,
+                size: 3 + Math.random() * 3,
+                color: '#FFD700',
+                opacity: 1,
+                fadeSpeed: 0.02
+            });
+        }
     };
 
     const drawGlass = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, isBroken: boolean, opacity: number) => {
@@ -1634,20 +1760,25 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         }
 
-        // Draw score and box jumps
+        // Draw score and coins collected side-by-side
         ctx.fillStyle = '#000000';
         ctx.font = '24px Arial';
+        ctx.textAlign = 'left';
+
         const scoreText = `Score: ${Math.floor(state.score)}`;
+        const coinText = `Coins: ${state.coinCount}`; // Changed text to just "Coins"
         const boxJumpsText = `Box Jumps: ${state.boxJumps}`;
 
-        // Draw score on the left
-        ctx.textAlign = 'left';
+        // Draw score first
         ctx.fillText(scoreText, 10, 30);
 
-        // Draw box jumps to the right of score
-        // First measure the width of the score text
+        // Measure score width and draw coins count next to it
         const scoreWidth = ctx.measureText(scoreText).width;
-        ctx.fillText(boxJumpsText, scoreWidth + 40, 30); // Add 40px padding between texts
+        ctx.fillText(coinText, scoreWidth + 20, 30); // Added 20px padding
+
+        // Draw box jumps further right
+        const coinWidth = ctx.measureText(coinText).width;
+        ctx.fillText(boxJumpsText, scoreWidth + coinWidth + 40, 30); // Adjusted padding
 
         // Draw floating texts
         state.floatingTexts.forEach(text => {
@@ -1764,6 +1895,25 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             particle.size += 0.2;
 
             return true;
+        });
+
+        // Draw coins
+        state.coins.forEach(coin => {
+            if (coin.collected) return;
+            
+            const coinImage = state.coinImages[coin.frame];
+            if (coinImage && coinImage.complete) {
+                ctx.save();
+                ctx.translate(coin.x + coin.width / 2, coin.y + coin.height / 2);
+                ctx.drawImage(
+                    coinImage,
+                    -coin.width / 2,
+                    -coin.height / 2,
+                    coin.width,
+                    coin.height
+                );
+                ctx.restore();
+            }
         });
 
         // Add debug visualization at the end

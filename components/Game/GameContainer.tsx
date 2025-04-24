@@ -172,27 +172,45 @@ export default function GameContainer() {
     const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
             // User disconnected their wallet
+            console.log('Wallet disconnected.');
             setIsConnected(false);
             setWalletAddress("");
             setProvider(null);
+            setUserData(null); // Clear user data
+            setPlayerData(null); // Clear player data
+            setIsNewUser(false); // Reset new user status
             
-            // Reset game state if playing
-            if (gameState.isPlaying) {
-                setGameState(prev => ({
-                    ...prev,
-                    isPlaying: false,
-                    currentScreen: 'loading'
-                }));
+            // Always navigate back to the main menu on disconnect
+            setGameState(prev => ({
+                ...prev,
+                isPlaying: false, // Ensure game stops if playing
+                currentScreen: 'menu' 
+            }));
+            
+            // Stop any ongoing minting process if necessary
+            if (isMinting) {
+                setIsMinting(false);
+                setMintStatus({ status: 'error', message: 'Wallet disconnected during minting.' });
             }
+
         } else {
-            // New account connected
+            // New account connected or switched
+            console.log('Wallet connected/changed:', accounts[0]);
             setIsConnected(true);
             setWalletAddress(accounts[0]);
             
-            // If we were in loading screen, load game data
-            if (gameState.currentScreen === 'loading' && !leaderboardLoaded) {
-                loadGameData();
+            // Re-check user status and load data for the new/switched account
+            // Ensure provider is set for checks
+            if (!provider && window.ethereum) {
+                setProvider(new ethers.BrowserProvider(window.ethereum));
             }
+            checkUserExists(); // Re-check if user exists with the new address
+            // Load game data if not already loaded (or reload if necessary)
+            if (!leaderboardLoaded || !assetsLoaded) {
+                loadGameData(); 
+            }
+            // If currently in menu, stay there. If somehow in loading, maybe transition.
+            // If playing, maybe prompt user or restart? For now, we let game continue if it was already running.
         }
     };
 

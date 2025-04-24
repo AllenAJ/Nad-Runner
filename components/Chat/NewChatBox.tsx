@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import styles from './NewChatBox.module.css';
 import { TradeSection } from './TradeSection';
@@ -229,6 +229,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const [users, setUsers] = useState<OnlineUser[]>([]);
     const [isTradeOfferer, setIsTradeOfferer] = useState(false);
     const [alertState, setAlertState] = useState<{ show: boolean; message: string; type?: 'info' | 'warning' | 'error' }>({ show: false, message: '' });
+    const [hasActiveOffer, setHasActiveOffer] = useState(false);
+    const [isCreatingOffer, setIsCreatingOffer] = useState(false);
 
     // Convert inventory items to the format we need, handling undefined case
     const availableItems: Item[] = React.useMemo(() => {
@@ -301,23 +303,22 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         socketRef.current.on('activeOffers', (activeOffers: TradeOffer[]) => {
             console.log('🔵 Received initial active offers:', activeOffers);
             setOffers(activeOffers);
+            setIsCreatingOffer(false);
         });
 
         // Handle new trade offers
         socketRef.current.on('newTradeOffer', (offer: TradeOffer) => {
             console.log('🟢 Received new trade offer:', offer);
             setOffers(prev => {
-                // Check if offer already exists to prevent duplicates
-                if (prev.some(o => o.id === offer.id)) {
-                    return prev;
-                }
+                if (prev.some(o => o.id === offer.id)) return prev;
                 return [offer, ...prev];
             });
+            setIsCreatingOffer(false);
         });
 
         // Handle cancelled offers
         socketRef.current.on('tradeOfferCancelled', (offerId: string) => {
-            console.log('🔴 Trade offer cancelled:', offerId);
+            console.log('🔴 Trade offer cancelled by someone:', offerId);
             setOffers(prev => prev.filter(offer => offer.id !== offerId));
         });
 
@@ -351,6 +352,9 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 message: data.message,
                 type: data.type || 'info' 
             });
+            if (data.message.includes('already have an active trade offer')) {
+                setIsCreatingOffer(false);
+            }
         });
         // *** END ADDED ***
 
@@ -722,6 +726,14 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             handleTradeError('Not connected to server');
             return;
         }
+        
+        // Check frontend state first (optional but good UX)
+        if (hasActiveOffer) {
+             handleTradeError('You already have an active trade offer.');
+             return;
+        }
+
+        setIsCreatingOffer(true); // Set loading state
 
         const newOffer: TradeOffer = {
             id: `offer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -741,16 +753,6 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             partner: '',
             partnerSocketId: ''
         });
-
-        // Add loading message
-        setMessages(prev => [...prev, {
-            id: generateTempId(),
-            sender_address: 'system',
-            sender_name: 'System',
-            message: 'Creating trade offer...',
-            created_at: new Date().toISOString(),
-            isSystem: true
-        }]);
     };
 
     const handleCancelOffer = (offerId: string) => {
@@ -975,6 +977,30 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         }]);
     };
 
+    // Update hasActiveOffer whenever offers or walletAddress changes
+    useEffect(() => {
+        if (!walletAddress) {
+            setHasActiveOffer(false);
+            return;
+        }
+        const userAddressLower = walletAddress.toLowerCase();
+        const userHasOffer = offers.some(offer => 
+            offer.sellerAddress?.toLowerCase() === userAddressLower && 
+            (offer.status === 'pending' || offer.status === 'negotiating') // Consider negotiating as active too
+        );
+        setHasActiveOffer(userHasOffer);
+    }, [offers, walletAddress]);
+
+    // Also, display the user's active offer if they have one
+    const myActiveOffer = useMemo(() => {
+        if (!walletAddress) return null;
+        const userAddressLower = walletAddress.toLowerCase();
+        return offers.find(offer => 
+            offer.sellerAddress?.toLowerCase() === userAddressLower && 
+            (offer.status === 'pending' || offer.status === 'negotiating')
+        );
+    }, [offers, walletAddress]);
+
     return (
         <div className={styles.wrapper}>
             {(!isConnected || !isInitialized) && (
@@ -1101,8 +1127,12 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                             )}
                         </div>
                         <div className={styles.tradeControls}>
-                            <button className={styles.makeOfferButton} onClick={() => setIsSelectingItem(true)}>
-                                Make Offer
+                            <button 
+                                className={styles.makeOfferButton}
+                                onClick={() => setIsSelectingItem(true)}
+                                disabled={hasActiveOffer || isCreatingOffer}
+                            >
+                                {isCreatingOffer ? 'Creating Offer...' : hasActiveOffer ? 'Offer Active' : 'Create Trade Offer'}
                             </button>
                             <div className={styles.rarityFilters}>
                                 <div className={styles.filterGroup}>

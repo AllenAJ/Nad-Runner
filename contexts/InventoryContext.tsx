@@ -481,14 +481,72 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setItems(newItems);
     };
 
-    // Update the value object to include the new function and state
+    // Add reloadInventory function
+    const reloadInventory = useCallback(async () => {
+        if (!address) {
+            console.log('No wallet address found, clearing inventory');
+            setItems({});
+            setInventoryItems([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            console.log('=== INVENTORY FETCH START ===');
+            console.log('Fetching inventory for address:', address);
+            const normalizedAddress = address.toLowerCase();
+            console.log('Normalized address:', normalizedAddress);
+            
+            const response = await fetch(`/api/inventory/items?walletAddress=${normalizedAddress}`);
+            console.log('API Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch inventory: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('\n=== INVENTORY ITEMS ===');
+            if (data.items && data.items.length > 0) {
+                console.log(`Found ${data.items.length} items in inventory:`);
+                data.items.forEach((item: any, index: number) => {
+                    console.log(`\nItem ${index + 1}:`);
+                    console.log('- ID:', item.id);
+                    console.log('- Name:', item.name);
+                    console.log('- Category:', item.category);
+                    console.log('- Sub-category:', item.sub_category);
+                    console.log('- Rarity:', item.rarity);
+                    console.log('- Quantity:', item.quantity);
+                    console.log('- Equipped:', item.equipped);
+                    if (item.color) console.log('- Color:', item.color);
+                });
+            } else {
+                console.log('No items found in inventory');
+            }
+
+            const newItems: { [key: string]: number } = {};
+            data.items.forEach((item: any) => {
+                newItems[item.id] = item.quantity;
+            });
+
+            setItems(newItems);
+            setInventoryItems(data.items);
+            console.log('\n=== INVENTORY FETCH COMPLETE ===\n');
+        } catch (error) {
+            console.error('Error fetching inventory:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [address]);
+
+    // Update the value object to include the new function
     const value: InventoryContextType = {
         items,
         itemCounts,
         outfitLoadouts,
         activeLoadoutId,
         equippedPowerups,
-        equippedItems, // Add equipped items by category
+        equippedItems,
         addItem,
         removeItem,
         hasItem,
@@ -503,7 +561,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         countItem,
         isLoading,
         updateInventory,
-        equipItem, // Add the new function
+        equipItem,
+        reloadInventory,
     };
 
     return (

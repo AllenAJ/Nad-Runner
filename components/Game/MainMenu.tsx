@@ -4,6 +4,7 @@ import styles from './GameContainer.module.css';
 import { Alert } from './Alert';
 import { UsernamePrompt } from './UsernamePrompt';
 import { LayeredCharacter } from '../Character/LayeredCharacter';
+import { useInventory } from '../../contexts/InventoryContext';
 
 interface MainMenuProps {
     leaderboard: Array<{name: string, score: number}>;
@@ -70,6 +71,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         username: ''
     },
 }) => {
+    const { reloadInventory } = useInventory();
+    const [isInventoryLoading, setIsInventoryLoading] = useState(false);
     const [alert, setAlert] = React.useState<{
         show: boolean;
         message: string;
@@ -105,9 +108,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         setShowShopPopup(false);
     };
 
-    const handleInventoryClick = () => {
+    const handleInventoryClick = async () => {
         playSound(buttonClickSound);
-        onNavigateTo('inventory');
+        setIsInventoryLoading(true);
+        try {
+            await reloadInventory();
+            onNavigateTo('inventory');
+        } finally {
+            setIsInventoryLoading(false);
+        }
     };
 
     // Format the wallet address for display
@@ -234,6 +243,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 className={styles.primaryButton}
                                 onClick={() => handleButtonClick(onStartGame)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected}
                             >
                                 PLAY
                             </button>
@@ -241,6 +251,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 className={styles.menuButton}
                                 onClick={handleShopButtonClick}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected}
                             >
                                 SHOP
                             </button>
@@ -248,13 +259,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 className={styles.menuButton}
                                 onClick={handleInventoryClick}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected || isInventoryLoading}
                             >
-                                INVENTORY
+                                {isInventoryLoading ? 'LOADING...' : 'INVENTORY'}
                             </button>
                             <button
                                 className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleMultiplayerClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected}
                             >
                                 MULTIPLAYER
                             </button>
@@ -287,7 +300,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
 
             {/* Shop Options Popup */}
-            {showShopPopup && (
+            {showShopPopup && isConnected && (
                 <div className={styles.shopPopupOverlay}>
                     <div className={styles.shopPopupContainer}>
                         <button 
@@ -304,7 +317,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             onMouseUp={() => setIsPetsActive(false)}
                         >
                             <Image 
-                                key={getButtonImageSrc('pets')} // Add key to force re-render on src change
+                                key={getButtonImageSrc('pets')}
                                 src={getButtonImageSrc('pets')}
                                 alt="Pets" 
                                 width={304} 
@@ -321,7 +334,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             onMouseUp={() => setIsAccessoriesActive(false)}
                         >
                             <Image 
-                                key={getButtonImageSrc('accessories')} // Add key to force re-render on src change
+                                key={getButtonImageSrc('accessories')}
                                 src={getButtonImageSrc('accessories')}
                                 alt="Accessories" 
                                 width={314} 

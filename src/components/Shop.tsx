@@ -215,6 +215,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
     );
 
     const handlePreviewItem = (item: ShopItem) => {
+        if (!walletAddress) return; // Prevent preview if wallet disconnected
         setPreviewState(prev => {
             const isCurrentlyPreviewing = prev[item.sub_category as keyof PreviewState] === item.id;
             if (isCurrentlyPreviewing) {
@@ -362,25 +363,26 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                                     <button
                                                         className={styles.tryButton}
                                                         onClick={() => handlePreviewItem(item)}
+                                                        disabled={!walletAddress} // Disable if wallet disconnected
                                                     >
                                                         <Image 
                                                             src="/ShopUI/tryButton.png"
                                                             alt="Try"
                                                             width={80}
                                                             height={40}
-                                                        />
+                                                         />
                                                     </button>
                                                     <button
                                                         className={styles.buyButton}
                                                         onClick={() => handleBuyItem(item)}
-                                                        disabled={purchaseStatus[item.id] === 'buying'}
+                                                        disabled={!walletAddress || purchaseStatus[item.id] === 'buying'} // Disable if wallet disconnected or buying
                                                     >
                                                         <Image 
                                                             src="/ShopUI/buyButton.png"
                                                             alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
                                                             width={80}
                                                             height={40}
-                                                        />
+                                                         />
                                                     </button>
                                                 </div>
                                             </>

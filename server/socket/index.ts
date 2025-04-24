@@ -380,11 +380,26 @@ export const setupSocket = (io: SocketServer) => {
 
         // Trade offer handlers
         socket.on('makeTradeOffer', async (offer: TradeOffer) => {
+            const offererAddress = offer.offerer?.toLowerCase();
+            if (!offererAddress) {
+                socket.emit('serverAlert', { message: 'Invalid offer data: Missing offerer address', type: 'error' });
+                return;
+            }
+            
             // Add rate limit check
-            if (isTradeActionRateLimited(offer.offerer.toLowerCase())) {
+            if (isTradeActionRateLimited(offererAddress)) {
                 socket.emit('serverAlert', { message: 'Please wait before performing more trade actions', type: 'warning' });
                 return;
             }
+
+            // --- Check if user already has an active offer --- 
+            const existingOffer = activeOffers.find(o => o.offerer?.toLowerCase() === offererAddress && o.status === 'pending');
+            if (existingOffer) {
+                console.log(`🟡 User ${offer.sellerName} (${offererAddress}) already has an active offer: ${existingOffer.id}`);
+                socket.emit('serverAlert', { message: 'You already have an active trade offer. Cancel it before creating a new one.', type: 'warning' });
+                return; // Stop processing if user has an active offer
+            }
+            // --- End Check ---
             
             console.log('🟡 New trade offer received:', offer);
             const client = await wsPool.connect();
@@ -398,14 +413,14 @@ export const setupSocket = (io: SocketServer) => {
                      VALUES ($1, $2)
                      ON CONFLICT (wallet_address) DO UPDATE
                      SET username = $2`,
-                    [offer.offerer.toLowerCase(), offer.sellerName]
+                    [offererAddress, offer.sellerName]
                 );
                 
                 // Create the trade record without a buyer
-                await createTradeRecord(client, offer.id, offer.offerer);
+                await createTradeRecord(client, offer.id, offererAddress); // Use normalized address
                 
-                activeOffers.push(offer);
-                io.emit('newTradeOffer', offer);
+                activeOffers.push(offer); // Add to in-memory list
+                io.emit('newTradeOffer', offer); // Broadcast to all clients
                 await client.query('COMMIT');
             } catch (error) {
                 await client.query('ROLLBACK');

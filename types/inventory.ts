@@ -102,4 +102,5 @@ export interface InventoryContextType {
     isLoading: boolean;
     updateInventory: (newItems: { [key: string]: number }) => void;
     equipItem: (itemId: string, category: SubCategory, equipped?: boolean) => Promise<boolean>;
+    reloadInventory: () => Promise<void>;
 } 
