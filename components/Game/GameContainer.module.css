@@ -4,6 +4,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
 }
 
 .container[data-screen="multiplayer"] {
@@ -11,7 +12,20 @@
 }
 
 .container:not([data-screen="multiplayer"]) {
+    /* Background moved to ::before */
+}
+
+/* Pseudo-element for blurred background */
+.container:not([data-screen="multiplayer"])::before {
+    content: '';
+    position: absolute;
+    top: -10px; /* Extend slightly beyond edges to avoid blur cutoff */
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
     background: radial-gradient(circle at top right, #5F419D 0%, #2E1A62 100%);
+    filter: blur(8px); /* Adjust blur amount as needed */
+    z-index: -1; /* Place behind content */
 }
 
 .gameWrapper {
@@ -1839,4 +1853,59 @@
 .menuButton:not(:disabled):hover {
     transform: translate(-2px, -2px);
     box-shadow: 6px 6px 0px #000000;
+}
+
+.levelUpAlert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    color: #fff;
+    border: 2px solid #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.alertContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.alertContent h3 {
+    margin: 0;
+    font-size: 24px;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.fadeInOut {
+    animation: fadeInOut 3s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    10% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    20% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
 }

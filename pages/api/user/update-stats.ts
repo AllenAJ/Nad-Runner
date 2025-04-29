@@ -9,14 +9,19 @@ export default async function handler(
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { walletAddress, score, boxJumps } = req.body;
+    const { walletAddress, score, boxJumps, coinCount, xp } = req.body;
 
-    if (!walletAddress || typeof score !== 'number' || typeof boxJumps !== 'number') {
+    if (!walletAddress || 
+        typeof score !== 'number' || 
+        typeof boxJumps !== 'number' ||
+        typeof coinCount !== 'number' ||
+        typeof xp !== 'number'
+    ) {
         return res.status(400).json({ error: 'Invalid request data' });
     }
 
     try {
-        const updatedStats = await updatePlayerGameStats(walletAddress, score, boxJumps);
+        const updatedStats = await updatePlayerGameStats(walletAddress, score, boxJumps, coinCount, xp);
         res.status(200).json({
             playerStats: {
                 highScore: updatedStats.high_score,

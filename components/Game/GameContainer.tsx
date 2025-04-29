@@ -22,12 +22,18 @@ const GAME_HEIGHT = 700;
 const MOBILE_GAME_WIDTH = 400;
 const MOBILE_GAME_HEIGHT = 500;
 
+// Define types for game state and screens
+type GameScreen = 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer';
+
 interface GameState {
+    currentScreen: GameScreen;
     isPlaying: boolean;
     score: number;
     playerName: string;
     hasEnteredName: boolean;
-    currentScreen: 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer';
+    boxJumps: number;
+    coinCount: number;
+    xp: number;
 }
 
 interface LeaderboardEntry {
@@ -68,7 +74,10 @@ export default function GameContainer() {
         score: 0,
         playerName: '',
         hasEnteredName: false,
-        currentScreen: 'loading'
+        currentScreen: 'loading',
+        boxJumps: 0,
+        coinCount: 0,
+        xp: 0
     });
     
     // Game timers and scores
@@ -111,6 +120,9 @@ export default function GameContainer() {
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const gameOverSoundRef = useRef<HTMLAudioElement | null>(null);
+
+    // Alert state
+    const [alert, setAlert] = useState({ show: false, message: '', type: 'info' });
 
     // Handler to update coin balance from Shop/other components
     const handleUpdateCoins = (newBalance: number) => {
@@ -392,9 +404,9 @@ export default function GameContainer() {
         setIsGameOver(false);
     };
 
-    // Game over method
-    const handleGameOver = async (finalScore: number, boxJumps: number) => {
-        const roundedScore = Math.floor(finalScore);
+    // Game over method - Update signature to accept results object
+    const handleGameOver = async (results: { score: number; boxJumps: number; coinCount: number; xp: number; }) => {
+        const roundedScore = Math.floor(results.score);
 
         // Play game over sound if not muted
         if (gameOverSoundRef.current && !isMuted) {
@@ -408,6 +420,9 @@ export default function GameContainer() {
             ...prev,
             isPlaying: false,
             score: roundedScore,
+            boxJumps: results.boxJumps,
+            coinCount: results.coinCount,
+            xp: results.xp,
             currentScreen: 'gameOver'
         }));
         setIsGameOver(true);
@@ -423,7 +438,9 @@ export default function GameContainer() {
                     body: JSON.stringify({
                         walletAddress,
                         score: roundedScore,
-                        boxJumps
+                        boxJumps: results.boxJumps,
+                        coinCount: results.coinCount,
+                        xp: results.xp
                     }),
                 });
 
@@ -433,6 +450,29 @@ export default function GameContainer() {
 
                 // Refresh player data
                 const updatedData = await response.json();
+                
+                // Check for level up
+                if (playerData && updatedData.playerStats.level > playerData.playerStats.level) {
+                    // Play level up sound
+                    const levelUpSound = new Audio('/assets/audio/levelup.mp3');
+                    levelUpSound.volume = 0.5;
+                    levelUpSound.play().catch(error => {
+                        console.log('Level up sound playback failed:', error);
+                    });
+
+                    // Show level up notification
+                    setAlert({
+                        show: true,
+                        message: `Level Up! You are now level ${updatedData.playerStats.level}!`,
+                        type: 'info'
+                    });
+
+                    // Hide alert after 3 seconds
+                    setTimeout(() => {
+                        setAlert({ show: false, message: '', type: 'info' });
+                    }, 3000);
+                }
+
                 setPlayerData(updatedData);
 
                 // Only submit to leaderboard if we have a valid username
@@ -497,19 +537,21 @@ export default function GameContainer() {
         setGameState(prev => ({ ...prev, hasEnteredName: true }));
     };
 
-    // Play again method
+    // Start the game
     const handlePlayAgain = () => {
-        const startTime = Date.now() / 1000;
-        setGameStartTime(startTime);
-        setGameState({
+        console.log("handlePlayAgain called");
+        setGameState(prev => ({
+            ...prev,
             isPlaying: true,
             score: 0,
-            playerName: '',
-            hasEnteredName: false,
+            // Reset game-specific stats when starting again
+            boxJumps: 0,
+            coinCount: 0,
+            xp: 0,
+            hasEnteredName: false, // Assuming we want to reset this, adjust if needed
             currentScreen: 'game'
-        });
-        setIsGameOver(false);
-        setIsUpdatingStats(false); // Reset the flag when starting a new game
+        }));
+        setIsGameOver(false); // Reset game over flag
     };
 
     // Navigation method
@@ -744,6 +786,9 @@ export default function GameContainer() {
                 return (
                     <GameOverScreen 
                         score={gameState.score}
+                        boxJumps={gameState.boxJumps}
+                        coinCount={gameState.coinCount}
+                        xp={gameState.xp}
                         hasEnteredName={!!playerData}
                         playerName={playerData?.playerStats.username || gameState.playerName}
                         isConnected={isConnected}
@@ -828,6 +873,15 @@ export default function GameContainer() {
                                     <button onClick={handleConnect} className={styles.primaryButton}>
                                         Reconnect Wallet
                                     </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Add Level Up Alert */}
+                        {alert.show && (
+                            <div className={`${styles.levelUpAlert} ${styles.fadeInOut}`}>
+                                <div className={styles.alertContent}>
+                                    <h3>{alert.message}</h3>
                                 </div>
                             </div>
                         )}

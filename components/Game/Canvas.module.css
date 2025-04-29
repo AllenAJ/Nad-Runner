@@ -10,4 +10,10 @@
     transform: translateZ(0);
     backface-visibility: hidden;
     object-fit: contain;
+    /* Black outline */
+    border: 5px solid #000000;
+    /* Layered shadow for behind + purple glow */
+    box-shadow: 
+        2px 2px 5px rgba(0, 0, 0, 0.5), /* Black shadow behind */
+        0 0 15px #6a1b9a; /* Blurred purple glow */
 }

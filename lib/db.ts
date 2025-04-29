@@ -273,20 +273,54 @@ export async function getPlayerData(walletAddress: string) {
     }
 }
 
+// Calculate XP required for next level using a progressive scale
+function calculateXpToNextLevel(level: number): number {
+    // Base XP requirement is 150 (from GAME_CONSTANTS.DEFAULT_XP_TO_NEXT_LEVEL)
+    // Each level requires 20% more XP than the previous level
+    return Math.floor(150 * Math.pow(1.2, level - 1));
+}
+
 // Add this function to update player stats after a game
 export async function updatePlayerGameStats(
     walletAddress: string,
     score: number,
-    boxJumpsThisRound: number
+    boxJumpsThisRound: number,
+    coinsCollected: number,
+    xpGained: number
 ) {
     const client = await pool.connect();
     try {
+        // First, get current player stats
+        const currentStats = await client.query(`
+            SELECT level, xp, xp_to_next_level
+            FROM player_profiles
+            WHERE wallet_address = LOWER($1)
+        `, [walletAddress]);
+
+        let { level, xp, xp_to_next_level } = currentStats.rows[0];
+        
+        // Add new XP
+        xp += xpGained;
+        
+        // Check for level ups
+        while (xp >= xp_to_next_level) {
+            // Level up!
+            xp -= xp_to_next_level;
+            level += 1;
+            xp_to_next_level = calculateXpToNextLevel(level);
+        }
+
+        // Update player stats with new level and XP
         const result = await client.query(`
             WITH updated_stats AS (
                 UPDATE player_profiles 
                 SET high_score = GREATEST(high_score, $2),
                     box_jumps = box_jumps + $3,
                     high_score_box_jumps = GREATEST(high_score_box_jumps, $3),
+                    coins = coins + $4,
+                    xp = $5,
+                    level = $6,
+                    xp_to_next_level = $7,
                     rounds = rounds + 1,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE wallet_address = LOWER($1)
@@ -297,7 +331,7 @@ export async function updatePlayerGameStats(
                 u.username
             FROM updated_stats p
             JOIN users u ON p.wallet_address = u.wallet_address;
-        `, [walletAddress, score, boxJumpsThisRound]);
+        `, [walletAddress, score, boxJumpsThisRound, coinsCollected, xp, level, xp_to_next_level]);
         
         return result.rows[0];
     } catch (error) {

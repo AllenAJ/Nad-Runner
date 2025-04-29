@@ -5,6 +5,9 @@ import styles from './GameContainer.module.css';
 
 interface GameOverProps {
     score: number;
+    boxJumps: number;
+    coinCount: number;
+    xp: number;
     hasEnteredName: boolean;
     playerName: string;
     isConnected: boolean;
@@ -20,6 +23,9 @@ interface GameOverProps {
 
 export const GameOverScreen: React.FC<GameOverProps> = ({
     score,
+    boxJumps,
+    coinCount,
+    xp,
     hasEnteredName,
     playerName,
     isConnected,
@@ -32,10 +38,15 @@ export const GameOverScreen: React.FC<GameOverProps> = ({
     onPlayAgain,
     onBackToMenu
 }) => {
+    const formattedXP = xp > 0 ? `+${xp} XP` : '';
+
     return (
         <div className={styles.gameOverContainer}>
             <h2>Game Over!</h2>
             <p>Score: {Math.floor(score)}</p>
+            <p>Box Jumps: {boxJumps}</p>
+            <p>Coins: {coinCount}</p>
+            {formattedXP && <p>{formattedXP}</p>}
             
             {!hasEnteredName ? (
                 <>

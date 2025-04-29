@@ -7,7 +7,7 @@ interface CanvasProps {
     width: number;
     height: number;
     isPlaying: boolean;
-    onGameOver: (score: number, boxJumps: number) => void;
+    onGameOver: (results: { score: number; boxJumps: number; coinCount: number; xp: number; }) => void;
 }
 
 interface GameState {
@@ -43,13 +43,15 @@ interface GameState {
         y: number;
         width: number;
         height: number;
-        type: 'score' | 'invincible' | 'doubleJump';
+        type: 'score' | 'doubleJump' | 'coinMagnet' | 'timeReset';
         active?: boolean;
     }>;
     powerupEffects: {
         invincible: boolean;
         doubleJump: boolean;
         scoreMultiplier: number;
+        coinMagnet: boolean;
+        timeResetActive: boolean;
     };
     timeSinceStart: number;
     scale: number;
@@ -59,12 +61,16 @@ interface GameState {
         y: number;
         opacity: number;
         createdAt: number;
+        scale?: number;
+        color?: string;
     }>;
     invincibilityEndTime?: number;
     powerupTimeouts: {
         score?: NodeJS.Timeout;
         invincible?: NodeJS.Timeout;
         doubleJump?: NodeJS.Timeout;
+        coinMagnet?: NodeJS.Timeout;
+        timeReset?: NodeJS.Timeout;
     };
     boxJumps: number;
     lastBoxJumpTime: number;
@@ -168,6 +174,23 @@ interface GameState {
     }>;
     coinCount: number;
     coinImages: (HTMLImageElement | null)[];
+    // --- New Jump Bar State ---
+    jumpBarValue: number;
+    maxJumpBarValue: number;
+    jumpBarDepletionRate: number;
+    jumpBarReplenishAmount: number;
+    gameOverReason: 'collision' | 'jumpBarDepleted' | null; // To track why game ended
+    xp: number; // XP gained from box jumps
+    bestScore: number; // Track best score
+    // --- Add state for power-up display animation ---
+    powerupDisplay: {
+        type: PowerupType | null;
+        startTime: number | null;
+        scale: number;
+        opacity: number;
+    } | null;
+    // --- End power-up display state ---
+    lastPowerupSpawnScore: number; // Track score at last powerup spawn
 }
 
 interface Obstacle {
@@ -216,10 +239,29 @@ if (box3Image) box3Image.src = '/assets/box3.png';
 const cityBackgroundImage = typeof window !== 'undefined' ? new window.Image() : null;
 if (cityBackgroundImage) cityBackgroundImage.src = '/bg/city_background.svg'; // Updated path
 
+// Add after other images at the top
+const coinIconImage = typeof window !== 'undefined' ? new window.Image() : null;
+if (coinIconImage) coinIconImage.src = '/Display_Icon/coin.svg';
+
+// Add Power-up Icon Images
+const powerupIconImages = {
+    coinMagnet: typeof window !== 'undefined' ? new window.Image() : null,
+    doubleScore: typeof window !== 'undefined' ? new window.Image() : null,
+    timeReset: typeof window !== 'undefined' ? new window.Image() : null,
+    tripleJump: typeof window !== 'undefined' ? new window.Image() : null,
+};
+if (powerupIconImages.coinMagnet) powerupIconImages.coinMagnet.src = '/Powerup/Coin Magnet.svg';
+if (powerupIconImages.doubleScore) powerupIconImages.doubleScore.src = '/Powerup/Double Score.svg';
+if (powerupIconImages.timeReset) powerupIconImages.timeReset.src = '/Powerup/Time Reset.svg';
+if (powerupIconImages.tripleJump) powerupIconImages.tripleJump.src = '/Powerup/Triple Jump.svg';
+
 // Mobile-specific constants
 const MOBILE_SCALE = 1;
 const MOBILE_INITIAL_GAME_SPEED = 3; // Slower initial speed for mobile
 const PLAYER_START_X = 20;
+
+// Define all possible power-up types
+type PowerupType = 'score' | 'invincible' | 'doubleJump' | 'coinMagnet' | 'timeReset';
 
 // Game constants
 const INITIAL_STATE: GameState = {
@@ -242,12 +284,14 @@ const INITIAL_STATE: GameState = {
     score: 0,
     obstacles: [],
     lastObstacleX: 0,
-    lastObstacleType: undefined,  // Add this line
+    lastObstacleType: undefined,
     powerups: [],
     powerupEffects: {
         invincible: false,
         doubleJump: false,
-        scoreMultiplier: 1
+        scoreMultiplier: 1,
+        coinMagnet: false,
+        timeResetActive: false,
     },
     timeSinceStart: 0,
     scale: 1,
@@ -294,7 +338,8 @@ const INITIAL_STATE: GameState = {
     justJumped: false,
     canBoxJump: false,
     currentBox: null,
-    backgroundX: 0, // Initialize background position
+    backgroundX: 0,
+    lastSpawnTime: undefined,
     coins: [],
     coinCount: 0,
     coinImages: Array.from({ length: 16 }, (_, i) => {
@@ -302,6 +347,15 @@ const INITIAL_STATE: GameState = {
         if (img) img.src = `/Coin/${i + 1}.svg`;
         return img;
     }),
+    maxJumpBarValue: 100,
+    jumpBarValue: 100,
+    jumpBarDepletionRate: 5, // Points per second
+    jumpBarReplenishAmount: 10, // Points per box jump
+    gameOverReason: null,
+    powerupDisplay: null, // Initialize powerup display state
+    xp: 0, // Initialize XP to 0
+    bestScore: 0, // Initialize best score
+    lastPowerupSpawnScore: 0, // Initialize last powerup spawn score
 };
 
 const PLAYER_SIZE = 50;
@@ -310,7 +364,6 @@ const POWERUP_SIZE = 40;
 const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
 const PLAYER_OFFSET_FROM_GROUND = 0;
 const OBSTACLE_SPAWN_CHANCE = 0.95; // Increased spawn chance for more frequent obstacles
-const POWERUP_SPAWN_CHANCE = 0.008;
 const MIN_OBSTACLE_DISTANCE = 5; // Reduced distance for closer obstacle spawning
 const SPEED_INCREASE_INTERVAL = 3;
 const SPEED_INCREASE_AMOUNT = 0.5;
@@ -342,6 +395,13 @@ const jumpSound = typeof window !== 'undefined' ? new Audio('/assets/audio/jumps
 // Add explosion sound at the top with other assets
 const explosionSound = typeof window !== 'undefined' ? new Audio('/assets/audio/explode3.mp3') : null;
 
+// Add ticking clock sound for low jump bar
+const tickingSound = typeof window !== 'undefined' ? new Audio('/assets/audio/clockticking.mp3') : null;
+if (tickingSound) {
+    tickingSound.loop = true; // Make the sound loop continuously
+    tickingSound.volume = 0.5; // Set volume to 50%
+}
+
 // Add combo sounds at the top with other assets
 const comboSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/3_combo1.mp3') : null,
@@ -372,6 +432,70 @@ const hitSounds = [
 
 // Add this constant at the top with other constants
 const OBSTACLE_SPAWN_INTERVAL = 2000; // Spawn obstacle every 1 second
+
+// Coin Magnet Constants
+const COIN_MAGNET_RADIUS = 150; // Pixel radius around the player
+const COIN_MAGNET_STRENGTH = 400; // Speed at which coins are pulled (pixels per second)
+
+// Helper function to draw power-up icons
+const drawPowerupIcons = (ctx: CanvasRenderingContext2D, state: GameState, width: number) => {
+    const iconSize = 32; // Size of each icon
+    const padding = 8; // Padding between icons
+    const topMargin = 10; // Margin from the top edge
+    const rightMargin = 10; // Margin from the right edge
+
+    // Explicitly type the keys of iconMap and activeStatusMap
+    const icons: PowerupType[] = ['coinMagnet', 'score', 'timeReset', 'doubleJump'];
+    const iconMap: { [key in PowerupType]?: HTMLImageElement | null } = {
+        coinMagnet: powerupIconImages.coinMagnet,
+        score: powerupIconImages.doubleScore, // Use 'score' key for Double Score icon
+        timeReset: powerupIconImages.timeReset,
+        doubleJump: powerupIconImages.tripleJump // Use 'doubleJump' key for Triple Jump icon
+        // Note: 'invincible' icon is not loaded/handled here
+    };
+    const activeStatusMap: { [key in PowerupType]?: boolean } = {
+        coinMagnet: state.powerupEffects.coinMagnet,
+        score: state.powerupEffects.scoreMultiplier > 1,
+        timeReset: state.powerupEffects.timeResetActive,
+        doubleJump: state.powerupEffects.doubleJump
+    };
+
+    const startX = width - rightMargin - iconSize;
+    let currentY = topMargin;
+
+    ctx.save(); // Save context for filter changes
+
+    icons.forEach(iconType => {
+        const img = iconMap[iconType];
+        const isActive = activeStatusMap[iconType];
+
+        if (img && img.complete) {
+            if (!isActive) {
+                // Apply desaturation filter for inactive icons
+                ctx.filter = 'saturate(0) opacity(0.5)';
+            } else {
+                // Ensure no filter for active icons
+                ctx.filter = 'none';
+            }
+
+            ctx.drawImage(
+                img,
+                startX,
+                currentY,
+                iconSize,
+                iconSize
+            );
+
+            // Reset filter for the next draw operation within the loop
+            ctx.filter = 'none'; 
+
+            // Move down for the next icon
+            currentY += iconSize + padding;
+        }
+    });
+
+    ctx.restore(); // Restore original context state (including filter)
+};
 
 const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -421,6 +545,9 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const initialSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
         console.log('Resetting game for:', isMobile ? 'mobile' : 'desktop', 'speed:', initialSpeed);
 
+        // Get the current best score before resetting
+        const currentBestScore = gameStateRef.current ? Math.max(gameStateRef.current.bestScore, Math.floor(gameStateRef.current.score)) : 0;
+
         gameStateRef.current = {
             ...INITIAL_STATE,
             gameSpeed: initialSpeed,
@@ -432,6 +559,12 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             canBoxJump: false,
             currentBox: null,
             backgroundX: 0, // Reset background position
+            // --- Reset Jump Bar State ---
+            jumpBarValue: INITIAL_STATE.maxJumpBarValue, // Start full
+            gameOverReason: null,
+            xp: 0, // Reset XP
+            bestScore: currentBestScore, // Preserve best score
+            lastPowerupSpawnScore: 0, // Reset powerup spawn score tracking
         };
     };
 
@@ -507,7 +640,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         }
     };
 
-    const updateObstacles = (deltaTime: number) => {
+    const updateObstacles = (deltaTime: number): boolean => { // Return boolean
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
         
@@ -590,7 +723,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         };
                         if (checkCollisionWithBox(playerHitbox, frontBoxHitbox)) {
                             handleCollision(obstacle.x, frontBoxHitbox.y, obstacle);
-                            return true;
+                            return true; // Indicate collision occurred
                         }
 
                         // Check collision with stacked boxes
@@ -603,7 +736,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             };
                             if (checkCollisionWithBox(playerHitbox, stackedBoxHitbox)) {
                                 handleCollision(stackedBoxHitbox.x, stackedBoxHitbox.y, obstacle);
-                                return true;
+                                return true; // Indicate collision occurred
                             }
                         }
                     } else if (arrangement === 'horizontal' && hasChog) {
@@ -616,7 +749,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         };
                         if (checkCollisionWithBox(playerHitbox, box1Hitbox)) {
                             handleCollision(obstacle.x, obstacle.y, obstacle);
-                            return true;
+                            return true; // Indicate collision occurred
                         }
 
                         // Check collision with chog (middle)
@@ -628,7 +761,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         };
                         if (checkCollisionWithBox(playerHitbox, chogHitbox)) {
                             handleCollision(obstacle.x + BOX_SIZE, obstacle.y, obstacle);
-                            return true;
+                            return true; // Indicate collision occurred
                         }
 
                         // Check collision with second box
@@ -640,7 +773,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         };
                         if (checkCollisionWithBox(playerHitbox, box2Hitbox)) {
                             handleCollision(obstacle.x + BOX_SIZE * 2, obstacle.y, obstacle);
-                            return true;
+                            return true; // Indicate collision occurred
                         }
                     } else if (obstacle.type === 'split_gap' && obstacle.config.gapSize && obstacle.config.bottomCount && obstacle.config.topCount) {
                         // Bottom boxes collision
@@ -655,7 +788,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
                                 handleCollision(obstacle.x, boxY, obstacle);
-                                return true;
+                                return true; // Indicate collision occurred
                             }
                         }
 
@@ -715,7 +848,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
                                 handleCollision(obstacle.x, boxY, obstacle);
-                                return true;
+                                return true; // Indicate collision occurred
                             }
                         }
                     } else {
@@ -733,7 +866,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
                             if (checkCollisionWithBox(playerHitbox, boxHitbox)) {
                                 handleCollision(obstacle.x + offsetX, obstacle.y + offsetY, obstacle);
-                                return true;
+                                return true; // Indicate collision occurred
                             }
                         }
                     }
@@ -743,7 +876,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Update score with multiplier
         state.score += deltaTime * 10 * state.powerupEffects.scoreMultiplier;
-        return false;
+        return false; // No collision occurred
     };
 
     const HITBOX_PADDING = 5; // Smaller hitbox than the sprite
@@ -759,7 +892,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     // More complex collision check for boxes with landing zones and directional jumping
     const checkCollisionWithBox = (playerHitbox: any, boxHitbox: any) => {
         const state = gameStateRef.current;
-        
+        // --- Prevent collision checks if game over ---
+        if (state.gameOverReason || state.deathAnimation.active) return false;
+        // ---
+
         // Get player's bottom center point
         const playerBottomCenterX = playerHitbox.x + playerHitbox.width / 2;
         const playerBottom = playerHitbox.y + playerHitbox.height;
@@ -891,15 +1027,20 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
 
+        // --- Don't update if game over ---
+        if (state.gameOverReason || state.deathAnimation.active) return;
+        // ---
+
         // Move existing powerups
         state.powerups = state.powerups.filter(powerup => {
             powerup.x -= state.gameSpeed;
             return powerup.x + POWERUP_SIZE > 0;
         });
 
-        // Spawn new powerups
-        if (Math.random() < POWERUP_SPAWN_CHANCE && state.powerups.length < 2) {
-            const powerupTypes: Array<'score' | 'invincible' | 'doubleJump'> = ['score', 'invincible', 'doubleJump'];
+        // Spawn new powerups based on score interval
+        const POWERUP_SPAWN_INTERVAL_SCORE = 200;
+        if (state.score - state.lastPowerupSpawnScore >= POWERUP_SPAWN_INTERVAL_SCORE && state.powerups.length < 2) {
+            const powerupTypes: Array<'score' | 'doubleJump' | 'coinMagnet' | 'timeReset'> = ['score', 'doubleJump', 'coinMagnet', 'timeReset']; // Add new types
             const type = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
 
             // Position powerups at varying heights above ground
@@ -913,6 +1054,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 height: POWERUP_SIZE,
                 type
             });
+            state.lastPowerupSpawnScore = Math.floor(state.score); // Update the score at which the last powerup was spawned
         }
 
         // Check collisions with powerups
@@ -941,14 +1083,15 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         });
     };
 
-    const activatePowerup = (type: 'score' | 'invincible' | 'doubleJump', x: number, y: number) => {
+    const activatePowerup = (type: 'score' | 'doubleJump' | 'coinMagnet' | 'timeReset', x: number, y: number) => {
         const state = gameStateRef.current;
 
-        // Add floating text (moved slightly right)
-        const powerupNames = {
-            score: '2x Score!',
-            invincible: 'Invincible!',
-            doubleJump: 'Triple Jump!'
+        // Define power-up names and durations
+        const powerupInfo = {
+            score: { name: '2x Score!', duration: 5000 },
+            doubleJump: { name: 'Triple Jump!', duration: 7000 },
+            coinMagnet: { name: 'Coin Magnet!', duration: 5000 }, // Assuming 5s duration
+            timeReset: { name: 'Time Warp!', duration: 3000 }   // Assuming 3s duration
         };
 
         // Clear any existing timeouts for this power-up type
@@ -956,51 +1099,93 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             clearTimeout(state.powerupTimeouts[type]);
         }
 
+        // Replenish jump bar by 1 unit
+        state.jumpBarValue = Math.min(
+            state.maxJumpBarValue,
+            state.jumpBarValue + 1
+        );
+        console.log('Jump Bar +1 from power-up:', state.jumpBarValue);
+
+        // Add floating text
         state.floatingTexts.push({
-            text: powerupNames[type],
+            text: powerupInfo[type].name,
             x: x + POWERUP_SIZE,
             y,
             opacity: 1,
             createdAt: Date.now()
         });
 
+        // --- Trigger Power-up Display Animation ---
+        state.powerupDisplay = {
+            type: type,
+            startTime: Date.now(),
+            scale: 0,
+            opacity: 0,
+        };
+        // ---
+
+        const duration = powerupInfo[type].duration;
+
+        // Apply effect and set timeout to remove it
         switch (type) {
             case 'score':
                 state.powerupEffects.scoreMultiplier = 2;
-                state.powerupTimeouts = {
-                    ...state.powerupTimeouts,
-                    score: setTimeout(() => {
-                        state.powerupEffects.scoreMultiplier = 1;
-                    }, 5000)
-                };
-                break;
-            case 'invincible':
-                state.powerupEffects.invincible = true;
-                state.invincibilityEndTime = Date.now() + 3000;
-                state.powerupTimeouts = {
-                    ...state.powerupTimeouts,
-                    invincible: setTimeout(() => {
-                        state.powerupEffects.invincible = false;
-                        state.invincibilityEndTime = undefined;
-                    }, 3000)
-                };
+                state.powerupTimeouts.score = setTimeout(() => {
+                    state.powerupEffects.scoreMultiplier = 1;
+                }, duration);
                 break;
             case 'doubleJump':
                 state.powerupEffects.doubleJump = true;
                 state.maxJumps = 3;
-                state.powerupTimeouts = {
-                    ...state.powerupTimeouts,
-                    doubleJump: setTimeout(() => {
-                        state.powerupEffects.doubleJump = false;
-                        state.maxJumps = 2;
-                    }, 7000)
-                };
+                state.powerupTimeouts.doubleJump = setTimeout(() => {
+                    state.powerupEffects.doubleJump = false;
+                    state.maxJumps = 2;
+                }, duration);
+                break;
+            case 'coinMagnet':
+                state.powerupEffects.coinMagnet = true;
+                // TODO: Implement coin magnet logic in updateCoins?
+                console.log('Coin Magnet Activated!');
+                state.powerupTimeouts.coinMagnet = setTimeout(() => {
+                    state.powerupEffects.coinMagnet = false;
+                    console.log('Coin Magnet Deactivated.');
+                }, duration);
+                break;
+            case 'timeReset':
+                state.powerupEffects.timeResetActive = true;
+                // TODO: Implement time reset logic (e.g., slower jump bar depletion?)
+                console.log('Time Reset Activated!');
+                
+                // --- Reset Jump Bar --- 
+                state.jumpBarValue = state.maxJumpBarValue;
+                console.log('Jump Bar Reset by Time Warp:', state.jumpBarValue);
+                // ---
+                
+                state.powerupTimeouts.timeReset = setTimeout(() => {
+                    state.powerupEffects.timeResetActive = false;
+                    console.log('Time Reset Deactivated.');
+                }, duration);
                 break;
         }
     };
 
     const updateGame = (deltaTime: number) => {
         const state = gameStateRef.current;
+
+        // --- Don't update if game over sequence started ---
+        if (state.gameOverReason || state.deathAnimation.active) {
+            // Make sure ticking sound is stopped when game ends
+            if (tickingSound) {
+                tickingSound.pause();
+                tickingSound.currentTime = 0;
+            }
+            return;
+        }
+
+        // Update best score if current score is higher
+        if (Math.floor(state.score) > state.bestScore) {
+            state.bestScore = Math.floor(state.score);
+        }
 
         // Update time and increase speed
         state.timeSinceStart += deltaTime;
@@ -1012,6 +1197,38 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         // Update background position for parallax effect (no modulo here)
         const backgroundScrollSpeed = state.gameSpeed * 0.2; // Adjust multiplier for speed
         state.backgroundX -= backgroundScrollSpeed;
+
+        // --- Update Power-up Display Animation ---
+        if (state.powerupDisplay && state.powerupDisplay.startTime) {
+            const animationDuration = 1500; // Total duration in ms (1.5 seconds)
+            const scaleUpDuration = 300; // Time to scale up (0.3s)
+            const holdDuration = 700; // Time to hold full size (0.7s)
+            const fadeOutStartTime = scaleUpDuration + holdDuration; // Start fading after 1s
+            
+            const elapsed = Date.now() - state.powerupDisplay.startTime;
+
+            if (elapsed < animationDuration) {
+                if (elapsed < scaleUpDuration) {
+                    // Phase 1: Scale up and fade in
+                    const progress = elapsed / scaleUpDuration;
+                    state.powerupDisplay.scale = progress * 1.2; // Scale up slightly bigger
+                    state.powerupDisplay.opacity = progress;
+                } else if (elapsed < fadeOutStartTime) {
+                    // Phase 2: Hold (scale down slightly)
+                    state.powerupDisplay.scale = 1.0;
+                    state.powerupDisplay.opacity = 1;
+                } else {
+                    // Phase 3: Fade out
+                    const fadeProgress = (elapsed - fadeOutStartTime) / (animationDuration - fadeOutStartTime);
+                    state.powerupDisplay.opacity = 1 - fadeProgress;
+                    state.powerupDisplay.scale = 1.0; // Keep scale during fade
+                }
+            } else {
+                // Animation complete
+                state.powerupDisplay = null;
+            }
+        }
+        // ---
 
         // Update chog rotation
         state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
@@ -1031,11 +1248,60 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         }
 
+        // --- Jump Bar Logic ---
+        // Deplete jump bar over time
+        state.jumpBarValue -= state.jumpBarDepletionRate * deltaTime;
+        state.jumpBarValue = Math.max(0, state.jumpBarValue); // Ensure it doesn't go below 0
+
+        // Handle ticking sound based on jump bar value
+        if (tickingSound) {
+            if (state.jumpBarValue <= 10) {
+                // Only play if not already playing
+                if (tickingSound.paused) {
+                    console.log('Starting ticking sound - jump bar low:', state.jumpBarValue);
+                    tickingSound.play().catch(error => {
+                        console.log('Ticking sound playback failed:', error);
+                    });
+                }
+            } else {
+                // Stop the sound if it's playing and we're above threshold
+                if (!tickingSound.paused) {
+                    console.log('Stopping ticking sound - jump bar recovered:', state.jumpBarValue);
+                    tickingSound.pause();
+                    tickingSound.currentTime = 0;
+                }
+            }
+        }
+
+        // Check for game over due to jump bar depletion
+        if (state.jumpBarValue <= 0) {
+            state.gameOverReason = 'jumpBarDepleted';
+            console.log('Game Over: Jump Bar Depleted');
+            
+            // Make sure ticking sound is stopped
+            if (tickingSound) {
+                tickingSound.pause();
+                tickingSound.currentTime = 0;
+            }
+            
+            // Trigger game over immediately - Pass results object
+            onGameOver({ 
+                score: Math.floor(state.score), 
+                boxJumps: state.boxJumps, 
+                coinCount: state.coinCount, 
+                xp: state.xp 
+            });
+            return; // Stop further updates this frame
+        }
+        // --- End Jump Bar Logic ---
+
         updatePlayer(deltaTime);
-        updateObstacles(deltaTime);
+        const collided = updateObstacles(deltaTime); // updateObstacles now returns true if a collision occurred
+        if (collided) {
+            // handleCollision already sets gameOverReason and calls onGameOver after delay
+            return; // Stop updates if collision happened this frame
+        }
         updatePowerups(deltaTime);
-        
-        // Update coins
         updateCoins(deltaTime);
     };
 
@@ -1043,12 +1309,16 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
 
+        // Player center coordinates
+        const playerCenterX = state.playerX + PLAYER_SIZE / 2;
+        const playerCenterY = state.playerY + PLAYER_SIZE / 2;
+
         // Move existing coins
         state.coins = state.coins.filter(coin => {
             if (coin.collected) return false;
 
-            // Move coin with game speed
-            coin.x -= state.gameSpeed;
+            // --- Basic Coin Movement --- 
+            coin.x -= state.gameSpeed * deltaTime * 60; // Adjusted for deltaTime
 
             // Update coin animation frame every 50ms
             const now = Date.now();
@@ -1057,31 +1327,55 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 coin.lastFrameUpdate = now;
             }
 
-            // Check for coin collection
-            const playerHitbox = {
-                x: state.playerX,
-                y: state.playerY,
-                width: PLAYER_SIZE,
-                height: PLAYER_SIZE
-            };
+            // --- Coin Collection Logic --- 
+            const coinCenterX = coin.x + coin.width / 2;
+            const coinCenterY = coin.y + coin.height / 2;
 
-            const coinHitbox = {
-                x: coin.x,
-                y: coin.y,
-                width: coin.width,
-                height: coin.height
-            };
+            // Check if Coin Magnet is active
+            if (state.powerupEffects.coinMagnet) {
+                const dx = playerCenterX - coinCenterX;
+                const dy = playerCenterY - coinCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (checkCollision(playerHitbox, coinHitbox)) {
-                collectCoin(coin);
-                return false;
+                // If coin is within magnet radius
+                if (distance < COIN_MAGNET_RADIUS) {
+                    // Calculate normalized direction vector towards player
+                    const directionX = dx / distance;
+                    const directionY = dy / distance;
+
+                    // Apply magnet force
+                    coin.x += directionX * COIN_MAGNET_STRENGTH * deltaTime;
+                    coin.y += directionY * COIN_MAGNET_STRENGTH * deltaTime;
+
+                    // Check for collection based on proximity (e.g., within half player size)
+                    if (distance < PLAYER_SIZE / 2) {
+                        collectCoin(coin);
+                        return false; // Remove coin after collection
+                    }
+                } else {
+                    // If outside radius, check for normal collision
+                    const playerHitbox = { x: state.playerX, y: state.playerY, width: PLAYER_SIZE, height: PLAYER_SIZE };
+                    const coinHitbox = { x: coin.x, y: coin.y, width: coin.width, height: coin.height };
+                    if (checkCollision(playerHitbox, coinHitbox)) {
+                        collectCoin(coin);
+                        return false; // Remove coin after collection
+                    }
+                }
+            } else {
+                // If magnet is not active, perform standard collision check
+                const playerHitbox = { x: state.playerX, y: state.playerY, width: PLAYER_SIZE, height: PLAYER_SIZE };
+                const coinHitbox = { x: coin.x, y: coin.y, width: coin.width, height: coin.height };
+                if (checkCollision(playerHitbox, coinHitbox)) {
+                    collectCoin(coin);
+                    return false; // Remove coin after collection
+                }
             }
 
             // Keep coin if still on screen
             return coin.x + coin.width > 0;
         });
 
-        // Spawn new coins
+        // Spawn new coins (keep existing spawn logic)
         if (Math.random() < 0.03 && state.coins.length < 5) { // Adjust spawn rate as needed
             const coinSize = 30;
             const minHeight = height - groundHeight - PLAYER_SIZE * 3;
@@ -1108,20 +1402,18 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         state.score += coin.value * state.powerupEffects.scoreMultiplier;
         state.coinCount++;
 
+        // Replenish jump bar by 1 unit
+        state.jumpBarValue = Math.min(
+            state.maxJumpBarValue,
+            state.jumpBarValue + 1
+        );
+        console.log('Jump Bar +1 from coin:', state.jumpBarValue);
+
         // Play coin collection sound
         const coinSound = new Audio('/assets/audio/coin.mp3');
         coinSound.volume = 0.3;
         coinSound.play().catch(error => {
             console.log('Coin sound playback failed:', error);
-        });
-
-        // Add floating text
-        state.floatingTexts.push({
-            text: `+${coin.value}`,
-            x: coin.x,
-            y: coin.y,
-            opacity: 1,
-            createdAt: Date.now()
         });
 
         // Add sparkle particles
@@ -1484,6 +1776,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         ctx.restore();
     };
 
+    // Update drawGame to call drawPowerupIcons
     const drawGame = (ctx: CanvasRenderingContext2D) => {
         const state = gameStateRef.current;
         const groundHeight = getGroundHeight(height);
@@ -1644,8 +1937,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             });
         }
 
-        // Draw player only if not in death animation
-        if (!state.deathAnimation.active) {
+        // Draw player only if not in death animation OR jump bar depleted
+        if (!state.deathAnimation.active && state.gameOverReason !== 'jumpBarDepleted') {
             ctx.save();
             ctx.translate(state.playerX + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
             ctx.rotate(state.rotation);
@@ -1725,7 +2018,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             drawObstacle(ctx, obstacle);
         });
 
-        // Draw powerups with moyaki sprite
+        // Draw powerups with moyaki sprite (the collectable item itself)
         state.powerups.forEach(powerup => {
             if (powerupImage && powerupImage.complete) {
                 ctx.save();
@@ -1742,43 +2035,69 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         });
 
-        // Draw power-up status
-        if (state.powerupEffects.invincible || state.powerupEffects.doubleJump || state.powerupEffects.scoreMultiplier > 1) {
-            ctx.fillStyle = '#000000';
-            ctx.font = '16px Arial';
-            let statusY = 60;
-            if (state.powerupEffects.invincible) {
-                ctx.fillText('Invincible!', 10, statusY);
-                statusY += 20;
-            }
-            if (state.powerupEffects.doubleJump) {
-                ctx.fillText('Triple Jump!', 10, statusY);
-                statusY += 20;
-            }
-            if (state.powerupEffects.scoreMultiplier > 1) {
-                ctx.fillText('2x Score!', 10, statusY);
-            }
-        }
+        // --- Draw Power-up Status Icons (Top Right) ---
+        drawPowerupIcons(ctx, state, width);
+        // ---
 
         // Draw score and coins collected side-by-side
         ctx.fillStyle = '#000000';
         ctx.font = '24px Arial';
         ctx.textAlign = 'left';
 
-        const scoreText = `Score: ${Math.floor(state.score)}`;
-        const coinText = `Coins: ${state.coinCount}`; // Changed text to just "Coins"
-        const boxJumpsText = `Box Jumps: ${state.boxJumps}`;
+        // Draw score in the style of the reference image but positioned in the top left
+        const currentScore = Math.floor(state.score).toString();
+        const bestScore = `BEST: ${state.bestScore}`;
+        const coinCount = state.coinCount.toString();
 
-        // Draw score first
-        ctx.fillText(scoreText, 10, 30);
+        // Position settings - keep everything in top left
+        const leftMargin = 10;
+        const topMargin = 34; // Increased from 30 for more padding
+        const bestScoreY = topMargin + 22;
+        const coinY = bestScoreY + 30; // Position for coin display
 
-        // Measure score width and draw coins count next to it
-        const scoreWidth = ctx.measureText(scoreText).width;
-        ctx.fillText(coinText, scoreWidth + 20, 30); // Added 20px padding
+        // Draw main score at top left
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 36px Arial, sans-serif';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(currentScore, leftMargin, topMargin);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(currentScore, leftMargin, topMargin);
 
-        // Draw box jumps further right
-        const coinWidth = ctx.measureText(coinText).width;
-        ctx.fillText(boxJumpsText, scoreWidth + coinWidth + 40, 30); // Adjusted padding
+        // Draw best score below in smaller font
+        ctx.font = 'bold 16px Arial, sans-serif';
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#000000';
+        ctx.strokeText(bestScore, leftMargin, bestScoreY);
+        ctx.fillStyle = '#888888';
+        ctx.fillText(bestScore, leftMargin, bestScoreY);
+
+        // Draw coin count with icon in yellow
+        if (coinIconImage && coinIconImage.complete) {
+            // Draw coin icon first
+            ctx.drawImage(
+                coinIconImage,
+                leftMargin, // Position at left
+                coinY - 20, // Align with text
+                24, // Width
+                24 // Height
+            );
+            
+            // Draw yellow coin count next to the icon
+            ctx.font = 'bold 24px Arial, sans-serif';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(coinCount, leftMargin + 30, coinY);
+            ctx.fillStyle = '#FFD700'; // Gold/yellow color
+            ctx.fillText(coinCount, leftMargin + 30, coinY);
+        }
+
+        // Reset text alignment
+        ctx.textAlign = 'left';
+
+        // --- Draw Jump Bar ---
+        drawJumpBar(ctx, state);
+        // ---
 
         // Draw floating texts
         state.floatingTexts.forEach(text => {
@@ -1809,8 +2128,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             return true;
         });
 
-        // Draw death animation if active
-        if (state.deathAnimation.active) {
+        // Draw death animation if active (collision only)
+        if (state.deathAnimation.active && state.gameOverReason === 'collision') {
             // Update character position with more dramatic physics
             state.deathAnimation.characterPos.x += state.deathAnimation.characterVel.x;
             state.deathAnimation.characterPos.y += state.deathAnimation.characterVel.y;
@@ -1919,6 +2238,78 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         // Add debug visualization at the end
         drawDebugInfo(ctx, state);
 
+        // --- Draw Animated Power-up Icon & Text ---
+        if (state.powerupDisplay && state.powerupDisplay.type) {
+            const iconType = state.powerupDisplay.type;
+
+            // Define mapping for the animation display
+            const animationIconMap: { [key in PowerupType]?: HTMLImageElement | null } = {
+                coinMagnet: powerupIconImages.coinMagnet,
+                score: powerupIconImages.doubleScore,
+                timeReset: powerupIconImages.timeReset,
+                doubleJump: powerupIconImages.tripleJump
+            };
+            // Mapping for power-up names (excluding invincible as it's not animated)
+            const powerupNamesMap: { [key in Exclude<PowerupType, 'invincible'>]?: string } = {
+                score: '2x Score!',
+                doubleJump: 'Triple Jump!',
+                coinMagnet: 'Coin Magnet!',
+                timeReset: 'Time Warp!'
+            };
+
+            const img = animationIconMap[iconType];
+            // Type assertion needed because iconType could theoretically be 'invincible' here,
+            // but the outer if checks state.powerupDisplay.type which is set only for animatable types.
+            const powerupName = powerupNamesMap[iconType as Exclude<PowerupType, 'invincible'>];
+
+            if (img && img.complete && powerupName) {
+                const displaySize = 100; // Size of the displayed icon
+                const textPadding = 15; // Padding between icon and text
+
+                // Set text style *before* measuring width
+                ctx.font = 'bold 28px Arial, sans-serif'; 
+                const textWidth = ctx.measureText(powerupName).width;
+
+                const totalWidth = displaySize + textPadding + textWidth; // Calculate total width
+                const startX = (width - totalWidth) / 2; // Center the whole group
+                const iconX = startX;
+                const textX = startX + displaySize + textPadding;
+                const centerY = height / 2 - 50; // Vertical position for icon and text
+
+                ctx.save(); // Save context before applying alpha
+                ctx.globalAlpha = state.powerupDisplay.opacity; // Apply fade to both icon and text
+
+                // --- Draw Icon --- 
+                ctx.save(); // Save context before icon transformations
+                ctx.translate(iconX + displaySize / 2, centerY);
+                ctx.scale(state.powerupDisplay.scale, state.powerupDisplay.scale);
+                ctx.drawImage(
+                    img,
+                    -displaySize / 2,
+                    -displaySize / 2,
+                    displaySize,
+                    displaySize
+                );
+                ctx.restore(); // Restore from icon transformations
+
+                // --- Draw Text --- 
+                // Font is already set from width calculation
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                // Text shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillText(powerupName, textX + 2, centerY + 2);
+
+                // Text fill (White)
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillText(powerupName, textX, centerY);
+                
+                ctx.restore(); // Restore original alpha
+            }
+        }
+        // ---
+
         ctx.restore(); // Restore from screen shake
     };
 
@@ -1946,6 +2337,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            
+            // Stop ticking sound when game is paused/stopped
+            if (tickingSound) {
+                tickingSound.pause();
+                tickingSound.currentTime = 0;
+                console.log('Stopped ticking sound - game paused');
+            }
+            
             resetGame();
             lastTimeRef.current = 0;
             return;
@@ -1957,12 +2356,23 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            
+            // Stop ticking sound when component unmounts
+            if (tickingSound) {
+                tickingSound.pause();
+                tickingSound.currentTime = 0;
+                console.log('Stopped ticking sound - component cleanup');
+            }
         };
     }, [isPlaying]);
 
     useEffect(() => {
         const handleJump = () => {
             const state = gameStateRef.current;
+            // --- Prevent jumping if game over ---
+            if (state.gameOverReason || state.deathAnimation.active) return;
+            // ---
+
             console.log('Jump triggered:', {
                 currentBox: state.currentBox,
                 isJumping: state.isJumping,
@@ -1981,6 +2391,19 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                         console.log('Combo sound playback failed:', error);
                     });
                 }
+
+                // --- Replenish Jump Bar ---
+                state.jumpBarValue = Math.min(
+                    state.maxJumpBarValue,
+                    state.jumpBarValue + state.jumpBarReplenishAmount
+                );
+                console.log('Jump Bar Replenished:', state.jumpBarValue);
+                // ---
+
+                // --- Increase XP ---
+                state.xp += 2;
+                console.log('XP increased:', state.xp);
+                // ---
 
                 // Calculate jump direction and strength
                 let jumpStrength = state.jumpStrength * 1.2;
@@ -2144,13 +2567,21 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     const handleCollision = (x: number, y: number, obstacle?: Obstacle) => {
         const state = gameStateRef.current;
-        
-        // Prevent multiple collisions during death animation
-        if (state.isColliding || state.deathAnimation.active) {
+
+        // Prevent multiple collisions during death animation or if game already over
+        if (state.isColliding || state.deathAnimation.active || state.gameOverReason) {
             return;
         }
-        
+
         state.isColliding = true;
+        state.gameOverReason = 'collision'; // Set the reason
+        
+        // Stop ticking sound if it's playing
+        if (tickingSound) {
+            tickingSound.pause();
+            tickingSound.currentTime = 0;
+            console.log('Stopped ticking sound - collision occurred');
+        }
 
         // Store death cause information for debug mode
         if (state.debug.enabled && obstacle) {
@@ -2309,10 +2740,95 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             });
         }
 
-        // Show game over screen after 1.6 seconds
+        // Show game over screen after 1.6 seconds - Pass results object
         setTimeout(() => {
-            onGameOver(state.score, state.boxJumps);
+            onGameOver({ 
+                score: Math.floor(state.score), 
+                boxJumps: state.boxJumps, 
+                coinCount: state.coinCount, 
+                xp: state.xp 
+            });
         }, 1600);
+    };
+
+    // Define the drawing function for the jump bar
+    const drawJumpBar = (ctx: CanvasRenderingContext2D, state: GameState) => {
+        // Calculate dimensions and positions
+        const barWidth = Math.min(width * 0.7, 500); // Wider bar for better visual
+        const barHeight = 24; // Slightly taller
+        const barX = (width - barWidth) / 2; // Center horizontally
+        const barY = 10; // Position near the top
+        const cornerRadius = 6; // Rounded corners
+        
+        // Calculate fill width
+        const fillPercentage = state.jumpBarValue / state.maxJumpBarValue;
+        const fillWidth = Math.max(cornerRadius * 2, barWidth * fillPercentage); // Ensure minimum width for rounded corners
+        
+        // Draw background with rounded corners
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, barWidth, barHeight, cornerRadius);
+        
+        // Create dark gradient background (dark purple to black)
+        const bgGradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
+        bgGradient.addColorStop(0, '#1a0b33');
+        bgGradient.addColorStop(1, '#080325');
+        ctx.fillStyle = bgGradient;
+        ctx.fill();
+        
+        // Create border
+        ctx.strokeStyle = '#443366';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw fill with gradient if there's any fill to show
+        if (fillWidth > 0) {
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, fillWidth, barHeight, cornerRadius);
+            
+            // Create purple gradient for the fill
+            const fillGradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
+            fillGradient.addColorStop(0, '#a64dff'); // Lighter purple at top
+            fillGradient.addColorStop(0.5, '#8430cc'); // Medium purple
+            fillGradient.addColorStop(1, '#6a1b9a'); // Darker purple at bottom
+            
+            ctx.fillStyle = fillGradient;
+            ctx.fill();
+            
+            // Add shine effect on top
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, fillWidth, barHeight/3, cornerRadius);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fill();
+        }
+        
+        // Display numerical value in the middle of the bar
+        const currentValue = Math.round(state.jumpBarValue);
+        const maxValue = state.maxJumpBarValue;
+        const displayText = `${currentValue}/${maxValue}`;
+        
+        // Set text style
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add text shadow for better visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        // Draw text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(displayText, barX + barWidth / 2, barY + barHeight / 2);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        ctx.restore();
     };
 
     return (
