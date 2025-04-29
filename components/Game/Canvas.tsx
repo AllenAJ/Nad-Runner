@@ -191,6 +191,28 @@ interface GameState {
     } | null;
     // --- End power-up display state ---
     lastPowerupSpawnScore: number; // Track score at last powerup spawn
+    // --- Particle Pooling --- 
+    particlePool: Array<Particle>; // Pool of inactive particles
+    activeParticles: Array<Particle>; // Currently visible/active particles
+    // --- End Particle Pooling ---
+}
+
+// Define the Particle type separately for clarity
+interface Particle {
+    id: number; // Unique ID for management
+    active: boolean;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    rotation: number;
+    rotationSpeed: number;
+    size: number;
+    color: string;
+    opacity: number;
+    fadeSpeed: number;
+    createdAt: number; // To track lifetime
+    lifeSpan: number; // How long the particle should live (ms)
 }
 
 interface Obstacle {
@@ -264,6 +286,9 @@ const PLAYER_START_X = 20;
 type PowerupType = 'score' | 'invincible' | 'doubleJump' | 'coinMagnet' | 'timeReset';
 
 // Game constants
+const MAX_PARTICLES = 200; // Limit the total number of concurrent particles
+let nextParticleId = 0;
+
 const INITIAL_STATE: GameState = {
     playerY: 0,
     playerX: PLAYER_START_X,
@@ -356,6 +381,17 @@ const INITIAL_STATE: GameState = {
     xp: 0, // Initialize XP to 0
     bestScore: 0, // Initialize best score
     lastPowerupSpawnScore: 0, // Initialize last powerup spawn score
+    // --- Particle Pooling Init --- 
+    particlePool: Array.from({ length: MAX_PARTICLES }, (_, i) => ({
+        id: i,
+        active: false,
+        x: 0, y: 0, vx: 0, vy: 0,
+        rotation: 0, rotationSpeed: 0,
+        size: 0, color: '', opacity: 0,
+        fadeSpeed: 0.01, createdAt: 0, lifeSpan: 1000
+    })),
+    activeParticles: [],
+    // --- End Particle Pooling Init ---
 };
 
 const PLAYER_SIZE = 50;
@@ -504,6 +540,37 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const animationFrameRef = useRef<number | undefined>(undefined);
     const isMobileRef = useRef(width <= 768);
 
+    // --- Particle Pool Helpers ---
+    const getParticleFromPool = (): Particle | null => {
+        const state = gameStateRef.current;
+        if (state.particlePool.length > 0) {
+            const particle = state.particlePool.pop()!;
+            particle.active = true;
+            particle.opacity = 1; // Reset opacity
+            particle.createdAt = Date.now(); // Set creation time
+            state.activeParticles.push(particle);
+            return particle;
+        }
+        // Optional: Log if pool is empty, maybe increase pool size if needed
+        // console.warn("Particle pool empty!");
+        return null; // Pool is empty
+    };
+
+    const returnParticleToPool = (particle: Particle) => {
+        const state = gameStateRef.current;
+        particle.active = false;
+        // Remove from active list
+        const index = state.activeParticles.findIndex(p => p.id === particle.id);
+        if (index > -1) {
+            state.activeParticles.splice(index, 1);
+        }
+        // Add back to pool if pool is not full (shouldn't happen with fixed size)
+        if (state.particlePool.length < MAX_PARTICLES) {
+            state.particlePool.push(particle);
+        }
+    };
+    // --- End Particle Pool Helpers ---
+
     // Update isMobileRef when width changes
     useEffect(() => {
         const isMobile = width <= 768;
@@ -566,6 +633,29 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             bestScore: currentBestScore, // Preserve best score
             lastPowerupSpawnScore: 0, // Reset powerup spawn score tracking
         };
+
+        // Also reset active particles on game reset
+        gameStateRef.current.activeParticles.forEach(p => {
+            p.active = false; // Mark as inactive
+            if (gameStateRef.current.particlePool.length < MAX_PARTICLES) {
+                 gameStateRef.current.particlePool.push(p);
+            }
+        });
+        gameStateRef.current.activeParticles = [];
+
+        // Ensure pool is full (optional, but good practice)
+        // If any particles were somehow lost, recreate them
+        const currentPoolSize = gameStateRef.current.particlePool.length + gameStateRef.current.activeParticles.length;
+        if (currentPoolSize < MAX_PARTICLES) {
+            for (let i = currentPoolSize; i < MAX_PARTICLES; i++) {
+                 gameStateRef.current.particlePool.push({
+                    id: nextParticleId++, // Need a global counter if pool size changes
+                    active: false, x: 0, y: 0, vx: 0, vy: 0,
+                    rotation: 0, rotationSpeed: 0, size: 0, color: '',
+                    opacity: 0, fadeSpeed: 0.01, createdAt: 0, lifeSpan: 1000
+                 });
+            }
+        }
     };
 
     const updatePlayer = (deltaTime: number) => {
@@ -939,30 +1029,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             state.isJumping = false;
             state.jumpCount = 0;
 
-            // Add landing particles with varied timing
-            const particleCount = Math.floor(5 + Math.random() * 3);
-            for (let i = 0; i < particleCount; i++) {
-                setTimeout(() => {
-                    if (state.currentBox) { // Check if still on box
-                        const angle = Math.random() * Math.PI * 2;
-                        const speed = 1 + Math.random() * 2;
-                        state.particles.push({
-                            x: state.playerX + PLAYER_SIZE / 2,
-                            y: state.playerY + PLAYER_SIZE,
-                            vx: Math.cos(angle) * speed,
-                            vy: Math.sin(angle) * speed,
-                            rotation: Math.random() * Math.PI * 2,
-                            rotationSpeed: Math.random() * 0.2,
-                            size: 2 + Math.random() * 2,
-                            color: '#FFFFFF',
-                            opacity: 0.8,
-                            fadeSpeed: 0.02
-                        });
-                    }
-                }, i * 16); // Stagger particle creation
-            }
-
-            return false;
+            return false; // Landed successfully
         }
 
         // Check for collision with the box body with improved precision
@@ -1169,36 +1236,114 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         }
     };
 
+    const updateParticles = (deltaTime: number) => {
+        const state = gameStateRef.current;
+        const now = Date.now();
+
+        for (let i = state.activeParticles.length - 1; i >= 0; i--) {
+            const particle = state.activeParticles[i];
+            const age = now - particle.createdAt;
+
+            // Check lifetime or opacity
+            if (!particle.active || age > particle.lifeSpan || particle.opacity <= 0) {
+                returnParticleToPool(particle);
+                continue; // Skip update for this particle
+            }
+
+            // Update particle physics
+            particle.x += particle.vx * deltaTime * 60; // Scale velocity by time
+            particle.y += particle.vy * deltaTime * 60;
+            particle.vy += 0.05; // Simple gravity
+            particle.rotation += particle.rotationSpeed * deltaTime * 60;
+            particle.opacity -= particle.fadeSpeed * deltaTime * 60; // Fade based on time
+            particle.opacity = Math.max(0, particle.opacity); // Clamp opacity
+            // Optional: Update size over time if needed
+        }
+    };
+
     const updateGame = (deltaTime: number) => {
         const state = gameStateRef.current;
 
-        // --- Don't update if game over sequence started ---
-        if (state.gameOverReason || state.deathAnimation.active) {
-            // Make sure ticking sound is stopped when game ends
+        // --- Check for game over conditions FIRST --- 
+        if (state.jumpBarValue <= 0 && !state.gameOverReason) {
+            state.gameOverReason = 'jumpBarDepleted';
+            console.log('Game Over: Jump Bar Depleted');
             if (tickingSound) {
                 tickingSound.pause();
                 tickingSound.currentTime = 0;
             }
-            return;
+            // Trigger game over immediately - Pass results object
+            onGameOver({ 
+                score: Math.floor(state.score), 
+                boxJumps: state.boxJumps, 
+                coinCount: state.coinCount, 
+                xp: state.xp 
+            });
+            // We can potentially return here if needed, as game logic stops
+            // return;
         }
+        
+        // --- Core Update Logic (Runs unless explicitly game over) --- 
+        if (!state.gameOverReason) { 
+            // Update best score if current score is higher
+            if (Math.floor(state.score) > state.bestScore) {
+                state.bestScore = Math.floor(state.score);
+            }
 
-        // Update best score if current score is higher
-        if (Math.floor(state.score) > state.bestScore) {
-            state.bestScore = Math.floor(state.score);
+            // Update time and increase speed (Only if not in death animation)
+            if (!state.deathAnimation.active) {
+                state.timeSinceStart += deltaTime;
+                if (state.timeSinceStart > SPEED_INCREASE_INTERVAL) {
+                    state.timeSinceStart = 0;
+                    state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT, MAX_GAME_SPEED);
+                }
+            }
+            
+            // Update background position (always scrolls)
+            const backgroundScrollSpeed = state.gameSpeed * 0.2; 
+            state.backgroundX -= backgroundScrollSpeed;
+
+            // Update chog rotation (always rotates)
+            state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
+            if (state.chogRotation > Math.PI * 2) {
+                state.chogRotation -= Math.PI * 2;
+            }
+            
+            // Update Gameplay elements only if death animation is not active
+            if (!state.deathAnimation.active) {
+                updatePlayer(deltaTime);
+                const collided = updateObstacles(deltaTime); 
+                if (collided) {
+                    // Collision is handled by handleCollision, which sets gameOverReason
+                    // We don't need to return here anymore, let the loop continue for animation
+                } else {
+                    // Only update these if no collision occurred this frame
+                    updatePowerups(deltaTime);
+                    updateCoins(deltaTime);
+                }
+                
+                // Jump Bar Logic (depletion)
+                state.jumpBarValue -= state.jumpBarDepletionRate * deltaTime;
+                state.jumpBarValue = Math.max(0, state.jumpBarValue); 
+                
+                // Handle ticking sound based on jump bar value
+                if (tickingSound) {
+                    if (state.jumpBarValue <= 10 && state.jumpBarValue > 0) {
+                        if (tickingSound.paused) {
+                            tickingSound.play().catch(error => console.log('Ticking sound failed:', error));
+                        }
+                    } else {
+                        if (!tickingSound.paused) {
+                            tickingSound.pause();
+                            tickingSound.currentTime = 0;
+                        }
+                    }
+                }
+            }
         }
-
-        // Update time and increase speed
-        state.timeSinceStart += deltaTime;
-        if (state.timeSinceStart > SPEED_INCREASE_INTERVAL) {
-            state.timeSinceStart = 0;
-            state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT, MAX_GAME_SPEED);
-        }
-
-        // Update background position for parallax effect (no modulo here)
-        const backgroundScrollSpeed = state.gameSpeed * 0.2; // Adjust multiplier for speed
-        state.backgroundX -= backgroundScrollSpeed;
-
-        // --- Update Power-up Display Animation ---
+        
+        // --- Update Animations (Run even during death sequence) --- 
+        // Update Power-up Display Animation
         if (state.powerupDisplay && state.powerupDisplay.startTime) {
             const animationDuration = 1500; // Total duration in ms (1.5 seconds)
             const scaleUpDuration = 300; // Time to scale up (0.3s)
@@ -1228,13 +1373,6 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 state.powerupDisplay = null;
             }
         }
-        // ---
-
-        // Update chog rotation
-        state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
-        if (state.chogRotation > Math.PI * 2) {
-            state.chogRotation -= Math.PI * 2;
-        }
 
         // Update glass breaking animation
         if (state.glass.isBroken && state.glass.breakStartTime) {
@@ -1248,61 +1386,22 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         }
 
-        // --- Jump Bar Logic ---
-        // Deplete jump bar over time
-        state.jumpBarValue -= state.jumpBarDepletionRate * deltaTime;
-        state.jumpBarValue = Math.max(0, state.jumpBarValue); // Ensure it doesn't go below 0
-
-        // Handle ticking sound based on jump bar value
-        if (tickingSound) {
-            if (state.jumpBarValue <= 10) {
-                // Only play if not already playing
-                if (tickingSound.paused) {
-                    console.log('Starting ticking sound - jump bar low:', state.jumpBarValue);
-                    tickingSound.play().catch(error => {
-                        console.log('Ticking sound playback failed:', error);
-                    });
-                }
-            } else {
-                // Stop the sound if it's playing and we're above threshold
-                if (!tickingSound.paused) {
-                    console.log('Stopping ticking sound - jump bar recovered:', state.jumpBarValue);
-                    tickingSound.pause();
-                    tickingSound.currentTime = 0;
-                }
+        // Update Particles (Always run to let them fade out)
+        updateParticles(deltaTime);
+        
+        // Update Death Animation state if active
+        if (state.deathAnimation.active) {
+            state.deathAnimation.characterPos.x += state.deathAnimation.characterVel.x;
+            state.deathAnimation.characterPos.y += state.deathAnimation.characterVel.y;
+            state.deathAnimation.characterVel.y += 0.7; // Gravity for death animation
+            state.deathAnimation.characterRotation += state.deathAnimation.characterRotationSpeed;
+            // Potentially add fade out or other effects here
+            // Check if animation is complete (e.g., character off screen)
+            if (state.deathAnimation.characterPos.y > height + PLAYER_SIZE) { // Example completion condition
+                 state.deathAnimation.complete = true;
+                 // Note: onGameOver is called by handleCollision's setTimeout
             }
         }
-
-        // Check for game over due to jump bar depletion
-        if (state.jumpBarValue <= 0) {
-            state.gameOverReason = 'jumpBarDepleted';
-            console.log('Game Over: Jump Bar Depleted');
-            
-            // Make sure ticking sound is stopped
-            if (tickingSound) {
-                tickingSound.pause();
-                tickingSound.currentTime = 0;
-            }
-            
-            // Trigger game over immediately - Pass results object
-            onGameOver({ 
-                score: Math.floor(state.score), 
-                boxJumps: state.boxJumps, 
-                coinCount: state.coinCount, 
-                xp: state.xp 
-            });
-            return; // Stop further updates this frame
-        }
-        // --- End Jump Bar Logic ---
-
-        updatePlayer(deltaTime);
-        const collided = updateObstacles(deltaTime); // updateObstacles now returns true if a collision occurred
-        if (collided) {
-            // handleCollision already sets gameOverReason and calls onGameOver after delay
-            return; // Stop updates if collision happened this frame
-        }
-        updatePowerups(deltaTime);
-        updateCoins(deltaTime);
     };
 
     const updateCoins = (deltaTime: number) => {
@@ -1416,22 +1515,24 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             console.log('Coin sound playback failed:', error);
         });
 
-        // Add sparkle particles
+        // Add sparkle particles using the pool
         for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8;
-            const speed = 2 + Math.random() * 2;
-            state.particles.push({
-                x: coin.x + coin.width / 2,
-                y: coin.y + coin.height / 2,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 2,
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: Math.random() * 0.2,
-                size: 3 + Math.random() * 3,
-                color: '#FFD700',
-                opacity: 1,
-                fadeSpeed: 0.02
-            });
+            const particle = getParticleFromPool();
+            if (particle) {
+                const angle = (Math.PI * 2 * i) / 8;
+                const speed = 2 + Math.random() * 2;
+                particle.x = coin.x + coin.width / 2;
+                particle.y = coin.y + coin.height / 2;
+                particle.vx = Math.cos(angle) * speed;
+                particle.vy = Math.sin(angle) * speed - 2; // Slight upward drift
+                particle.rotation = Math.random() * Math.PI * 2;
+                particle.rotationSpeed = Math.random() * 0.2;
+                particle.size = 3 + Math.random() * 3;
+                particle.color = '#FFD700'; // Gold color
+                particle.opacity = 1;
+                particle.fadeSpeed = 0.025 + Math.random() * 0.01;
+                particle.lifeSpan = 400 + Math.random() * 200; // Shorter lifespan for sparkles
+            }
         }
     };
 
@@ -1778,7 +1879,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
     // Update drawGame to call drawPowerupIcons
     const drawGame = (ctx: CanvasRenderingContext2D) => {
-        const state = gameStateRef.current;
+        const state = gameStateRef.current; 
         const groundHeight = getGroundHeight(height);
 
         // Calculate screen shake offset
@@ -1796,8 +1897,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         }
 
-        // Apply screen shake
-        ctx.save();
+        ctx.save(); 
         ctx.translate(shakeOffsetX, shakeOffsetY);
 
         // Clear canvas
@@ -1937,11 +2037,40 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             });
         }
 
-        // Draw player only if not in death animation OR jump bar depleted
-        if (!state.deathAnimation.active && state.gameOverReason !== 'jumpBarDepleted') {
+        // Draw player OR death animation character
+        if (state.deathAnimation.active) {
+            // Draw the character at the death animation position/rotation
             ctx.save();
-            ctx.translate(state.playerX + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
-            ctx.rotate(state.rotation);
+            ctx.translate(
+                state.deathAnimation.characterPos.x + PLAYER_SIZE / 2,
+                state.deathAnimation.characterPos.y + PLAYER_SIZE / 2
+            );
+            ctx.rotate(state.deathAnimation.characterRotation);
+            // Apply fade out if implemented
+            // ctx.globalAlpha = state.deathAnimation.characterOpacity; 
+
+            // Check images are loaded AND not null before drawing
+            if (characterImages.body && characterImages.body.complete) {
+                ctx.drawImage(characterImages.body, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            if (characterImages.fur && characterImages.fur.complete) {
+                ctx.drawImage(characterImages.fur, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            if (characterImages.eyes && characterImages.eyes.complete) {
+                ctx.drawImage(characterImages.eyes, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            if (characterImages.nose && characterImages.nose.complete) {
+                ctx.drawImage(characterImages.nose, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            if (characterImages.mouth && characterImages.mouth.complete) {
+                ctx.drawImage(characterImages.mouth, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+            }
+            ctx.restore();
+        } else if (!state.gameOverReason) {
+             // Draw the normal player if not game over and not in death animation
+             ctx.save();
+             ctx.translate(state.playerX + PLAYER_SIZE / 2, state.playerY + PLAYER_SIZE / 2);
+             ctx.rotate(state.rotation);
 
             // Add glow effect when invincible
             if (state.powerupEffects.invincible) {
@@ -2013,12 +2142,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             ctx.restore();
         }
 
-        // Draw obstacles
-        state.obstacles.forEach(obstacle => {
-            drawObstacle(ctx, obstacle);
-        });
-
-        // Draw powerups with moyaki sprite (the collectable item itself)
+        // Draw powerups (collectable items)
         state.powerups.forEach(powerup => {
             if (powerupImage && powerupImage.complete) {
                 ctx.save();
@@ -2194,32 +2318,33 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             ctx.restore();
         }
 
-        // Update particle fade out with variable speeds
-        state.particles = state.particles.filter(particle => {
-            if (particle.opacity <= 0) return false;
+        // --- Update and Draw Active Particles --- 
+        // No need to declare state again, use the one from the top of drawGame
+        for (let i = state.activeParticles.length - 1; i >= 0; i--) {
+            const particle = state.activeParticles[i];
 
+            if (!particle.active || particle.opacity <= 0) {
+                 continue;
+            }
+
+            // Draw particle
             ctx.save();
             ctx.globalAlpha = particle.opacity;
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size / 2, 0, Math.PI * 2);
             ctx.fillStyle = particle.color;
+            ctx.translate(particle.x, particle.y);
+            ctx.rotate(particle.rotation);
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, particle.size / 2, 0, Math.PI * 2);
             ctx.fill();
+            
             ctx.restore();
-
-            // Update particle
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.vy += 0.05;
-            particle.opacity -= particle.fadeSpeed || 0.01;
-            particle.size += 0.2;
-
-            return true;
-        });
+        }
+        // --- End Particle Draw ---
 
         // Draw coins
         state.coins.forEach(coin => {
             if (coin.collected) return;
-            
             const coinImage = state.coinImages[coin.frame];
             if (coinImage && coinImage.complete) {
                 ctx.save();
@@ -2235,8 +2360,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
         });
 
-        // Add debug visualization at the end
-        drawDebugInfo(ctx, state);
+        // Draw debug info
+        drawDebugInfo(ctx, state); // Pass the state declared at the top
 
         // --- Draw Animated Power-up Icon & Text ---
         if (state.powerupDisplay && state.powerupDisplay.type) {
@@ -2437,23 +2562,6 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     createdAt: Date.now()
                 });
 
-                // Add particles
-                for (let i = 0; i < 10; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 2 + Math.random() * 3;
-                    state.particles.push({
-                        x: state.playerX + PLAYER_SIZE / 2,
-                        y: state.playerY + PLAYER_SIZE / 2,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed - 2,
-                        rotation: Math.random() * Math.PI * 2,
-                        rotationSpeed: Math.random() * 0.2,
-                        size: 3 + Math.random() * 3,
-                        color: '#FFD700',
-                        opacity: 1,
-                        fadeSpeed: 0.02
-                    });
-                }
             } else if (!state.isJumping || state.jumpCount < state.maxJumps) {
                 // Normal jump - play regular jump sound
                 if (jumpSound) {
@@ -2563,7 +2671,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [isPlaying]);
+    }, [isPlaying]); // Keep dependencies
 
     const handleCollision = (x: number, y: number, obstacle?: Obstacle) => {
         const state = gameStateRef.current;
@@ -2635,113 +2743,138 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             startTime: Date.now()
         };
 
-        // Create main cloud puffs
-        const puffCount = 15; // Increased puff count
-        const baseSize = 35; // Slightly larger base size
+        // --- Create Explosion Particles using Pool --- 
+        const baseSize = 35; 
         
-        // Create central explosion first
-        state.particles.push({
-            x,
-            y,
-            vx: 0,
-            vy: -1,
-            rotation: 0,
-            rotationSpeed: 0,
-            size: baseSize * 1.5,
-            color: '#FFFFFF',
-            opacity: 1
-        });
+        // Create central explosion puff
+        let particle = getParticleFromPool();
+        if (particle) {
+            particle.x = x;
+            particle.y = y;
+            particle.vx = 0;
+            particle.vy = -1;
+            particle.rotation = 0;
+            particle.rotationSpeed = 0;
+            particle.size = baseSize * 1.5;
+            particle.color = '#FFFFFF';
+            particle.opacity = 1;
+            particle.fadeSpeed = 0.01;
+            particle.lifeSpan = 800; // Longer life for main puff
+        }
 
-        // Create cloud formation
+        // Create cloud formation puffs
+        const puffCount = 15; 
         for (let i = 0; i < puffCount; i++) {
             const angle = (Math.PI * 2 * i) / puffCount;
-            const radius = 25; // Slightly larger radius
+            const radius = 25; 
             const puffX = x + Math.cos(angle) * radius;
             const puffY = y + Math.sin(angle) * radius;
             
             // Main puffs
-            state.particles.push({
-                x: puffX,
-                y: puffY,
-                vx: Math.cos(angle) * 1.5,
-                vy: Math.sin(angle) * 1.5 - 1.5,
-                rotation: 0,
-                rotationSpeed: 0,
-                size: baseSize + Math.random() * 15,
-                color: '#FFFFFF',
-                opacity: 0.9
-            });
+            particle = getParticleFromPool();
+            if (particle) {
+                particle.x = puffX;
+                particle.y = puffY;
+                particle.vx = Math.cos(angle) * 1.5;
+                particle.vy = Math.sin(angle) * 1.5 - 1.5;
+                particle.rotation = 0;
+                particle.rotationSpeed = 0;
+                particle.size = baseSize + Math.random() * 15;
+                particle.color = '#FFFFFF';
+                particle.opacity = 0.9;
+                particle.fadeSpeed = 0.015 + Math.random() * 0.005;
+                particle.lifeSpan = 700 + Math.random() * 200;
+            }
 
             // Detail puffs
-            if (Math.random() > 0.3) { // Increased chance for detail puffs
-                state.particles.push({
-                    x: puffX + (Math.random() - 0.5) * 20,
-                    y: puffY + (Math.random() - 0.5) * 20,
-                    vx: Math.cos(angle) * 0.7,
-                    vy: Math.sin(angle) * 0.7 - 0.7,
-                    rotation: 0,
-                    rotationSpeed: 0,
-                    size: baseSize * 0.5,
-                    color: '#FFFFFF',
-                    opacity: 0.8
-                });
+            if (Math.random() > 0.3) { 
+                particle = getParticleFromPool();
+                if (particle) {
+                    particle.x = puffX + (Math.random() - 0.5) * 20;
+                    particle.y = puffY + (Math.random() - 0.5) * 20;
+                    particle.vx = Math.cos(angle) * 0.7;
+                    particle.vy = Math.sin(angle) * 0.7 - 0.7;
+                    particle.rotation = 0;
+                    particle.rotationSpeed = 0;
+                    particle.size = baseSize * 0.5;
+                    particle.color = '#FFFFFF';
+                    particle.opacity = 0.8;
+                    particle.fadeSpeed = 0.02 + Math.random() * 0.01;
+                    particle.lifeSpan = 500 + Math.random() * 200;
+                }
             }
         }
 
         // Add orange/yellow/red glow rings
         const glowColors = ['#FF4500', '#FFA500', '#FFD700'];
         for (let i = 0; i < 12; i++) {
-            const angle = (Math.PI * 2 * i) / 12;
-            const radius = 30 + Math.random() * 20;
-            state.particles.push({
-                x: x + Math.cos(angle) * radius * 0.5,
-                y: y + Math.sin(angle) * radius * 0.5,
-                vx: Math.cos(angle) * 1,
-                vy: Math.sin(angle) * 1,
-                rotation: 0,
-                rotationSpeed: 0,
-                size: baseSize * (1.5 + Math.random()),
-                color: glowColors[Math.floor(Math.random() * glowColors.length)],
-                opacity: 0.4
-            });
+            particle = getParticleFromPool();
+            if (particle) {
+                const angle = (Math.PI * 2 * i) / 12;
+                const radius = 30 + Math.random() * 20;
+                particle.x = x + Math.cos(angle) * radius * 0.5;
+                particle.y = y + Math.sin(angle) * radius * 0.5;
+                particle.vx = Math.cos(angle) * 1;
+                particle.vy = Math.sin(angle) * 1;
+                particle.rotation = 0;
+                particle.rotationSpeed = 0;
+                particle.size = baseSize * (1.5 + Math.random());
+                particle.color = glowColors[Math.floor(Math.random() * glowColors.length)];
+                particle.opacity = 0.4;
+                particle.fadeSpeed = 0.01 + Math.random() * 0.005;
+                particle.lifeSpan = 600 + Math.random() * 300;
+            }
         }
 
         // Add sparks
         for (let i = 0; i < 20; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 4;
-            state.particles.push({
-                x,
-                y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 2,
-                rotation: angle,
-                rotationSpeed: Math.random() * 0.5,
-                size: 3 + Math.random() * 3,
-                color: '#FFD700',
-                opacity: 1
-            });
+            particle = getParticleFromPool();
+            if (particle) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                particle.x = x;
+                particle.y = y;
+                particle.vx = Math.cos(angle) * speed;
+                particle.vy = Math.sin(angle) * speed - 2;
+                particle.rotation = angle;
+                particle.rotationSpeed = Math.random() * 0.5;
+                particle.size = 3 + Math.random() * 3;
+                particle.color = '#FFD700';
+                particle.opacity = 1;
+                particle.fadeSpeed = 0.03 + Math.random() * 0.01;
+                particle.lifeSpan = 300 + Math.random() * 200;
+            }
         }
 
         // Add debris particles
         for (let i = 0; i < 10; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 1 + Math.random() * 3;
-            state.particles.push({
-                x,
-                y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 1,
-                rotation: angle,
-                rotationSpeed: Math.random() * 0.2,
-                size: 5 + Math.random() * 5,
-                color: '#8B4513', // Brown debris
-                opacity: 0.8
-            });
+            particle = getParticleFromPool();
+            if (particle) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 3;
+                particle.x = x;
+                particle.y = y;
+                particle.vx = Math.cos(angle) * speed;
+                particle.vy = Math.sin(angle) * speed - 1;
+                particle.rotation = angle;
+                particle.rotationSpeed = Math.random() * 0.2;
+                particle.size = 5 + Math.random() * 5;
+                particle.color = '#8B4513'; // Brown debris
+                particle.opacity = 0.8;
+                particle.fadeSpeed = 0.015 + Math.random() * 0.005;
+                particle.lifeSpan = 700 + Math.random() * 300;
+            }
         }
+        // --- End Particle Creation using Pool --- 
 
-        // Show game over screen after 1.6 seconds - Pass results object
+        // Show game over screen after delay
         setTimeout(() => {
+            console.log('[Canvas] Collision timeout: Calling onGameOver with results:', {
+                score: Math.floor(state.score),
+                boxJumps: state.boxJumps,
+                coinCount: state.coinCount,
+                xp: state.xp
+            });
             onGameOver({ 
                 score: Math.floor(state.score), 
                 boxJumps: state.boxJumps, 

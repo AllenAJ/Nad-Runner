@@ -1,0 +1,174 @@
+.popupOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.popupContainer {
+    background: #fff;
+    border-radius: 16px;
+    padding: 25px 35px;
+    width: 90%;
+    max-width: 600px; /* Wider popup */
+    max-height: 80vh; /* Limit height */
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    border: 1px solid #ddd;
+}
+
+.closeButton {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #eee;
+    border: none;
+    color: #555;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.closeButton:hover {
+    background-color: #ddd;
+    transform: scale(1.05);
+}
+
+.popupContainer h2 {
+    text-align: center;
+    margin: 0 0 25px 0;
+    color: #333;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+.achievementsList {
+    overflow-y: auto; /* Enable scrolling for long lists */
+    flex-grow: 1;
+    padding-right: 10px; /* Space for scrollbar */
+    margin-right: -10px; /* Offset scrollbar */
+    display: grid; /* Use grid for better alignment */
+    grid-template-columns: 1fr; /* Single column layout */
+    gap: 15px;
+}
+
+/* Custom scrollbar */
+.achievementsList::-webkit-scrollbar {
+    width: 6px;
+}
+.achievementsList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+.achievementsList::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+.achievementsList::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+.achievementItem {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.achievementItem.locked {
+    filter: grayscale(1);
+    opacity: 0.7;
+    background-color: #f0f0f0;
+    border-color: #e0e0e0;
+}
+
+.achievementItem.unlocked {
+    border-left: 5px solid #ffd700; /* Highlight unlocked */
+    padding-left: 10px;
+}
+
+.icon {
+    font-size: 2rem; /* Larger icons */
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+}
+
+.details {
+    flex-grow: 1;
+}
+
+.name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.achievementItem.locked .name {
+    color: #777;
+}
+
+.description {
+    font-size: 0.9em;
+    color: #666;
+    line-height: 1.4;
+}
+
+.achievementItem.locked .description {
+    color: #999;
+}
+
+.unlockedBadge {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: #8c7000;
+    background-color: #fff7d1;
+    padding: 3px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+    .popupContainer {
+        padding: 20px;
+        max-width: 95%;
+    }
+    .popupContainer h2 {
+        font-size: 1.4rem;
+    }
+    .achievementItem {
+        padding: 12px;
+        gap: 10px;
+    }
+    .icon {
+        font-size: 1.8rem;
+    }
+    .name {
+        font-size: 0.95rem;
+    }
+    .description {
+        font-size: 0.85em;
+    }
+} 

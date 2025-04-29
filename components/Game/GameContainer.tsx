@@ -15,6 +15,9 @@ import {
     InventoryScreen, 
     MultiplayerScreen 
 } from './GameScreenComponents';
+import NotificationContainer from '../Notifications/NotificationContainer';
+import { NotificationData } from '../Notifications/AchievementNotification';
+import { Achievement } from '../../constants/achievements'; // Import Achievement type
 
 // Constants
 const GAME_WIDTH = 1200;
@@ -52,19 +55,53 @@ interface UserData {
     status: string;
 }
 
-interface PlayerData {
-    playerStats: {
-        highScore: number;
-        boxJumps: number;
-        highScoreBoxJumps: number;
-        coins: number;
-        rounds: number;
-        level: number;
-        xp: number;
-        xpToNextLevel: number;
-        status: string;
-        username: string;
-    };
+// Define the structure for the PlayerData state
+interface PlayerStats {
+    highScore: number;
+    boxJumps: number;
+    highScoreBoxJumps: number;
+    coins: number;
+    rounds: number;
+    level: number;
+    xp: number;
+    xpToNextLevel: number;
+    status: string;
+    username: string;
+    achievements_bitmap: string; // Use string from API
+}
+
+interface PlayerInventory {
+    items: any[]; // Define more specific item type later
+    loadouts: any[]; // Define more specific loadout type later
+}
+
+interface PlayerDataState {
+    playerStats: PlayerStats;
+    inventory: PlayerInventory;
+}
+
+// Define the expected API response structure for update-stats
+interface UpdateStatsApiResponse {
+    playerStats: RawPlayerStats; // Use a raw type for the API response
+    unlockedAchievements: Achievement[];
+}
+
+// Define the raw structure coming from the API (snake_case)
+interface RawPlayerStats {
+    profile_id: number;
+    wallet_address: string;
+    level: number;
+    coins: number;
+    xp: number;
+    xp_to_next_level: number;
+    high_score: number;
+    box_jumps: number;
+    high_score_box_jumps: number;
+    rounds: number;
+    status: string;
+    username: string;
+    achievements_bitmap: string;
+    // Add any other snake_case fields returned by the API
 }
 
 export default function GameContainer() {
@@ -108,7 +145,7 @@ export default function GameContainer() {
     const [userData, setUserData] = useState<UserData | null>(null);
 
     // Player data
-    const [playerData, setPlayerData] = useState<PlayerData | null>(null);
+    const [playerData, setPlayerData] = useState<PlayerDataState | null>(null);
 
     // Add zoom check state
     const [isZoom100, setIsZoom100] = useState(true);
@@ -121,31 +158,47 @@ export default function GameContainer() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const gameOverSoundRef = useRef<HTMLAudioElement | null>(null);
 
-    // Alert state
-    const [alert, setAlert] = useState({ show: false, message: '', type: 'info' });
+    // Add state for the new notification system
+    const [notifications, setNotifications] = useState<NotificationData[]>([]);
+    const notificationIdCounter = useRef(0);
+
+    // Function to add a new notification
+    const addNotification = (notification: Omit<NotificationData, 'id'>) => {
+        const newId = notificationIdCounter.current++;
+        setNotifications(prev => [...prev, { ...notification, id: newId }]);
+    };
+
+    // Function to remove a notification by ID
+    const removeNotification = (id: number) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    };
+
+    // Function to get default player stats structure
+    const getDefaultPlayerStats = (username = ''): PlayerStats => ({
+        highScore: 0,
+        boxJumps: 0,
+        highScoreBoxJumps: 0,
+        coins: 0,
+        rounds: 0,
+        level: 1,
+        xp: 0,
+        xpToNextLevel: 150,
+        status: 'Newbie',
+        username: username,
+        achievements_bitmap: '0'
+    });
 
     // Handler to update coin balance from Shop/other components
     const handleUpdateCoins = (newBalance: number) => {
         setPlayerData(prevData => {
-            if (!prevData) return null;
-            // Ensure playerStats exists before updating
-            const currentStats = prevData.playerStats || {
-                // Provide default structure if somehow missing, though unlikely
-                highScore: 0, boxJumps: 0, highScoreBoxJumps: 0, coins: 0, 
-                rounds: 0, level: 1, xp: 0, xpToNextLevel: 150, status: '', username: ''
-            };
+            if (!prevData?.playerStats) return prevData; // Return previous state if no stats
             return {
                 ...prevData,
                 playerStats: {
-                    ...currentStats,
+                    ...prevData.playerStats,
                     coins: newBalance
                 }
             };
-        });
-        // Optionally, update userData if it also stores coins separately
-        setUserData(prevUserData => {
-             if (!prevUserData) return null;
-             return { ...prevUserData, coins: newBalance };
         });
     };
 
@@ -208,16 +261,17 @@ export default function GameContainer() {
         } else {
             // New account connected or switched
             console.log('Wallet connected/changed:', accounts[0]);
+            const newAddress = accounts[0];
             setIsConnected(true);
-            setWalletAddress(accounts[0]);
+            setWalletAddress(newAddress);
             
             // Re-check user status and load data for the new/switched account
-            // Ensure provider is set for checks
             if (!provider && window.ethereum) {
                 setProvider(new ethers.BrowserProvider(window.ethereum));
             }
-            checkUserExists(); // Re-check if user exists with the new address
-            // Load game data if not already loaded (or reload if necessary)
+            checkUserExistsAndLoadData(); // Fetch data for new account
+            
+            // Reload necessary game assets if they weren't loaded
             if (!leaderboardLoaded || !assetsLoaded) {
                 loadGameData(); 
             }
@@ -226,7 +280,7 @@ export default function GameContainer() {
         }
     };
 
-    // Check if wallet is already connected
+    // Check wallet connection on initial load
     const checkWalletConnection = async () => {
         if (typeof window !== 'undefined' && window.ethereum) {
             try {
@@ -234,23 +288,34 @@ export default function GameContainer() {
                 setProvider(web3Provider);
                 
                 const accounts = await web3Provider.listAccounts();
-                if (accounts.length > 0) {
+                if (accounts.length > 0 && accounts[0]) {
+                    const connectedAddress = accounts[0].address;
+                    console.log('Already connected:', connectedAddress);
                     setIsConnected(true);
-                    setWalletAddress(accounts[0].address);
+                    setWalletAddress(connectedAddress);
                     
-                    // If connected, load game data
-                    loadGameData();
+                    // If connected, load user data and other game data
+                    await checkUserExistsAndLoadData(); // Fetch user data
+                    await loadGameData(); // Load leaderboard/assets
                 } else {
-                    console.log('No connected accounts');
+                    console.log('No connected accounts found initially.');
                     setIsConnected(false);
+                    setWalletAddress("");
+                    setPlayerData(null);
+                    // Transition to menu even if not connected, after loading basic assets
+                    await loadGameData(); // Load assets/leaderboard regardless
                 }
             } catch (error) {
                 console.log('Wallet connection check error:', error);
                 setIsConnected(false);
+                setPlayerData(null);
+                await loadGameData(); // Try loading assets anyway
             }
         } else {
-            console.log('No Ethereum provider detected');
+            console.log('No Ethereum provider detected.');
             setIsConnected(false);
+            setPlayerData(null);
+            await loadGameData(); // Load assets/leaderboard
         }
     };
 
@@ -379,7 +444,7 @@ export default function GameContainer() {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         } finally {
-            setIsMinting(false);
+            setIsMuted(false);
         }
     };
 
@@ -404,8 +469,9 @@ export default function GameContainer() {
         setIsGameOver(false);
     };
 
-    // Game over method - Update signature to accept results object
+    // Game over method - Updated to use new notification system
     const handleGameOver = async (results: { score: number; boxJumps: number; coinCount: number; xp: number; }) => {
+        console.log('[GameContainer] handleGameOver triggered with results:', results);
         const roundedScore = Math.floor(results.score);
 
         // Play game over sound if not muted
@@ -416,6 +482,7 @@ export default function GameContainer() {
             });
         }
 
+        console.log('[GameContainer] Setting gameState: isPlaying=false, currentScreen=gameOver');
         setGameState(prev => ({
             ...prev,
             isPlaying: false,
@@ -431,13 +498,12 @@ export default function GameContainer() {
         if (isConnected && walletAddress && !isUpdatingStats) {
             try {
                 setIsUpdatingStats(true);
-                // Update player stats
                 const response = await fetch('/api/user/update-stats', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         walletAddress,
-                        score: roundedScore,
+                        score: roundedScore, // Assuming score is distance
                         boxJumps: results.boxJumps,
                         coinCount: results.coinCount,
                         xp: results.xp
@@ -445,51 +511,83 @@ export default function GameContainer() {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to update player stats');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update player stats');
                 }
 
-                // Refresh player data
-                const updatedData = await response.json();
+                const updatedData: UpdateStatsApiResponse = await response.json(); 
+                console.log('[GameContainer] API response from /update-stats:', updatedData);
                 
-                // Check for level up
-                if (playerData && updatedData.playerStats.level > playerData.playerStats.level) {
-                    // Play level up sound
+                const previousLevel = playerData?.playerStats?.level ?? 1;
+
+                // Map API response (snake_case) to PlayerStats state (camelCase)
+                // Access the raw stats using the RawPlayerStats type
+                const rawStats = updatedData.playerStats; 
+                const mappedStats: PlayerStats = {
+                    highScore: rawStats.high_score,
+                    boxJumps: rawStats.box_jumps, 
+                    highScoreBoxJumps: rawStats.high_score_box_jumps, 
+                    coins: rawStats.coins,
+                    rounds: rawStats.rounds,
+                    level: rawStats.level,
+                    xp: rawStats.xp,
+                    xpToNextLevel: rawStats.xp_to_next_level,
+                    status: rawStats.status,
+                    username: rawStats.username,
+                    achievements_bitmap: rawStats.achievements_bitmap
+                };
+
+                // Update player data state using the MAPPED stats
+                setPlayerData(prev => {
+                    const newState = {
+                        inventory: prev?.inventory || { items: [], loadouts: [] },
+                        playerStats: mappedStats 
+                    };
+                    console.log('[GameContainer] Updating playerData state to:', newState);
+                    return newState;
+                });
+
+                // Check for level up based on the MAPPED playerStats
+                if (mappedStats.level > previousLevel) {
                     const levelUpSound = new Audio('/assets/audio/levelup.mp3');
                     levelUpSound.volume = 0.5;
-                    levelUpSound.play().catch(error => {
-                        console.log('Level up sound playback failed:', error);
+                    levelUpSound.play().catch(error => console.log('Level up sound failed:', error));
+                    addNotification({
+                        type: 'level-up',
+                        title: 'Level Up!',
+                        message: `You are now level ${mappedStats.level}!` // Use mapped stat
                     });
-
-                    // Show level up notification
-                    setAlert({
-                        show: true,
-                        message: `Level Up! You are now level ${updatedData.playerStats.level}!`,
-                        type: 'info'
-                    });
-
-                    // Hide alert after 3 seconds
-                    setTimeout(() => {
-                        setAlert({ show: false, message: '', type: 'info' });
-                    }, 3000);
                 }
 
-                setPlayerData(updatedData);
+                // Check achievements using the UNLOCKED ACHIEVEMENTS LIST from the API response
+                if (updatedData.unlockedAchievements && updatedData.unlockedAchievements.length > 0) {
+                    const achievementSound = new Audio('/assets/audio/achievement.mp3');
+                    achievementSound.volume = 0.6;
+                    
+                    updatedData.unlockedAchievements.forEach((achievement: Achievement) => {
+                        achievementSound.currentTime = 0;
+                        achievementSound.play().catch(error => console.log('Achievement sound failed:', error));
+                        addNotification({
+                            type: 'achievement',
+                            title: 'Achievement Unlocked!',
+                            message: achievement.name,
+                        });
+                    });
+                }
 
-                // Only submit to leaderboard if we have a valid username
-                if (updatedData.playerStats && updatedData.playerStats.username) {
-                    // Submit score to leaderboard
+                // Submit to leaderboard using the username from the MAPPED playerStats
+                if (mappedStats && mappedStats.username) {
                     const leaderboardResponse = await fetch('/api/scores', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            name: updatedData.playerStats.username,
+                            name: mappedStats.username, // Use mapped username
                             score: roundedScore,
                             walletAddress
                         }),
                     });
 
                     if (leaderboardResponse.ok) {
-                        // Refresh leaderboard
                         const updatedScores = await fetch('/api/scores').then(res => res.json());
                         setLeaderboard(updatedScores);
                     } else {
@@ -497,12 +595,19 @@ export default function GameContainer() {
                         console.error('Failed to submit score to leaderboard:', errorData.error);
                     }
                 } else {
-                    console.error('Cannot submit to leaderboard: No username available');
+                    console.warn('Cannot submit to leaderboard: No username available in updated stats');
                 }
             } catch (error) {
                 console.error('Error updating game data:', error);
+                // Add error notification
+                addNotification({
+                    type: 'error',
+                    title: 'Update Error',
+                    message: error instanceof Error ? error.message : 'Failed to update game data'
+                });
             } finally {
                 setIsUpdatingStats(false);
+                console.log('[GameContainer] Finished updating stats.');
             }
         }
     };
@@ -574,48 +679,49 @@ export default function GameContainer() {
         }
     }, [isConnected, gameState.isPlaying]);
 
-    // Check if user exists
+    // Check if user exists and fetch initial data
     useEffect(() => {
         if (isConnected && walletAddress) {
-            checkUserExists();
+            checkUserExistsAndLoadData(); // Renamed function
         }
     }, [isConnected, walletAddress]);
 
-    const checkUserExists = async () => {
+    // Check user existence and load data
+    const checkUserExistsAndLoadData = async () => {
+        if (!walletAddress) return; // Don't fetch if no address
         try {
             const normalizedWalletAddress = walletAddress.toLowerCase();
-            const response = await fetch(`/api/user/check?walletAddress=${normalizedWalletAddress}`);
-            const data = await response.json();
+            const response = await fetch(`/api/user/data?walletAddress=${normalizedWalletAddress}`);
             
             if (response.ok) {
-                setUserData(data.user);
+                const data: PlayerDataState = await response.json(); // Expect full state object
+                setPlayerData(data);
                 setIsNewUser(false);
-            } else {
+            } else if (response.status === 404) {
                 setIsNewUser(true);
+                setPlayerData(null);
+            } else {
+                const errorData = await response.json();
+                console.error('Error fetching user data:', errorData.error);
+                setIsNewUser(true); 
+                setPlayerData(null);
             }
         } catch (error) {
-            console.error('Error checking user:', error);
-            setIsNewUser(true);
+            console.error('Network error fetching user data:', error);
+            setIsNewUser(true); 
+            setPlayerData(null);
         }
     };
 
+    // Handle submission of username for new users
     const handleUsernameSubmit = async (username: string) => {
+        if (!walletAddress) return;
         try {
             const normalizedWalletAddress = walletAddress.toLowerCase();
-            
-            // Removed the initial /api/user/check call as it's redundant here
-            // We only reach this function if isNewUser is true.
-
-            // Directly proceed to create new user
             const createResponse = await fetch('/api/user/create', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    walletAddress: normalizedWalletAddress,
-                    username,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: normalizedWalletAddress, username }),
             });
 
             const createData = await createResponse.json();
@@ -624,29 +730,22 @@ export default function GameContainer() {
                 throw new Error(createData.error || 'Failed to create user');
             }
 
-            setUserData(createData.user); // Set user data from the creation response
-            
-            // Set player data for the new user using the submitted username
-            setPlayerData({
-                playerStats: {
-                    highScore: 0,
-                    boxJumps: 0,
-                    highScoreBoxJumps: 0,
-                    coins: 0,
-                    rounds: 0,
-                    level: 1,
-                    xp: 0,
-                    xpToNextLevel: 150,
-                    status: 'Newbie',
-                    username: username // Use the submitted username here
-                }
-            });
-            setIsNewUser(false); // Update the state to indicate user now exists
+            // API should return the initial PlayerDataState structure upon creation
+            // If not, construct it here based on defaults and the username
+            const initialData: PlayerDataState = createData.playerStats 
+                ? { playerStats: createData.playerStats, inventory: createData.inventory || { items: [], loadouts: [] } } 
+                : { playerStats: getDefaultPlayerStats(username), inventory: { items: [], loadouts: [] } };
+
+            setPlayerData(initialData);
+            setIsNewUser(false); 
         } catch (error) {
             console.error('Error in handleUsernameSubmit:', error);
-            // Optionally, re-throw or set an error state to show in the UI
-            // For now, just logging the error.
-            // throw error; 
+            // Add error notification
+            addNotification({
+                type: 'error',
+                title: 'Username Error',
+                message: error instanceof Error ? error.message : 'Failed to set username'
+            });
         }
     };
 
@@ -737,6 +836,8 @@ export default function GameContainer() {
                     />
                 );
             case 'menu':
+                // Use the default stats function if playerData is null
+                const currentStats = playerData?.playerStats || getDefaultPlayerStats();
                 return (
                     <MainMenu 
                         leaderboard={leaderboard} 
@@ -752,18 +853,7 @@ export default function GameContainer() {
                             minutes: 43,
                             seconds: 56
                         }}
-                        playerStats={playerData?.playerStats || {
-                            highScore: 0,
-                            boxJumps: 0,
-                            highScoreBoxJumps: 0,
-                            coins: 0,
-                            rounds: 0,
-                            level: 1,
-                            xp: 0,
-                            xpToNextLevel: 150,
-                            status: 'Newbie',
-                            username: ''
-                        }}
+                        playerStats={currentStats} // Pass the resolved stats
                     />
                 );
             case 'shop':
@@ -809,6 +899,12 @@ export default function GameContainer() {
 
     return (
         <>
+            {/* Render Notification Container */} 
+            <NotificationContainer 
+                notifications={notifications} 
+                onDismissNotification={removeNotification} 
+            />
+
             {!isZoom100 && (
                 <div className={styles.zoomWarning}>
                     <div className={styles.zoomWarningContent}>
@@ -873,15 +969,6 @@ export default function GameContainer() {
                                     <button onClick={handleConnect} className={styles.primaryButton}>
                                         Reconnect Wallet
                                     </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Add Level Up Alert */}
-                        {alert.show && (
-                            <div className={`${styles.levelUpAlert} ${styles.fadeInOut}`}>
-                                <div className={styles.alertContent}>
-                                    <h3>{alert.message}</h3>
                                 </div>
                             </div>
                         )}

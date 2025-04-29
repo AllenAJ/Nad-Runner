@@ -5,6 +5,8 @@ import { Alert } from './Alert';
 import { UsernamePrompt } from './UsernamePrompt';
 import { LayeredCharacter } from '../Character/LayeredCharacter';
 import { useInventory } from '../../contexts/InventoryContext';
+import AchievementsPopup from '../Achievements/AchievementsPopup';
+import { ACHIEVEMENTS } from '../../constants/achievements';
 
 interface MainMenuProps {
     leaderboard: Array<{name: string, score: number}>;
@@ -31,6 +33,7 @@ interface MainMenuProps {
         xpToNextLevel: number;
         status: string;
         username: string;
+        achievements_bitmap: string;
     };
 }
 
@@ -68,7 +71,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         xp: 0,
         xpToNextLevel: 150,
         status: 'Newbie',
-        username: ''
+        username: '',
+        achievements_bitmap: '0'
     },
 }) => {
     const { reloadInventory } = useInventory();
@@ -79,6 +83,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         type?: 'info' | 'warning' | 'error';
     }>({ show: false, message: '' });
     const [showShopPopup, setShowShopPopup] = useState(false);
+    const [showAchievements, setShowAchievements] = useState(false);
 
     // State for button interactions
     const [isPetsHovering, setIsPetsHovering] = useState(false);
@@ -117,6 +122,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         } finally {
             setIsInventoryLoading(false);
         }
+    };
+
+    const handleAchievementsClick = () => {
+        playSound(buttonClickSound);
+        setShowAchievements(true);
     };
 
     // Format the wallet address for display
@@ -265,6 +275,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             </button>
                             <button
                                 className={styles.menuButton}
+                                onClick={() => handleButtonClick(handleAchievementsClick)}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected}
+                            >
+                                ACHIEVEMENTS
+                            </button>
+                            <button
+                                className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleMultiplayerClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                                 disabled={!isConnected}
@@ -344,6 +362,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         </button>
                     </div>
                 </div>
+            )}
+
+            {/* Achievements Popup (Render conditionally) */}
+            {showAchievements && isConnected && playerStats && (
+                <AchievementsPopup 
+                    achievements={ACHIEVEMENTS}
+                    bitmap={BigInt(playerStats.achievements_bitmap || '0')}
+                    onClose={() => setShowAchievements(false)} 
+                />
             )}
         </div>
     );

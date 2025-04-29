@@ -1,0 +1,96 @@
+.notificationToast {
+    background-color: #333;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    width: 320px; /* Adjust width as needed */
+    max-width: 90%;
+    position: relative;
+    overflow: hidden;
+    border-left: 5px solid #6366F1; /* Default border color */
+}
+
+/* Type-specific styling */
+.notificationToast.achievement {
+    border-left-color: #ffd700; /* Gold */
+}
+.notificationToast.level-up {
+    border-left-color: #3b82f6; /* Blue */
+}
+.notificationToast.error {
+    border-left-color: #ef4444; /* Red */
+}
+.notificationToast.info {
+    border-left-color: #a0aec0; /* Gray */
+}
+
+.icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.content {
+    flex-grow: 1;
+}
+
+.title {
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.message {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0 5px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.closeButton:hover {
+    opacity: 1;
+}
+
+/* Animations */
+.slideIn {
+    animation: slideInAnimation 0.3s ease-out forwards;
+}
+
+.slideOut {
+    animation: slideOutAnimation 0.3s ease-in forwards;
+}
+
+@keyframes slideInAnimation {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutAnimation {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+} 

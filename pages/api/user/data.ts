@@ -41,6 +41,7 @@ interface PlayerData {
     xp: number;
     xp_to_next_level: number;
     status: string;
+    achievements_bitmap: string | bigint | null;
 }
 
 export default async function handler(
@@ -110,7 +111,8 @@ export default async function handler(
                 xp: playerData.xp,
                 xpToNextLevel: playerData.xp_to_next_level,
                 status: playerData.status,
-                username: playerData.username
+                username: playerData.username,
+                achievements_bitmap: playerData.achievements_bitmap ? BigInt(playerData.achievements_bitmap).toString() : '0'
             },
             inventory: {
                 items: inventoryResult.rows,

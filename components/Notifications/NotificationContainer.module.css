@@ -1,0 +1,25 @@
+.notificationContainer {
+    position: fixed;
+    top: 20px; /* Adjust spacing from top */
+    right: 20px; /* Adjust spacing from right */
+    z-index: 1050; /* Ensure it's above most elements */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align notifications to the right */
+    gap: 10px; /* Spacing between notifications */
+    pointer-events: none; /* Allow clicks through the container */
+}
+
+/* Allow interaction with individual notifications */
+.notificationContainer > * {
+    pointer-events: auto;
+}
+
+/* Optional: Media query for smaller screens */
+@media (max-width: 480px) {
+    .notificationContainer {
+        right: 10px;
+        left: 10px; /* Span width on small screens */
+        align-items: center; /* Center notifications */
+    }
+} 
