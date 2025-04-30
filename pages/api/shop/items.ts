@@ -24,36 +24,63 @@ interface ErrorResponse {
 
 // Define items for each section by their IDs
 const NORMAL_ITEMS = [
-    // Normal rarity items
-    'tinytooth',    // Tiny Tooth mouth
+    // Head Items
+    'brown_hat',    // Brown Hat
+    'bow',          // Bow
+    'musketeer',    // Musketeer Hat
+
+    // Eyes Items
+    'coolglass',    // Cool Glass
+    'grumpy',       // Grumpy Eyes
+    'dizzy',        // Dizzy Eyes
     'huh',          // Huh Eyes
     'bored',        // Bored Eyes
-    'bandage',      // Bandage head
-    'brown_hat',    // Brown Hat
-    'bug',          // Bug mini pet
-    'donkey',       // Donkey mini pet
-    'pig',          // Pig mini pet
-    'turkey',       // Turkey mini pet
-    'turtle',       // Turtle mini pet
-    'red_skin',     // Red Skin
-    'blue_skin',    // Blue Skin
-    'green_skin',   // Green Skin
-    'yellow_skin'   // Yellow Skin
+    'innocent',     // Innocent Eyes
+
+    // Mouth Items
+    'smileysnug',   // Smiley Snug
+    'pout',         // Pout
+    'tinytooth',    // Tiny Tooth
+    'chomp',        // Chomp
+
+    // Nose Items
+    'clownnose',    // Clown Nose
+
+    // Mini Pets
+    'bug',          // Bug
+
+    // Skins
+    // 'red_skin',     // Red Skin
+    // 'blue_skin',    // Blue Skin
+    // 'green_skin',   // Green Skin
+    // 'yellow_skin'   // Yellow Skin
 ];
 
 const PREMIUM_ITEMS = [
-    // Premium rarity items
+    // Head Items
+    'bandage',      // Bandage
+    'halo',         // Halo
+
+    // Eyes Items
+    'swag',         // Swag Eyes
+    'sparklyeyes',  // Sparkly Eyes
+
+    // Mouth Items
     'haha',         // Haha Mouth
-    'smileysnug',   // Smiley Snug mouth
-    'coolglass',    // Cool Glass eyes
-    'dizzy',        // Dizzy Eyes
-    'bow',          // Bow head
-    'clownnose',    // Clown Nose
-    'falcon',       // Falcon mini pet
-    'owl',          // Owl mini pet
-    'puffin',       // Puffin mini pet
-    'snake',        // Snake mini pet
-    'walrus'        // Walrus mini pet
+
+    // Mini Pets
+    'dodo',         // Dodo
+    'donkey',       // Donkey
+    'falcon',       // Falcon
+    'octopus',      // Octopus
+    'owl',          // Owl
+    'pig',          // Pig
+    'polar_bear',   // Polar Bear
+    'puffin',       // Puffin
+    'red_parrot',   // Red Parrot
+    'snake',        // Snake
+    'turkey',       // Turkey
+    'walrus'        // Walrus
 ];
 
 const pool = new Pool({

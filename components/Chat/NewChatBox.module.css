@@ -17,6 +17,8 @@
   border: 1px solid #004080;
   border-radius: 4px;
   color: white;
+  text-shadow: 0 0 3px #000;
+
 }
 
 /* Header */
@@ -371,14 +373,14 @@
 .tradersList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .traderItem {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 1px 8px 2px;
+  padding: 2px;
   border-radius: 4px;
   /* border: 1px solid rgba(0, 0, 0, 0.1); */
   transition: all 0.2s ease;
@@ -1550,8 +1552,8 @@
 
 /* Add style for the level badge */
 .traderLevelBadge {
-  width: 20px; /* Adjust size as needed */
-  height: 25px; /* Adjust size as needed */
+  width: 30px; /* Adjust size as needed */
+  height: 30px; /* Adjust size as needed */
   margin-right: 0px; /* Add some space between badge and name */
   object-fit: fill;
   flex-shrink: 0; /* Prevent shrinking */

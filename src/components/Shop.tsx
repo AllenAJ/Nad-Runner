@@ -56,6 +56,26 @@ type PurchaseStatus = {
     [key: string]: 'idle' | 'buying' | 'success' | 'error';
 };
 
+const CoinIcon = () => (
+    <Image 
+        src="/Display_Icon/coin.svg" 
+        alt="Coin" 
+        width={20} 
+        height={20}
+        style={{ marginLeft: '4px' }}
+    />
+);
+
+const DiamondIcon = () => (
+    <Image 
+        src="/Display_Icon/diamond.svg" 
+        alt="Diamond" 
+        width={20} 
+        height={20}
+        style={{ marginLeft: '4px' }}
+    />
+);
+
 const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
     const [activeTab, setActiveTab] = useState<'normal' | 'premium'>('normal');
     const [items, setItems] = useState<ShopItem[]>([]);
@@ -303,7 +323,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                         onClick={() => setActiveTab('normal')}
                     >
                         <Image 
-                            src={activeTab === 'normal' ? '/ShopUI/normalItemButton_hover.png' : '/ShopUI/normalItemButton.png'}
+                            src={activeTab === 'normal' ? '/ShopUI/normalItemButton_hover.svg' : '/ShopUI/normalItemButton.svg'}
                             alt="Normal Items"
                             width={182}
                             height={86}
@@ -315,7 +335,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                         onClick={() => setActiveTab('premium')}
                     >
                         <Image 
-                            src={activeTab === 'premium' ? '/ShopUI/premiumItemButton_hover.png' : '/ShopUI/premiumItemButton.png'}
+                            src={activeTab === 'premium' ? '/ShopUI/premiumItemButton_hover.svg' : '/ShopUI/premiumItemButton.svg'}
                             alt="Premium Items"
                             width={182}
                             height={86}
@@ -329,7 +349,11 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                     {error && <div className={styles.error}>{error}</div>}
 
                     {loading ? (
-                        <div className={styles.loading}>Loading items...</div>
+                        <div className={styles.loadingWrapper}>
+                            <div className={styles.loadingSpinner}>
+                                <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                            </div>
+                        </div>
                     ) : (
                         <div className={styles.itemsGrid}>
                             {filteredItems.map((item) => (
@@ -343,8 +367,6 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                             <img
                                                 src={getPreviewImageUrl(item.image_url)}
                                                 alt={item.name}
-                                                width={32}
-                                                height={32}
                                                 loading="lazy"
                                             />
                                         </div>
@@ -357,7 +379,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                         {!item.owned && (
                                             <>
                                                 <div className={styles.itemPrice}>
-                                                    {item.price} {item.type === 'normal' ? '🪙' : '💎'}
+                                                    {item.price} {item.type === 'normal' ? <CoinIcon /> : <DiamondIcon />}
                                                 </div>
                                                 <div className={styles.buttonContainer}>
                                                     <button
@@ -366,7 +388,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                                         disabled={!walletAddress} // Disable if wallet disconnected
                                                     >
                                                         <Image 
-                                                            src="/ShopUI/tryButton.png"
+                                                            src="/ShopUI/tryButton.svg"
                                                             alt="Try"
                                                             width={80}
                                                             height={40}
@@ -378,7 +400,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                                         disabled={!walletAddress || purchaseStatus[item.id] === 'buying'} // Disable if wallet disconnected or buying
                                                     >
                                                         <Image 
-                                                            src="/ShopUI/buyButton.png"
+                                                            src="/ShopUI/buyButton.svg"
                                                             alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
                                                             width={80}
                                                             height={40}

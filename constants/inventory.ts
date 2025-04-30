@@ -49,11 +49,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'musketeer',
         key: 'musketeer',
         name: 'Musketeer Hat',
-        description: 'A stylish musketeer hat',
+        description: 'A dashing hat worn by brave musketeers',
         category: 'outfits',
         subCategory: 'head',
-        rarity: 'premium',
-        price: 1500,
+        rarity: 'rare',
+        price: 1000,
         imageUrl: '/items/Head/Musketeer.png',
         purchaseDate: new Date()
     },
@@ -61,11 +61,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'bandage',
         key: 'bandage',
         name: 'Bandage',
-        description: 'A wrapped bandage',
+        description: 'A simple bandage wrap for your head',
         category: 'outfits',
         subCategory: 'head',
-        rarity: 'normal',
-        price: 800,
+        rarity: 'premium',
+        price: 250,
         imageUrl: '/items/Head/Bandage.png',
         purchaseDate: new Date()
     },
@@ -73,11 +73,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'brown_hat',
         key: 'brown_hat',
         name: 'Brown Hat',
-        description: 'A classic brown hat',
+        description: 'A stylish brown hat for casual wear',
         category: 'outfits',
         subCategory: 'head',
         rarity: 'normal',
-        price: 1000,
+        price: 400,
         imageUrl: '/items/Head/Brown_hat.png',
         purchaseDate: new Date()
     },
@@ -85,11 +85,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'halo',
         key: 'halo',
         name: 'Halo',
-        description: 'A glowing halo',
+        description: 'A divine halo that glows above your head',
         category: 'outfits',
         subCategory: 'head',
-        rarity: 'ultra_rare',
-        price: 2500,
+        rarity: 'premium',
+        price: 300,
         imageUrl: '/items/Head/Halo.png',
         purchaseDate: new Date()
     },
@@ -97,11 +97,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'bow',
         key: 'bow',
         name: 'Bow',
-        description: 'A cute bow',
+        description: 'A cute bow to accessorize your look',
         category: 'outfits',
         subCategory: 'head',
-        rarity: 'rare',
-        price: 1200,
+        rarity: 'normal',
+        price: 200,
         imageUrl: '/items/Head/Bow.png',
         purchaseDate: new Date()
     },
@@ -109,10 +109,10 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'toga',
         key: 'toga',
         name: 'Toga',
-        description: 'A classic toga headpiece',
+        description: 'A majestic toga headpiece',
         category: 'outfits',
         subCategory: 'head',
-        rarity: 'premium',
+        rarity: 'rare',
         price: 1800,
         imageUrl: '/items/Head/Toga.png',
         purchaseDate: new Date()
@@ -123,23 +123,23 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'swag',
         key: 'swag',
         name: 'Swag Eyes',
-        description: 'Cool swag eyes',
+        description: 'Cool and stylish eyes',
         category: 'outfits',
         subCategory: 'eyes',
-        rarity: 'rare',
-        price: 1500,
+        rarity: 'premium',
+        price: 1200,
         imageUrl: '/items/Eyes/Swag.png',
         purchaseDate: new Date()
     },
     {
         id: 'coolglass',
         key: 'coolglass',
-        name: 'Cool Glasses',
-        description: 'Stylish sunglasses',
+        name: 'Cool Glass',
+        description: 'Trendy sunglasses for a cool look',
         category: 'outfits',
         subCategory: 'eyes',
-        rarity: 'premium',
-        price: 1800,
+        rarity: 'normal',
+        price: 400,
         imageUrl: '/items/Eyes/CoolGlass.png',
         purchaseDate: new Date()
     },
@@ -147,11 +147,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'grumpy',
         key: 'grumpy',
         name: 'Grumpy Eyes',
-        description: 'Grumpy looking eyes',
+        description: 'Adorably grumpy expression',
         category: 'outfits',
         subCategory: 'eyes',
         rarity: 'normal',
-        price: 1000,
+        price: 200,
         imageUrl: '/items/Eyes/Grumpy.png',
         purchaseDate: new Date()
     },
@@ -159,11 +159,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'sparklyeyes',
         key: 'sparklyeyes',
         name: 'Sparkly Eyes',
-        description: 'Eyes full of sparkles',
+        description: 'Eyes that twinkle with joy',
         category: 'outfits',
         subCategory: 'eyes',
-        rarity: 'ultra_rare',
-        price: 2500,
+        rarity: 'premium',
+        price: 2200,
         imageUrl: '/items/Eyes/SparklyEyes.png',
         purchaseDate: new Date()
     },
@@ -171,11 +171,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'dizzy',
         key: 'dizzy',
         name: 'Dizzy Eyes',
-        description: 'Spinning dizzy eyes',
+        description: 'Spinning stars in your eyes',
         category: 'outfits',
         subCategory: 'eyes',
-        rarity: 'rare',
-        price: 1300,
+        rarity: 'normal',
+        price: 400,
         imageUrl: '/items/Eyes/dizzy.png',
         purchaseDate: new Date()
     },
@@ -183,11 +183,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'huh',
         key: 'huh',
         name: 'Huh Eyes',
-        description: 'Confused looking eyes',
+        description: 'A confused and curious expression',
         category: 'outfits',
         subCategory: 'eyes',
         rarity: 'normal',
-        price: 900,
+        price: 350,
         imageUrl: '/items/Eyes/Huh.png',
         purchaseDate: new Date()
     },
@@ -195,11 +195,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'bored',
         key: 'bored',
         name: 'Bored Eyes',
-        description: 'Unimpressed looking eyes',
+        description: 'An unimpressed expression',
         category: 'outfits',
         subCategory: 'eyes',
         rarity: 'normal',
-        price: 800,
+        price: 250,
         imageUrl: '/items/Eyes/Bored.png',
         purchaseDate: new Date()
     },
@@ -207,11 +207,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'innocent',
         key: 'innocent',
         name: 'Innocent Eyes',
-        description: 'Sweet innocent eyes',
+        description: 'Pure and innocent looking eyes',
         category: 'outfits',
         subCategory: 'eyes',
-        rarity: 'premium',
-        price: 1600,
+        rarity: 'normal',
+        price: 250,
         imageUrl: '/items/Eyes/Innocent.png',
         purchaseDate: new Date()
     },
@@ -221,11 +221,11 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'haha',
         key: 'haha',
         name: 'Haha Mouth',
-        description: 'A laughing mouth',
+        description: 'A cheerful laughing mouth',
         category: 'outfits',
         subCategory: 'mouth',
-        rarity: 'normal',
-        price: 1000,
+        rarity: 'premium',
+        price: 250,
         imageUrl: '/items/Mouth/Haha.png',
         purchaseDate: new Date()
     },
@@ -236,8 +236,8 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A warm and cozy smile',
         category: 'outfits',
         subCategory: 'mouth',
-        rarity: 'premium',
-        price: 1200,
+        rarity: 'normal',
+        price: 200,
         imageUrl: '/items/Mouth/SmileySnug.png',
         purchaseDate: new Date()
     },
@@ -248,8 +248,8 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A cute pouty expression',
         category: 'outfits',
         subCategory: 'mouth',
-        rarity: 'rare',
-        price: 1500,
+        rarity: 'normal',
+        price: 250,
         imageUrl: '/items/Mouth/Pout.png',
         purchaseDate: new Date()
     },
@@ -261,7 +261,7 @@ export const INITIAL_ITEMS: Item[] = [
         category: 'outfits',
         subCategory: 'mouth',
         rarity: 'normal',
-        price: 800,
+        price: 300,
         imageUrl: '/items/Mouth/TinyTooth.png',
         purchaseDate: new Date()
     },
@@ -272,8 +272,8 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A playful chomping expression',
         category: 'outfits',
         subCategory: 'mouth',
-        rarity: 'ultra_rare',
-        price: 2000,
+        rarity: 'normal',
+        price: 200,
         imageUrl: '/items/Mouth/Chomp.png',
         purchaseDate: new Date()
     },
@@ -283,16 +283,16 @@ export const INITIAL_ITEMS: Item[] = [
         id: 'clownnose',
         key: 'clownnose',
         name: 'Clown Nose',
-        description: 'A funny red clown nose',
+        description: 'A fun and playful red clown nose',
         category: 'outfits',
         subCategory: 'nose',
-        rarity: 'rare',
-        price: 1500,
+        rarity: 'normal',
+        price: 500,
         imageUrl: '/items/Nose/ClownNose.png',
         purchaseDate: new Date()
     },
 
-    // Existing items...
+    // Mini Pets
     {
         id: 'baldeagle',
         key: 'baldeagle',
@@ -336,7 +336,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A rare dodo bird that waddles alongside you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'event_rare',
+        rarity: 'premium',
         price: 2200,
         imageUrl: '/Mini pets/Dodo/1.svg',
         purchaseDate: new Date()
@@ -348,7 +348,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A friendly donkey that trots beside you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'normal',
+        rarity: 'premium',
         price: 1000,
         imageUrl: '/Mini pets/Donkey/1.svg',
         purchaseDate: new Date()
@@ -384,7 +384,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A clever octopus that floats beside you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'rare',
+        rarity: 'premium',
         price: 1700,
         imageUrl: '/Mini pets/Octopus/1.svg',
         purchaseDate: new Date()
@@ -420,7 +420,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A cheerful pig that bounces along with you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'normal',
+        rarity: 'premium',
         price: 900,
         imageUrl: '/Mini pets/Pig/1.svg',
         purchaseDate: new Date()
@@ -432,7 +432,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A cuddly polar bear that waddles beside you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'rare',
+        rarity: 'premium',
         price: 2000,
         imageUrl: '/Mini pets/Polar Bear/1.svg',
         purchaseDate: new Date()
@@ -468,7 +468,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A loyal red parrot companion that follows you around',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'rare',
+        rarity: 'premium',
         price: 1500,
         imageUrl: '/Mini pets/Red Parrot/1.svg',
         purchaseDate: new Date()
@@ -504,7 +504,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A proud turkey that struts beside you',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'normal',
+        rarity: 'premium',
         price: 1100,
         imageUrl: '/Mini pets/Turkey/1.svg',
         purchaseDate: new Date()
@@ -516,7 +516,7 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'A steady turtle that follows in your footsteps',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'normal',
+        rarity: 'rare',
         price: 1000,
         imageUrl: '/Mini pets/Turtle/1.svg',
         purchaseDate: new Date()
@@ -552,11 +552,13 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'An undead bird that haunts your path',
         category: 'outfits',
         subCategory: 'minipet',
-        rarity: 'event_rare',
+        rarity: 'ultra_rare',
         price: 2400,
         imageUrl: '/Mini pets/Zombie Bird/1.svg',
         purchaseDate: new Date()
     },
+
+    // Skin Items
     {
         id: 'red_skin',
         key: 'red_skin',
@@ -568,7 +570,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/red_skin.svg',
         purchaseDate: new Date(),
-        color: '#8B3A3A'
+        color: '#ff0000'
     },
     {
         id: 'blue_skin',
@@ -581,7 +583,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/blue_skin.svg',
         purchaseDate: new Date(),
-        color: '#4A6B8A'
+        color: '#0000ff'
     },
     {
         id: 'green_skin',
@@ -594,7 +596,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/green_skin.svg',
         purchaseDate: new Date(),
-        color: '#4F7942'
+        color: '#00ff00'
     },
     {
         id: 'yellow_skin',
@@ -607,7 +609,7 @@ export const INITIAL_ITEMS: Item[] = [
         price: 0,
         imageUrl: '/items/yellow_skin.svg',
         purchaseDate: new Date(),
-        color: '#B8860B'
+        color: '#ffff00'
     },
     {
         id: 'team_skin',
@@ -616,11 +618,10 @@ export const INITIAL_ITEMS: Item[] = [
         description: 'Show your team spirit!',
         category: 'outfits',
         subCategory: 'skin',
-        rarity: 'rare',
+        rarity: 'ultra_rare',
         price: 0,
         imageUrl: '/items/team_skin.svg',
-        purchaseDate: new Date(),
-        color: undefined
+        purchaseDate: new Date()
     },
     {
         id: 'basic_helmet',

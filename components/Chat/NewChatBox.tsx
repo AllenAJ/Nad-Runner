@@ -94,6 +94,15 @@ const RARITY_FILTERS = [
     { id: 'trade_cash', label: 'Trade' }
 ] as const;
 
+// Add blacklisted item IDs
+const BLACKLISTED_ITEMS = [
+    'red_skin',
+    'blue_skin',
+    'green_skin',
+    'yellow_skin',
+    'team_skin'
+] as const;
+
 const CATEGORY_FILTERS = [
     { id: 'all', label: 'All' },
     { id: 'head', label: 'Head' },
@@ -239,9 +248,9 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         
         return INITIAL_ITEMS
             .filter(item => {
-                // Only include items that are in the inventory
+                // Only include items that are in the inventory and not blacklisted
                 const count = inventoryItems[item.id] || 0;
-                return count > 0;
+                return count > 0 && !BLACKLISTED_ITEMS.includes(item.id as typeof BLACKLISTED_ITEMS[number]);
             })
             .map(item => ({
                 id: item.id,
@@ -1190,7 +1199,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                 // Construct PNG path 
                                 const skinPngPath = user.equippedSkinId ? `/items/skin/${user.equippedSkinId}.png` : null; 
                                 // Construct Level Badge path (handle potential non-numeric levels like 'A')
-                                const levelBadgePath = user.level ? `/Level/${user.level}.png` : null;
+                                const levelBadgePath = user.level ? `/Level/${user.level}.svg` : null;
 
                                 // Prepare inline style for background image
                                 const dynamicStyle: React.CSSProperties = skinPngPath 

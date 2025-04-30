@@ -143,13 +143,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     // Function to determine image source based on state
     const getButtonImageSrc = (buttonType: 'pets' | 'accessories') => {
         if (buttonType === 'pets') {
-            if (isPetsActive) return '/ShopUI/petButton_hover.png';
-            if (isPetsHovering) return '/ShopUI/petButton_hover.png';
-            return '/ShopUI/petButton.png';
+            if (isPetsActive) return '/ShopUI/petButton_down.svg';
+            if (isPetsHovering) return '/ShopUI/petButton_down.svg';
+            return '/ShopUI/petButton.svg';
         } else { // accessories
             // Using hover state for active as no specific down image provided
-            if (isAccessoriesActive || isAccessoriesHovering) return '/ShopUI/accessoriesButton_hover.png'; 
-            return '/ShopUI/accessoriesButton.png';
+            if (isAccessoriesActive || isAccessoriesHovering) return '/ShopUI/accessoriesButton_hover.svg'; 
+            return '/ShopUI/accessoriesButton.svg';
         }
     };
 
