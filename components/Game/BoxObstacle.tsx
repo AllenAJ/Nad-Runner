@@ -15,6 +15,13 @@ export const BoxObstacle: React.FC<BoxObstacleProps> = ({
     y,
     scale = 1
 }) => {
+    // Only render BoxGroup for supported arrangements
+    if (config.arrangement !== 'vertical' && config.arrangement !== 'horizontal') {
+        // Potentially render something else for 'split_gap' or return null
+        // For now, return null to fix the type error
+        return null; 
+    }
+
     return (
         <div style={{
             position: 'absolute',
@@ -24,7 +31,7 @@ export const BoxObstacle: React.FC<BoxObstacleProps> = ({
             pointerEvents: 'none'
         }}>
             <BoxGroup
-                arrangement={config.arrangement}
+                arrangement={config.arrangement} // Now guaranteed to be 'vertical' or 'horizontal'
                 count={config.count}
                 spacing={0}
                 scale={scale}

@@ -4,6 +4,7 @@ import styles from './Shop.module.css';
 import { LayeredCharacter } from '../../components/Character/LayeredCharacter';
 import inventoryStyles from '../../styles/Inventory.module.css';
 import Image from 'next/image';
+import { useInventory } from '../../contexts/InventoryContext';
 
 // Add button sounds
 const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
@@ -77,6 +78,7 @@ const DiamondIcon = () => (
 );
 
 const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
+    const { reloadInventory } = useInventory();
     const [activeTab] = useState<'normal' | 'premium'>('normal');
     const [items, setItems] = useState<ShopItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
@@ -269,6 +271,9 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 updateCoins(result.newCoinBalance);
             }
 
+            // Reload inventory to ensure marketplace shows the updated items
+            await reloadInventory();
+
             // Clear success status after delay
             setTimeout(() => {
                 setPurchaseStatus(prev => {
@@ -359,11 +364,63 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                             width={200}
                             height={200}
                             showShadow={true}
-                            equippedHead={previewState.head}
-                            equippedMouth={previewState.mouth}
-                            equippedEyes={previewState.eyes}
-                            equippedNose={previewState.nose}
-                            equippedMinipet={previewState.minipet}
+                            equippedMinipet={
+                                previewState.minipet === 'baldeagle' ? 'Baldeagle' :
+                                previewState.minipet === 'bug' ? 'Bug' :
+                                previewState.minipet === 'devil' ? 'Devil' :
+                                previewState.minipet === 'dodo' ? 'Dodo' :
+                                previewState.minipet === 'donkey' ? 'Donkey' :
+                                previewState.minipet === 'elephant' ? 'Elephant' :
+                                previewState.minipet === 'falcon' ? 'Falcon' :
+                                previewState.minipet === 'octopus' ? 'Octopus' :
+                                previewState.minipet === 'owl' ? 'Owl' :
+                                previewState.minipet === 'phoenix' ? 'Phoenix' :
+                                previewState.minipet === 'pig' ? 'Pig' :
+                                previewState.minipet === 'polar_bear' ? 'Polar Bear' :
+                                previewState.minipet === 'puffin' ? 'Puffin' :
+                                previewState.minipet === 'reaper' ? 'Reaper' :
+                                previewState.minipet === 'red_parrot' ? 'Red Parrot' :
+                                previewState.minipet === 'robot' ? 'Robot' :
+                                previewState.minipet === 'snake' ? 'Snake' :
+                                previewState.minipet === 'turkey' ? 'Turkey' :
+                                previewState.minipet === 'turtle' ? 'Turtle' :
+                                previewState.minipet === 'walrus' ? 'Walrus' :
+                                previewState.minipet === 'witch' ? 'Witch' :
+                                previewState.minipet === 'zombie_bird' ? 'Zombie Bird' :
+                                null
+                            }
+                            equippedHead={
+                                previewState.head === 'musketeer' ? 'Musketeer' :
+                                previewState.head === 'bandage' ? 'Bandage' :
+                                previewState.head === 'brown_hat' ? 'Brown_hat' :
+                                previewState.head === 'halo' ? 'Halo' :
+                                previewState.head === 'bow' ? 'Bow' :
+                                previewState.head === 'toga' ? 'Toga' :
+                                null
+                            }
+                            equippedMouth={
+                                previewState.mouth === 'haha' ? 'Haha' :
+                                previewState.mouth === 'smileysnug' ? 'SmileySnug' :
+                                previewState.mouth === 'pout' ? 'Pout' :
+                                previewState.mouth === 'tinytooth' ? 'TinyTooth' :
+                                previewState.mouth === 'chomp' ? 'Chomp' :
+                                null
+                            }
+                            equippedEyes={
+                                previewState.eyes === 'swag' ? 'Swag' :
+                                previewState.eyes === 'coolglass' ? 'CoolGlass' :
+                                previewState.eyes === 'grumpy' ? 'Grumpy' :
+                                previewState.eyes === 'sparklyeyes' ? 'SparklyEyes' :
+                                previewState.eyes === 'dizzy' ? 'dizzy' :
+                                previewState.eyes === 'huh' ? 'Huh' :
+                                previewState.eyes === 'bored' ? 'Bored' :
+                                previewState.eyes === 'innocent' ? 'Innocent' :
+                                null
+                            }
+                            equippedNose={
+                                previewState.nose === 'clownnose' ? 'ClownNose' :
+                                null
+                            }
                         />
                         <div className={styles.characterControls}>
                             <button className={styles.controlButton}>

@@ -41,7 +41,7 @@ wsPool.connect((err, client, release) => {
 
 // Self-ping function to keep the server awake
 const pingServer = () => {
-    const serverUrl = process.env.SERVER_URL || 'http://localhost:3001';
+    const serverUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://monad-run-chat.onrender.com';
     console.log('Pinging server:', serverUrl);
     
     const requester = serverUrl.startsWith('https') ? https : require('http');

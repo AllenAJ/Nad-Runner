@@ -409,3 +409,42 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
         />
     );
 };
+
+interface InstructionsScreenProps {
+    onStartGame: () => void;
+    onBackToMenu: () => void;
+}
+
+export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({ 
+    onStartGame,
+    onBackToMenu
+}) => {
+    const handleButtonClick = (callback: () => void) => {
+        playSound(buttonClickSound);
+        callback();
+    };
+
+    return (
+        <div className={styles.instructionsContainer}>
+            <div className={styles.instructionsImageWrapper}>
+                <Image 
+                    src="/assets/Instructions.svg"
+                    alt="Game Instructions"
+                    width={800}
+                    height={600}
+                    priority
+                />
+            </div>
+
+            <div className={styles.instructionsButtons}>
+                <button 
+                    className={styles.primaryButton} 
+                    onClick={() => handleButtonClick(onStartGame)}
+                    onMouseEnter={() => playSound(buttonHoverSound)}
+                >
+                    OK
+                </button>
+            </div>
+        </div>
+    );
+};

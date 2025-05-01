@@ -13,7 +13,8 @@ import { GameOverScreen } from './GameOverScreen';
 import Shop from '../../src/components/Shop';
 import { 
     InventoryScreen, 
-    MultiplayerScreen 
+    MultiplayerScreen,
+    InstructionsScreen
 } from './GameScreenComponents';
 import NotificationContainer from '../Notifications/NotificationContainer';
 import { NotificationData } from '../Notifications/AchievementNotification';
@@ -26,7 +27,7 @@ const MOBILE_GAME_WIDTH = 400;
 const MOBILE_GAME_HEIGHT = 500;
 
 // Define types for game state and screens
-type GameScreen = 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer';
+type GameScreen = 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer' | 'instructions';
 
 interface GameState {
     currentScreen: GameScreen;
@@ -468,13 +469,17 @@ export default function GameContainer() {
         
         const startTime = Date.now() / 1000;
         setGameStartTime(startTime);
+
+        // Check if user has seen instructions before
+        const hasSeenInstructions = typeof window !== 'undefined' ? localStorage.getItem('hasSeenInstructions') === 'true' : false;
+        
         setGameState(prev => ({
             ...prev,
-            isPlaying: true,
+            isPlaying: hasSeenInstructions, // Start playing immediately if they've seen instructions
             score: 0,
             hasEnteredName: false,
             playerName: '',
-            currentScreen: 'game'
+            currentScreen: hasSeenInstructions ? 'game' : 'instructions' // Skip to game if seen instructions
         }));
         setIsGameOver(false);
     };
@@ -872,6 +877,25 @@ export default function GameContainer() {
                         playerStats={currentStats} // Pass the resolved stats
                     />
                 );
+            case 'instructions':
+                return (
+                    <InstructionsScreen 
+                        onStartGame={() => {
+                            // Save that user has seen instructions
+                            if (typeof window !== 'undefined') {
+                                localStorage.setItem('hasSeenInstructions', 'true');
+                            }
+                            
+                            // This starts the actual game after viewing instructions
+                            setGameState(prev => ({
+                                ...prev,
+                                isPlaying: true, // Now actually start the game
+                                currentScreen: 'game'
+                            }));
+                        }}
+                        onBackToMenu={() => navigateTo('menu')}
+                    />
+                );
             case 'shop':
                 return (
                     <Shop 
@@ -947,8 +971,10 @@ export default function GameContainer() {
                         position: 'relative'
                     }}
                 >
-                    {/* Always show game canvas when in game or game over state */}
-                    {(gameState.currentScreen === 'game' || gameState.currentScreen === 'gameOver') && (
+                    {/* Show game canvas in game, game over, and instructions screens */}
+                    {(gameState.currentScreen === 'game' || 
+                      gameState.currentScreen === 'gameOver' || 
+                      gameState.currentScreen === 'instructions') && (
                         <div className={styles.gameWrapper}>
                             <Canvas
                                 width={gameWidth}
