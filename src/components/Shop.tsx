@@ -77,10 +77,11 @@ const DiamondIcon = () => (
 );
 
 const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
-    const [activeTab, setActiveTab] = useState<'normal' | 'premium'>('normal');
+    const [activeTab] = useState<'normal' | 'premium'>('normal');
     const [items, setItems] = useState<ShopItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus>({});
     const [previewState, setPreviewState] = useState<PreviewState>({});
 
@@ -97,20 +98,26 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
 
         try {
             const response = await fetch(
-                `/api/shop/items?section=${encodeURIComponent(activeTab)}`, {
+                `/api/shop/items?section=normal`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${walletAddress}`,
+                    'Authorization': `Bearer ${walletAddress.trim()}`,
                     'X-Request-Timestamp': Date.now().toString()
                 }
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                let errorData: { message?: string } = {}; // Give errorData a potential type
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    console.error("Failed to parse error response JSON");
+                }
                 throw new Error(errorData.message || `Failed to load items (${response.status})`);
             }
 
             const data = await response.json();
+            console.log("Raw data from /api/shop/items:", data); // Log raw data
 
             // Validate the response data
             if (!Array.isArray(data)) {
@@ -119,7 +126,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
 
             // Validate each item in the response
             const validatedItems = data.filter((item): item is ShopItem => {
-                return (
+                const isValid = (
                     typeof item === 'object' &&
                     item !== null &&
                     typeof item.id === 'string' &&
@@ -127,10 +134,14 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                     typeof item.price === 'number' &&
                     typeof item.type === 'string' &&
                     (item.type === 'normal' || item.type === 'premium') &&
-                    typeof item.rarity === 'string'
+                    typeof item.rarity === 'string' &&
+                    typeof item.owned === 'boolean'
                 );
+
+                return isValid;
             });
 
+            console.log('Fetched items with quantities:', validatedItems);
             setItems(validatedItems);
         } catch (e) {
             console.error("Failed to fetch shop items:", e);
@@ -139,89 +150,156 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
         } finally {
             setLoading(false);
         }
-    }, [activeTab, walletAddress]);
+    }, [walletAddress]);
 
     useEffect(() => {
         fetchItems();
-    }, [fetchItems]); // Depends on activeTab and walletAddress
+    }, [fetchItems]); // Only depends on walletAddress now
 
     const handleBuyItem = async (item: ShopItem) => {
-        if (!walletAddress || item.owned || purchaseStatus[item.id] === 'buying' || item.type !== activeTab) {
+        // Early validation for wallet address
+        if (!walletAddress || walletAddress.trim() === '') {
+            setError("Please connect your wallet to make a purchase");
+            return;
+        }
+
+        console.log('Attempting to buy item:', item);
+
+        // Double check item exists in current state
+        const currentItem = items.find(i => i.id === item.id);
+        if (!currentItem) {
+            setError("Item not found in shop");
+            return;
+        }
+
+        if (purchaseStatus[item.id] === 'buying') {
+            return;
+        }
+
+        // Prevent buying premium items
+        if (item.type === 'premium') {
+            setError("Premium items will be available soon!");
+            setTimeout(() => setError(null), 3000);
             return;
         }
         
+        // Ensure we only proceed if the item type matches the active tab
+        if (item.type !== activeTab) { 
+            return;
+        }
+
         setPurchaseStatus(prev => ({
             ...prev,
             [item.id]: 'buying'
         }));
         setError(null);
+        setSuccessMessage(null);
 
         try {
             const endpoint = item.type === 'normal' ? '/api/shop/buy-normal' : '/api/shop/buy-premium';
+            
+            // Prepare request headers
+            const headers = new Headers({
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${walletAddress.trim()}`,
+                'X-Request-Time': Date.now().toString()
+            });
+
+            const requestBody = {
+                itemId: item.id,
+                walletAddress: walletAddress.trim(),
+                timestamp: Date.now(),
+                section: activeTab
+            };
+
+            console.log('Sending purchase request:', {
+                endpoint,
+                headers: Object.fromEntries(headers.entries()),
+                body: requestBody
+            });
+
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${walletAddress}`
-                },
-                body: JSON.stringify({
-                    itemId: item.id,
-                    timestamp: Date.now(),
-                    section: activeTab
-                }),
+                headers,
+                body: JSON.stringify(requestBody),
+                credentials: 'include'
             });
 
             let result;
             try {
                 result = await response.json();
+                console.log('Purchase response:', result);
             } catch (e) {
                 throw new Error('Invalid server response');
             }
 
             if (!response.ok) {
-                throw new Error(result.message || `Purchase failed (${response.status})`);
+                const errorMessage = result?.message || result?.error || `Purchase failed (${response.status})`;
+                console.error("Server response (error):", result);
+                throw new Error(errorMessage);
             }
 
             // Validate the purchase response
-            if (typeof result.success !== 'boolean' || !result.success) {
-                throw new Error(result.message || 'Purchase validation failed');
+            if (!result || typeof result.success !== 'boolean' || !result.success) {
+                throw new Error(result?.message || 'Purchase validation failed');
             }
+
+            // Show success message
+            setSuccessMessage(`Successfully purchased ${item.name}!`);
+
+            // Play purchase sound
+            playSound(buttonClickSound);
 
             setPurchaseStatus(prev => ({
                 ...prev,
                 [item.id]: 'success'
             }));
 
-            // Update the items list by fetching fresh data
-            await fetchItems();
+            // Update the items list to mark as owned
+            setItems(prevItems => 
+                prevItems.map(i => 
+                    i.id === item.id 
+                        ? { ...i, owned: true } 
+                        : i
+                )
+            );
 
             // Update coin balance if callback provided
             if (updateCoins && typeof result.newCoinBalance === 'number') {
                 updateCoins(result.newCoinBalance);
             }
 
+            // Clear success status after delay
             setTimeout(() => {
                 setPurchaseStatus(prev => {
                     const newStatus = { ...prev };
                     delete newStatus[item.id];
                     return newStatus;
                 });
-            }, 2000);
+                
+                // Clear success message
+                setTimeout(() => {
+                    setSuccessMessage(null);
+                }, 2000);
+            }, 1000);
 
         } catch (e) {
-            console.error("Failed to purchase item:", e);
-            setError(e instanceof Error ? e.message : "Purchase failed.");
+            const errorMessage = e instanceof Error ? e.message : "Purchase failed";
+            console.error("Failed to purchase item:", errorMessage);
+            setError(errorMessage);
             setPurchaseStatus(prev => ({
                 ...prev,
                 [item.id]: 'error'
             }));
 
+            // Clear error status after delay
             setTimeout(() => {
                 setPurchaseStatus(prev => {
                     const newStatus = { ...prev };
                     delete newStatus[item.id];
                     return newStatus;
                 });
+                setError(null);
             }, 3000);
         }
     };
@@ -320,7 +398,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 <div className={styles.categoryButtons}>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'normal' ? styles.active : ''}`}
-                        onClick={() => setActiveTab('normal')}
+                        onClick={() => { /* No action needed, always normal */ }}
                     >
                         <Image 
                             src={activeTab === 'normal' ? '/ShopUI/normalItemButton_hover.svg' : '/ShopUI/normalItemButton.svg'}
@@ -331,12 +409,13 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                         />
                     </button>
                     <button
-                        className={`${styles.tabButton} ${activeTab === 'premium' ? styles.active : ''}`}
-                        onClick={() => setActiveTab('premium')}
+                        className={`${styles.tabButton} ${styles.disabledTab}`}
+                        onClick={() => setError("Premium items will be available soon!")}
+                        disabled
                     >
                         <Image 
-                            src={activeTab === 'premium' ? '/ShopUI/premiumItemButton_hover.svg' : '/ShopUI/premiumItemButton.svg'}
-                            alt="Premium Items"
+                            src={'/ShopUI/premiumItemButton.svg'}
+                            alt="Premium Items (Coming Soon)"
                             width={182}
                             height={86}
                             priority
@@ -347,6 +426,7 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                 {/* Right Section - Shop Items */}
                 <div className={styles.rightSection}>
                     {error && <div className={styles.error}>{error}</div>}
+                    {successMessage && <div className={styles.success}>{successMessage}</div>}
 
                     {loading ? (
                         <div className={styles.loadingWrapper}>
@@ -370,45 +450,45 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                                                 loading="lazy"
                                             />
                                         </div>
-                                        {item.owned && <div className={styles.itemCount}>x1</div>}
                                     </div>
                                     
                                     <div className={styles.itemDetails}>
                                         <div className={styles.itemName}>{item.name}</div>
                                         <div className={styles.itemDescription}>{item.description}</div>
-                                        {!item.owned && (
-                                            <>
-                                                <div className={styles.itemPrice}>
-                                                    {item.price} {item.type === 'normal' ? <CoinIcon /> : <DiamondIcon />}
-                                                </div>
-                                                <div className={styles.buttonContainer}>
-                                                    <button
-                                                        className={styles.tryButton}
-                                                        onClick={() => handlePreviewItem(item)}
-                                                        disabled={!walletAddress} // Disable if wallet disconnected
-                                                    >
-                                                        <Image 
-                                                            src="/ShopUI/tryButton.svg"
-                                                            alt="Try"
-                                                            width={80}
-                                                            height={40}
-                                                         />
-                                                    </button>
-                                                    <button
-                                                        className={styles.buyButton}
-                                                        onClick={() => handleBuyItem(item)}
-                                                        disabled={!walletAddress || purchaseStatus[item.id] === 'buying'} // Disable if wallet disconnected or buying
-                                                    >
-                                                        <Image 
-                                                            src="/ShopUI/buyButton.svg"
-                                                            alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
-                                                            width={80}
-                                                            height={40}
-                                                         />
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
+                                        
+                                        <div className={styles.itemPrice}>
+                                            {item.price} {item.type === 'normal' ? <CoinIcon /> : <DiamondIcon />}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className={styles.itemActions}>
+                                        {item.owned && <div className={styles.ownedLabel}>Owned</div>}
+                                        <div className={styles.buttonContainer}>
+                                            <button
+                                                className={styles.tryButton}
+                                                onClick={() => handlePreviewItem(item)}
+                                                disabled={!walletAddress}
+                                            >
+                                                <Image 
+                                                    src="/ShopUI/tryButton.svg"
+                                                    alt="Try"
+                                                    width={80}
+                                                    height={40}
+                                                 />
+                                            </button>
+                                            <button
+                                                className={styles.buyButton}
+                                                onClick={() => handleBuyItem(item)}
+                                                disabled={!walletAddress || purchaseStatus[item.id] === 'buying'}
+                                            >
+                                                <Image 
+                                                    src="/ShopUI/buyButton.svg"
+                                                    alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
+                                                    width={80}
+                                                    height={40}
+                                                 />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}

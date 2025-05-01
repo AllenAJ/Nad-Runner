@@ -279,7 +279,7 @@ if (powerupIconImages.tripleJump) powerupIconImages.tripleJump.src = '/Powerup/T
 
 // Mobile-specific constants
 const MOBILE_SCALE = 1;
-const MOBILE_INITIAL_GAME_SPEED = 3; // Slower initial speed for mobile
+const MOBILE_INITIAL_GAME_SPEED_PPS = 180; // Slower initial speed for mobile (pixels per second)
 const PLAYER_START_X = 20;
 
 // Define all possible power-up types
@@ -289,6 +289,35 @@ type PowerupType = 'score' | 'invincible' | 'doubleJump' | 'coinMagnet' | 'timeR
 const MAX_PARTICLES = 200; // Limit the total number of concurrent particles
 let nextParticleId = 0;
 
+// --- Define Speed Constants (pixels per second) ---
+const INITIAL_GAME_SPEED_PPS = 300;
+const SPEED_INCREASE_INTERVAL = 3;
+const SPEED_INCREASE_AMOUNT_PPS = 30;
+const MAX_GAME_SPEED_PPS = 700;
+const INITIAL_MOVE_SPEED_PPS = 400; // Player ground speed
+const DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS = 600;
+const COIN_MAGNET_STRENGTH_PPS = 400;
+// --- End Speed Constants ---
+
+// Adjust physics constants for snappier movement
+const AIR_RESISTANCE = 0.95;
+const AIR_CONTROL_MULTIPLIER = 2.5;
+// INITIAL_MOVE_SPEED_PPS defined above
+// DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS defined above
+const DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER = 1.3;
+
+const OBSTACLE_SPAWN_INTERVAL = 2000; // ms
+
+// Update box size constant
+const BOX_SIZE = 50; // New box size (was 41)
+
+// Chog Rotation
+const CHOG_ROTATION_SPEED = Math.PI; // Rotate 180 degrees per second
+
+// Coin Magnet Constants
+const COIN_MAGNET_RADIUS = 150;
+// COIN_MAGNET_STRENGTH_PPS defined above
+
 const INITIAL_STATE: GameState = {
     playerY: 0,
     playerX: PLAYER_START_X,
@@ -296,7 +325,7 @@ const INITIAL_STATE: GameState = {
     xVelocity: 0,
     gravity: 1500,
     jumpStrength: -550,
-    moveSpeed: 5,
+    moveSpeed: INITIAL_MOVE_SPEED_PPS, // Use PPS constant
     isJumping: false,
     isMovingLeft: false,
     isMovingRight: false,
@@ -305,7 +334,7 @@ const INITIAL_STATE: GameState = {
     maxJumps: 2,
     rotation: 0,
     rotationSpeed: Math.PI * 5,
-    gameSpeed: 5,
+    gameSpeed: INITIAL_GAME_SPEED_PPS, // Use PPS constant
     score: 0,
     obstacles: [],
     lastObstacleX: 0,
@@ -326,7 +355,7 @@ const INITIAL_STATE: GameState = {
     boxJumps: 0,
     lastBoxJumpTime: 0,
     explosions: [],
-    particles: [],
+    particles: [], // Note: particles array is likely unused now with pooling
     screenShake: {
         intensity: 0,
         duration: 0,
@@ -351,7 +380,7 @@ const INITIAL_STATE: GameState = {
         width: 0,
         height: 0,
         opacity: 1,
-        particles: []
+        particles: [] // Glass particles might be separate from the main pool
     },
     debug: {
         enabled: false,
@@ -377,11 +406,11 @@ const INITIAL_STATE: GameState = {
     jumpBarDepletionRate: 5, // Points per second
     jumpBarReplenishAmount: 10, // Points per box jump
     gameOverReason: null,
-    powerupDisplay: null, // Initialize powerup display state
-    xp: 0, // Initialize XP to 0
-    bestScore: 0, // Initialize best score
-    lastPowerupSpawnScore: 0, // Initialize last powerup spawn score
-    // --- Particle Pooling Init --- 
+    powerupDisplay: null,
+    xp: 0,
+    bestScore: 0,
+    lastPowerupSpawnScore: 0,
+    // --- Particle Pooling Init ---
     particlePool: Array.from({ length: MAX_PARTICLES }, (_, i) => ({
         id: i,
         active: false,
@@ -397,48 +426,35 @@ const INITIAL_STATE: GameState = {
 const PLAYER_SIZE = 50;
 const OBSTACLE_SIZE = 50;
 const POWERUP_SIZE = 40;
-const getGroundHeight = (height: number) => Math.min(80, height * 0.15); // Dynamic ground height
+const getGroundHeight = (height: number) => Math.min(80, height * 0.15);
 const PLAYER_OFFSET_FROM_GROUND = 0;
-const OBSTACLE_SPAWN_CHANCE = 0.95; // Increased spawn chance for more frequent obstacles
-const MIN_OBSTACLE_DISTANCE = 5; // Reduced distance for closer obstacle spawning
-const SPEED_INCREASE_INTERVAL = 3;
-const SPEED_INCREASE_AMOUNT = 0.5;
-const MAX_GAME_SPEED = 15;
+const OBSTACLE_SPAWN_CHANCE = 0.95;
+const MIN_OBSTACLE_DISTANCE = 5;
+// SPEED_INCREASE_INTERVAL defined with other PPS constants
+// SPEED_INCREASE_AMOUNT defined with other PPS constants
+// MAX_GAME_SPEED defined with other PPS constants
 
 // Add a constant for box height
-const BOX_HEIGHT = OBSTACLE_SIZE * 2.5; // Original box height (1.5x taller than regular obstacles)
-const BOX2_HEIGHT = OBSTACLE_SIZE * 7; // Make box2 taller to accommodate the gap
-const BOX2_WIDTH = OBSTACLE_SIZE ; // Make box2 wider if needed
+const BOX_HEIGHT = OBSTACLE_SIZE * 2.5;
+const BOX2_HEIGHT = OBSTACLE_SIZE * 7;
+const BOX2_WIDTH = OBSTACLE_SIZE ;
 
 // Update the box3 constants
-const BOX3_HEIGHT = OBSTACLE_SIZE ; // Height for 3 boxes stacked
-const BOX3_WIDTH = OBSTACLE_SIZE * 3;  // Width for 3 boxes side by side
-const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2; // Height above ground to make it higher
+const BOX3_HEIGHT = OBSTACLE_SIZE ;
+const BOX3_WIDTH = OBSTACLE_SIZE * 3;
+const BOX3_FLOAT_HEIGHT = OBSTACLE_SIZE * 2;
 
 // First, define a type for all possible obstacle types
 type ObstacleType = typeof BOX_TYPES[keyof typeof BOX_TYPES];
 
-// Load explosion sprite
-// const explosionImage = typeof window !== 'undefined' ? new window.Image() : null;
-// if (explosionImage) explosionImage.src = '/assets/explosion.png';
-
-// Update box size constant
-const BOX_SIZE = 50; // New box size (was 41)
-
-// Add jump sound at the top with other assets
+// Load sounds
 const jumpSound = typeof window !== 'undefined' ? new Audio('/assets/audio/jumpsound.mp3') : null;
-
-// Add explosion sound at the top with other assets
 const explosionSound = typeof window !== 'undefined' ? new Audio('/assets/audio/explode3.mp3') : null;
-
-// Add ticking clock sound for low jump bar
 const tickingSound = typeof window !== 'undefined' ? new Audio('/assets/audio/clockticking.mp3') : null;
 if (tickingSound) {
-    tickingSound.loop = true; // Make the sound loop continuously
-    tickingSound.volume = 0.5; // Set volume to 50%
+    tickingSound.loop = true;
+    tickingSound.volume = 0.5;
 }
-
-// Add combo sounds at the top with other assets
 const comboSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/3_combo1.mp3') : null,
     typeof window !== 'undefined' ? new Audio('/assets/audio/4_combo2.mp3') : null,
@@ -446,17 +462,6 @@ const comboSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/6_combo4.mp3') : null,
     typeof window !== 'undefined' ? new Audio('/assets/audio/7_combo5.mp3') : null
 ];
-
-const CHOG_ROTATION_SPEED = Math.PI; // Rotate 180 degrees per second
-
-// Adjust physics constants for snappier movement
-const DIRECTIONAL_JUMP_HORIZONTAL_BOOST = 600; // Increased from 400 for faster horizontal movement
-const DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER = 1.3; // Increased from 1.2 for stronger directional jumps
-const AIR_RESISTANCE = 0.95; // Increased from 0.99 for less floaty feel
-const AIR_CONTROL_MULTIPLIER = 2.5; // New constant for stronger air control
-const INITIAL_MOVE_SPEED = 400; // Base movement speed
-
-// Add hit sounds at the top with other assets
 const hitSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/10_hit1.mp3') : null,
     typeof window !== 'undefined' ? new Audio('/assets/audio/11_hit2.mp3') : null,
@@ -466,11 +471,7 @@ const hitSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/15_hit6.mp3') : null
 ];
 
-// Add this constant at the top with other constants
-const OBSTACLE_SPAWN_INTERVAL = 2000; // Spawn obstacle every 1 second
 
-// Coin Magnet Constants
-const COIN_MAGNET_RADIUS = 150; // Pixel radius around the player
 const COIN_MAGNET_STRENGTH = 400; // Speed at which coins are pulled (pixels per second)
 
 // Helper function to draw power-up icons
@@ -579,10 +580,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Reset game speed if game is not playing
         if (!isPlaying) {
-            gameStateRef.current.gameSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
+            gameStateRef.current.gameSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED_PPS : INITIAL_GAME_SPEED_PPS;
             console.log('Initial game speed set to:', gameStateRef.current.gameSpeed);
         }
-    }, [width]);
+    }, [width, isPlaying]); // Added isPlaying dependency
 
     // Setup high DPI canvas with mobile scaling
     useEffect(() => {
@@ -609,7 +610,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
     const resetGame = () => {
         const groundHeight = getGroundHeight(height);
         const isMobile = isMobileRef.current;
-        const initialSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED : INITIAL_STATE.gameSpeed;
+        const initialSpeed = isMobile ? MOBILE_INITIAL_GAME_SPEED_PPS : INITIAL_GAME_SPEED_PPS;
         console.log('Resetting game for:', isMobile ? 'mobile' : 'desktop', 'speed:', initialSpeed);
 
         // Get the current best score before resetting
@@ -669,24 +670,24 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         // Update horizontal movement
         if (state.isJumping) {
             state.playerX += state.xVelocity * deltaTime;
-            state.xVelocity *= AIR_RESISTANCE;
+            state.xVelocity *= AIR_RESISTANCE; // Use AIR_RESISTANCE constant
 
             if (state.isMovingLeft) {
                 state.xVelocity = Math.max(
-                    state.xVelocity - (INITIAL_MOVE_SPEED * AIR_CONTROL_MULTIPLIER * deltaTime),
-                    -DIRECTIONAL_JUMP_HORIZONTAL_BOOST
+                    state.xVelocity - (INITIAL_MOVE_SPEED_PPS * AIR_CONTROL_MULTIPLIER * deltaTime),
+                    -DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS
                 );
             } else if (state.isMovingRight) {
                 state.xVelocity = Math.min(
-                    state.xVelocity + (INITIAL_MOVE_SPEED * AIR_CONTROL_MULTIPLIER * deltaTime),
-                    DIRECTIONAL_JUMP_HORIZONTAL_BOOST
+                    state.xVelocity + (INITIAL_MOVE_SPEED_PPS * AIR_CONTROL_MULTIPLIER * deltaTime),
+                    DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS
                 );
             }
         } else {
             if (state.isMovingLeft) {
-                state.xVelocity = -INITIAL_MOVE_SPEED;
+                state.xVelocity = -INITIAL_MOVE_SPEED_PPS;
             } else if (state.isMovingRight) {
-                state.xVelocity = INITIAL_MOVE_SPEED;
+                state.xVelocity = INITIAL_MOVE_SPEED_PPS;
             } else {
                 state.xVelocity = 0;
             }
@@ -736,7 +737,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         
         // Move existing obstacles
         state.obstacles = state.obstacles.filter(obstacle => {
-            obstacle.x -= state.gameSpeed;
+            obstacle.x -= state.gameSpeed * deltaTime;
             
             // Calculate the full width based on obstacle type
             let fullWidth = obstacle.width;
@@ -1100,7 +1101,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Move existing powerups
         state.powerups = state.powerups.filter(powerup => {
-            powerup.x -= state.gameSpeed;
+            powerup.x -= state.gameSpeed * deltaTime;
             return powerup.x + POWERUP_SIZE > 0;
         });
 
@@ -1251,11 +1252,11 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             }
 
             // Update particle physics
-            particle.x += particle.vx * deltaTime * 60; // Scale velocity by time
-            particle.y += particle.vy * deltaTime * 60;
+            particle.x += particle.vx * deltaTime;
+            particle.y += particle.vy * deltaTime;
             particle.vy += 0.05; // Simple gravity
-            particle.rotation += particle.rotationSpeed * deltaTime * 60;
-            particle.opacity -= particle.fadeSpeed * deltaTime * 60; // Fade based on time
+            particle.rotation += particle.rotationSpeed * deltaTime;
+            particle.opacity -= particle.fadeSpeed * deltaTime; // Fade based on time
             particle.opacity = Math.max(0, particle.opacity); // Clamp opacity
             // Optional: Update size over time if needed
         }
@@ -1295,13 +1296,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 state.timeSinceStart += deltaTime;
                 if (state.timeSinceStart > SPEED_INCREASE_INTERVAL) {
                     state.timeSinceStart = 0;
-                    state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT, MAX_GAME_SPEED);
+                    state.gameSpeed = Math.min(state.gameSpeed + SPEED_INCREASE_AMOUNT_PPS, MAX_GAME_SPEED_PPS);
                 }
             }
             
             // Update background position (always scrolls)
             const backgroundScrollSpeed = state.gameSpeed * 0.2; 
-            state.backgroundX -= backgroundScrollSpeed;
+            state.backgroundX -= backgroundScrollSpeed * deltaTime; // Use deltaTime
 
             // Update chog rotation (always rotates)
             state.chogRotation += CHOG_ROTATION_SPEED * deltaTime;
@@ -1417,7 +1418,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             if (coin.collected) return false;
 
             // --- Basic Coin Movement --- 
-            coin.x -= state.gameSpeed * deltaTime * 60; // Adjusted for deltaTime
+            coin.x -= state.gameSpeed * deltaTime; // Adjusted for deltaTime
 
             // Update coin animation frame every 50ms
             const now = Date.now();
@@ -1443,8 +1444,8 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                     const directionY = dy / distance;
 
                     // Apply magnet force
-                    coin.x += directionX * COIN_MAGNET_STRENGTH * deltaTime;
-                    coin.y += directionY * COIN_MAGNET_STRENGTH * deltaTime;
+                    coin.x += directionX * COIN_MAGNET_STRENGTH_PPS * deltaTime; // Use PPS constant and deltaTime
+                    coin.y += directionY * COIN_MAGNET_STRENGTH_PPS * deltaTime; // Use PPS constant and deltaTime
 
                     // Check for collection based on proximity (e.g., within half player size)
                     if (distance < PLAYER_SIZE / 2) {
@@ -2535,10 +2536,10 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 let horizontalBoost = 0;
 
                 if (state.isMovingLeft) {
-                    horizontalBoost = -DIRECTIONAL_JUMP_HORIZONTAL_BOOST;
+                    horizontalBoost = -DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS;
                     jumpStrength *= DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER;
                 } else if (state.isMovingRight) {
-                    horizontalBoost = DIRECTIONAL_JUMP_HORIZONTAL_BOOST;
+                    horizontalBoost = DIRECTIONAL_JUMP_HORIZONTAL_BOOST_PPS;
                     jumpStrength *= DIRECTIONAL_JUMP_STRENGTH_MULTIPLIER;
                 }
 

@@ -98,9 +98,17 @@ export default async function handler(
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Get wallet address from query parameters
-    const { walletAddress: queryWalletAddress } = req.query;
-    const walletAddress = typeof queryWalletAddress === 'string' ? queryWalletAddress.toLowerCase() : undefined;
+    // Get wallet address from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const walletAddress = authHeader.split(' ')[1].trim().toLowerCase();
+    
+    if (!walletAddress) {
+        return res.status(401).json({ error: 'Wallet address is required' });
+    }
 
     const section = req.query.section as string | undefined;
 
@@ -122,51 +130,41 @@ export default async function handler(
         return res.status(200).json([]); 
     }
 
+    const client = await pool.connect();
     try {
-        const client = await pool.connect();
-        try {
-            // Base query to fetch items based on item IDs
-            const allRelevantItemsQuery = `
-                SELECT 
-                    i.id, i.name, i.description, i.category, i.sub_category, 
-                    i.rarity, i.price, i.image_url, i.preview_url, i.color
-                FROM items i
-                WHERE i.id = ANY($1::VARCHAR[])
-                ORDER BY i.price, i.name;
-            `;
-            const itemResult = await client.query(allRelevantItemsQuery, [itemIds]);
-            
-            let shopItems: ShopItem[] = itemResult.rows.map(item => ({
-                ...item,
-                type: NORMAL_ITEMS.includes(item.id) ? 'normal' : 'premium',
-                owned: false, // Default to not owned
-            }));
-
-            // If user is logged in (walletAddress is provided), check which items they own
-            if (walletAddress) {
-                const ownedItemIdsQuery = `
-                    SELECT item_id FROM player_inventories WHERE wallet_address = $1;
-                `;
-                const ownedResult = await client.query(ownedItemIdsQuery, [walletAddress]);
-                const ownedIds = new Set(ownedResult.rows.map(row => row.item_id));
-
-                shopItems = shopItems.map(item => ({
-                    ...item,
-                    owned: ownedIds.has(item.id),
-                }));
-            }
-
-            // Filter by section if specified
-            if (itemType) {
-                shopItems = shopItems.filter(item => item.type === itemType);
-            }
-
-            res.status(200).json(shopItems);
-        } finally {
-            client.release();
-        }
+        // Get all items from the list
+        const allItemsQuery = `
+            SELECT 
+                i.id, i.name, i.description, i.category, i.sub_category, 
+                i.rarity, i.price, i.image_url, i.preview_url, i.color
+            FROM items i
+            WHERE i.id = ANY($1::VARCHAR[])
+            ORDER BY i.rarity, i.name;
+        `;
+        const itemResult = await client.query(allItemsQuery, [itemIds]);
+        
+        // Get owned items for this user
+        const ownedItemsQuery = `
+            SELECT item_id FROM player_inventories 
+            WHERE wallet_address = $1 AND item_id = ANY($2::VARCHAR[]);
+        `;
+        const ownedResult = await client.query(ownedItemsQuery, [walletAddress, itemIds]);
+        
+        // Create a set of owned item IDs for quick lookup
+        const ownedItemIds = new Set(ownedResult.rows.map(row => row.item_id));
+        
+        // Map the results to include type and ownership
+        const shopItems: ShopItem[] = itemResult.rows.map(item => ({
+            ...item,
+            type: NORMAL_ITEMS.includes(item.id) ? 'normal' : 'premium',
+            owned: ownedItemIds.has(item.id)
+        }));
+        
+        return res.status(200).json(shopItems);
     } catch (error) {
         console.error('Error fetching shop items:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Internal Server Error' });
+    } finally {
+        client.release();
     }
 } 
