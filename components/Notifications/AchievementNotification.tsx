@@ -38,9 +38,9 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({ notif
 
     // Determine icon based on type (simplified example)
     const renderIcon = () => {
-        // You can expand this with actual icons based on achievement.icon or type
+        // Placeholder star icon for achievements
         switch (notification.type) {
-            case 'achievement': return '🏆';
+            case 'achievement': return '⭐'; // Using a simple star emoji as placeholder
             case 'level-up': return '✨';
             case 'error': return '❌';
             default: return 'ℹ️';
@@ -51,6 +51,24 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({ notif
 
     const animationClass = isExiting ? styles.slideOut : styles.slideIn;
 
+    // Only apply new styling for 'achievement' type for now
+    if (notification.type === 'achievement') {
+        return (
+            <div className={`${styles.achievementContainer} ${animationClass}`}>
+                <div className={styles.achievementIconContainer}>
+                    <span className={styles.achievementIcon}>{renderIcon()}</span>
+                </div>
+                <div className={styles.achievementTextContainer}>
+                    <div className={styles.achievementTitle}>{notification.title}</div>
+                    {notification.message && <div className={styles.achievementMessage}>{notification.message}</div>}
+                </div>
+                 {/* Optional: Keep close button if desired, adjust styling */}
+                 {/* <button onClick={handleDismiss} className={styles.closeButton}>&times;</button> */}
+            </div>
+        );
+    }
+
+    // Fallback to old style for other types
     return (
         <div className={`${styles.notificationToast} ${animationClass} ${styles[notification.type] || ''}`}>
             <div className={styles.icon}>

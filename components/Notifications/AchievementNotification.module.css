@@ -58,6 +58,9 @@
     line-height: 1;
     opacity: 0.6;
     transition: opacity 0.2s;
+    position: absolute; /* Position close button if needed */
+    top: 5px;
+    right: 5px;
 }
 
 .closeButton:hover {
@@ -93,4 +96,64 @@
         transform: translateY(-100%);
         opacity: 0;
     }
-} 
+}
+
+/* --- New Achievement Notification Styles --- */
+
+.achievementContainer {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 10px; /* Slightly more rounded */
+    background: linear-gradient(to bottom, #a270d0, #8a5aaf); /* Purple gradient */
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    width: 350px; /* Match image width */
+    max-width: 90%;
+    color: white;
+    gap: 12px;
+    position: relative; /* Needed for potential absolute positioning inside */
+    overflow: hidden; /* Ensure border radius applies */
+    margin-bottom: 10px;
+}
+
+.achievementIconContainer {
+    flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0.2); /* Darker background */
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px; /* Fixed width */
+    height: 60px; /* Fixed height */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.achievementIcon {
+    font-size: 2.5rem; /* Larger placeholder icon */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Add shadow to icon */
+    filter: drop-shadow(0 0 3px #fff700); /* Add a subtle glow */
+}
+
+.achievementTextContainer {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.achievementTitle {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 2px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.achievementMessage {
+    font-size: 0.9em;
+    opacity: 0.9;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* --- End New Styles --- */ 

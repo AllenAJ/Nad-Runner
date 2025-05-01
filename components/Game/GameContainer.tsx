@@ -456,6 +456,16 @@ export default function GameContainer() {
             return;
         }
         
+        // --- Start background music on game start (user interaction) ---
+        if (audioRef.current && !isMuted) {
+            audioRef.current.currentTime = 0; // Start from beginning
+            audioRef.current.play().catch(error => {
+                console.log('Background music playback failed on start:', error);
+                // Optionally notify user or disable audio if needed
+            });
+        }
+        // --- End music start ---
+        
         const startTime = Date.now() / 1000;
         setGameStartTime(startTime);
         setGameState(prev => ({
@@ -793,27 +803,33 @@ export default function GameContainer() {
 
     // Handle mute/unmute for all audio
     useEffect(() => {
-        if (audioRef.current && gameOverSoundRef.current) {
+        // Only handle pausing/resuming here, not initial playback
+        if (audioRef.current) {
             if (!isMuted) {
+                // Attempt to play only if needed (e.g., if it was paused due to mute)
+                // Browsers might still block this if no prior interaction, 
+                // but the main playback trigger will be user actions.
                 audioRef.current.play().catch(error => {
-                    console.log('Audio playback failed:', error);
+                    // Log potential playback errors, but don't crash
+                    console.log('Audio resume playback failed (might need interaction):', error);
                 });
             } else {
                 audioRef.current.pause();
             }
-            localStorage.setItem('nadrunner_muted', isMuted.toString());
         }
+        // Persist mute state
+        localStorage.setItem('nadrunner_muted', isMuted.toString());
     }, [isMuted]);
 
-    // Restart music when entering play area
-    useEffect(() => {
-        if (gameState.currentScreen === 'game' && audioRef.current && !isMuted) {
-            audioRef.current.currentTime = 0; // Reset to start
-            audioRef.current.play().catch(error => {
-                console.log('Audio playback failed:', error);
-            });
-        }
-    }, [gameState.currentScreen, isMuted]);
+    // Restart music when entering play area (This effect seems redundant now)
+    // useEffect(() => {
+    //     if (gameState.currentScreen === 'game' && audioRef.current && !isMuted) {
+    //         audioRef.current.currentTime = 0; // Reset to start
+    //         audioRef.current.play().catch(error => {
+    //             console.log('Audio playback failed:', error);
+    //         });
+    //     }
+    // }, [gameState.currentScreen, isMuted]);
 
     const toggleMute = () => {
         setIsMuted(!isMuted);

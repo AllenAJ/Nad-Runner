@@ -78,10 +78,11 @@ interface GameState {
     explosions: Array<{
         x: number;
         y: number;
-        frame: number;
-        createdAt: number;
+        startTime: number;
     }>;
     particles: Array<{
+        id: number;
+        active: boolean;
         x: number;
         y: number;
         vx: number;
@@ -315,8 +316,17 @@ const BOX_SIZE = 50; // New box size (was 41)
 const CHOG_ROTATION_SPEED = Math.PI; // Rotate 180 degrees per second
 
 // Coin Magnet Constants
-const COIN_MAGNET_RADIUS = 150;
+const COIN_MAGNET_RADIUS = 350;
 // COIN_MAGNET_STRENGTH_PPS defined above
+
+// Preload Explosion Frames
+const explosionImages: (HTMLImageElement | null)[] = Array.from({ length: 20 }, (_, i) => {
+    const img = typeof window !== 'undefined' ? new window.Image() : null;
+    if (img) {
+        img.src = `/Explosion/${i + 1}.svg`;
+    }
+    return img;
+});
 
 const INITIAL_STATE: GameState = {
     playerY: 0,
@@ -2235,22 +2245,32 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         });
 
         // Draw explosions
+        const EXPLOSION_FRAME_DURATION = 50; // ms per frame
+        const EXPLOSION_TOTAL_FRAMES = explosionImages.length; // Use length of loaded images
+
         state.explosions = state.explosions.filter(explosion => {
-            const frameSize = 64; // Size of each frame in the sprite sheet
-            const totalFrames = 8; // Total number of frames
-            const frameDuration = 50; // Duration of each frame in ms
-            const currentFrame = Math.floor((Date.now() - explosion.createdAt) / frameDuration);
+            const elapsedTime = Date.now() - explosion.startTime; // Use startTime
+            const currentFrameIndex = Math.floor(elapsedTime / EXPLOSION_FRAME_DURATION);
 
-            if (currentFrame >= totalFrames) return false;
+            if (currentFrameIndex >= EXPLOSION_TOTAL_FRAMES) {
+                return false; // Animation finished, remove from array
+            }
 
-            // if (explosionImage && explosionImage.complete) {
-            //     ctx.drawImage(
-            //         explosionImage,
-            //         currentFrame * frameSize, 0, frameSize, frameSize,
-            //         explosion.x - frameSize/2, explosion.y - frameSize/2, frameSize, frameSize
-            //     );
-            // }
-            return true;
+            const img = explosionImages[currentFrameIndex];
+            if (img && img.complete) {
+                const drawWidth = 128; // Adjust size as needed
+                const drawHeight = 128; // Adjust size as needed
+                ctx.drawImage(
+                    img,
+                    explosion.x - drawWidth / 2, // Center the explosion
+                    explosion.y - drawHeight / 2,
+                    drawWidth,
+                    drawHeight
+                );
+            } else {
+                // Optional: Draw placeholder if image not loaded yet? Or just skip.
+            }
+            return true; // Keep explosion in array
         });
 
         // Draw death animation if active (collision only)
@@ -2744,129 +2764,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             startTime: Date.now()
         };
 
-        // --- Create Explosion Particles using Pool --- 
-        const baseSize = 35; 
-        
-        // Create central explosion puff
-        let particle = getParticleFromPool();
-        if (particle) {
-            particle.x = x;
-            particle.y = y;
-            particle.vx = 0;
-            particle.vy = -1;
-            particle.rotation = 0;
-            particle.rotationSpeed = 0;
-            particle.size = baseSize * 1.5;
-            particle.color = '#FFFFFF';
-            particle.opacity = 1;
-            particle.fadeSpeed = 0.01;
-            particle.lifeSpan = 800; // Longer life for main puff
-        }
-
-        // Create cloud formation puffs
-        const puffCount = 15; 
-        for (let i = 0; i < puffCount; i++) {
-            const angle = (Math.PI * 2 * i) / puffCount;
-            const radius = 25; 
-            const puffX = x + Math.cos(angle) * radius;
-            const puffY = y + Math.sin(angle) * radius;
-            
-            // Main puffs
-            particle = getParticleFromPool();
-            if (particle) {
-                particle.x = puffX;
-                particle.y = puffY;
-                particle.vx = Math.cos(angle) * 1.5;
-                particle.vy = Math.sin(angle) * 1.5 - 1.5;
-                particle.rotation = 0;
-                particle.rotationSpeed = 0;
-                particle.size = baseSize + Math.random() * 15;
-                particle.color = '#FFFFFF';
-                particle.opacity = 0.9;
-                particle.fadeSpeed = 0.015 + Math.random() * 0.005;
-                particle.lifeSpan = 700 + Math.random() * 200;
-            }
-
-            // Detail puffs
-            if (Math.random() > 0.3) { 
-                particle = getParticleFromPool();
-                if (particle) {
-                    particle.x = puffX + (Math.random() - 0.5) * 20;
-                    particle.y = puffY + (Math.random() - 0.5) * 20;
-                    particle.vx = Math.cos(angle) * 0.7;
-                    particle.vy = Math.sin(angle) * 0.7 - 0.7;
-                    particle.rotation = 0;
-                    particle.rotationSpeed = 0;
-                    particle.size = baseSize * 0.5;
-                    particle.color = '#FFFFFF';
-                    particle.opacity = 0.8;
-                    particle.fadeSpeed = 0.02 + Math.random() * 0.01;
-                    particle.lifeSpan = 500 + Math.random() * 200;
-                }
-            }
-        }
-
-        // Add orange/yellow/red glow rings
-        const glowColors = ['#FF4500', '#FFA500', '#FFD700'];
-        for (let i = 0; i < 12; i++) {
-            particle = getParticleFromPool();
-            if (particle) {
-                const angle = (Math.PI * 2 * i) / 12;
-                const radius = 30 + Math.random() * 20;
-                particle.x = x + Math.cos(angle) * radius * 0.5;
-                particle.y = y + Math.sin(angle) * radius * 0.5;
-                particle.vx = Math.cos(angle) * 1;
-                particle.vy = Math.sin(angle) * 1;
-                particle.rotation = 0;
-                particle.rotationSpeed = 0;
-                particle.size = baseSize * (1.5 + Math.random());
-                particle.color = glowColors[Math.floor(Math.random() * glowColors.length)];
-                particle.opacity = 0.4;
-                particle.fadeSpeed = 0.01 + Math.random() * 0.005;
-                particle.lifeSpan = 600 + Math.random() * 300;
-            }
-        }
-
-        // Add sparks
-        for (let i = 0; i < 20; i++) {
-            particle = getParticleFromPool();
-            if (particle) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 2 + Math.random() * 4;
-                particle.x = x;
-                particle.y = y;
-                particle.vx = Math.cos(angle) * speed;
-                particle.vy = Math.sin(angle) * speed - 2;
-                particle.rotation = angle;
-                particle.rotationSpeed = Math.random() * 0.5;
-                particle.size = 3 + Math.random() * 3;
-                particle.color = '#FFD700';
-                particle.opacity = 1;
-                particle.fadeSpeed = 0.03 + Math.random() * 0.01;
-                particle.lifeSpan = 300 + Math.random() * 200;
-            }
-        }
-
-        // Add debris particles
-        for (let i = 0; i < 10; i++) {
-            particle = getParticleFromPool();
-            if (particle) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 1 + Math.random() * 3;
-                particle.x = x;
-                particle.y = y;
-                particle.vx = Math.cos(angle) * speed;
-                particle.vy = Math.sin(angle) * speed - 1;
-                particle.rotation = angle;
-                particle.rotationSpeed = Math.random() * 0.2;
-                particle.size = 5 + Math.random() * 5;
-                particle.color = '#8B4513'; // Brown debris
-                particle.opacity = 0.8;
-                particle.fadeSpeed = 0.015 + Math.random() * 0.005;
-                particle.lifeSpan = 700 + Math.random() * 300;
-            }
-        }
-        // --- End Particle Creation using Pool --- 
+        // --- Add New Explosion Animation Trigger ---
+        // Use the collision point (x, y) passed to the function
+        state.explosions.push({ 
+            x: x, 
+            y: y, 
+            startTime: Date.now() 
+        });
+        // --- End New Explosion Trigger ---
 
         // Show game over screen after delay
         setTimeout(() => {
