@@ -531,10 +531,7 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
     isMuted
 }) => {
     const handleButtonClick = (callback: () => void) => {
-        if (buttonClickSound) {
-            buttonClickSound.currentTime = 0;
-            buttonClickSound.play().catch(e => console.log(e));
-        }
+        playSound(buttonClickSound, isMuted);
         callback();
     };
 
@@ -553,71 +550,41 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
 interface InstructionsScreenProps {
     onStartGame: () => void;
     onBackToMenu: () => void;
+    isMuted: boolean;
 }
 
 export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({ 
     onStartGame,
-    onBackToMenu
+    onBackToMenu,
+    isMuted
 }) => {
     const handleButtonClick = (callback: () => void) => {
-        if (buttonClickSound) {
-            buttonClickSound.currentTime = 0;
-            buttonClickSound.play().catch(e => console.log(e));
-        }
+        playSound(buttonClickSound, isMuted);
         callback();
     };
 
     return (
-        <motion.div 
-            className={styles.instructionsContainer}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3 }}
-        >
-            <h2>How to Play</h2>
-            <div className={styles.instructionsContent}>
-                <p><strong>Objective:</strong> Travel as far as you can while collecting coins and avoiding obstacles!</p>
-                
-                <h4>Controls:</h4>
-                <ul>
-                    <li><strong>Jump:</strong> Space Bar / Tap Screen</li>
-                    <li><strong>Move Left:</strong> Left Arrow / 'A' Key / Swipe Left (when grounded)</li>
-                    <li><strong>Move Right:</strong> Right Arrow / 'D' Key / Swipe Right (when grounded)</li>
-                    <li><strong>Directional Jump:</strong> Move Left/Right + Jump for a boosted jump in that direction!</li>
-                </ul>
-
-                <h4>Gameplay:</h4>
-                <ul>
-                    <li>Your <strong>Jump Bar</strong> depletes over time. Keep it filled by jumping on boxes or collecting power-ups!</li>
-                    <li><strong>Box Jumps:</strong> Landing on boxes gives you XP and replenishes your Jump Bar. Chain them for combos!</li>
-                    <li><strong>Power-ups:</strong> Collect Moyakis for special abilities like Triple Jump, 2x Score, Coin Magnet, and Time Warp (resets Jump Bar).</li>
-                    <li><strong>Coins:</strong> Gather coins to spend in the Shop.</li>
-                </ul>
-
-                <h4>Tips:</h4>
-                <ul>
-                    <li>Master the directional jump to clear large gaps.</li>
-                    <li>Watch your Jump Bar! Don't let it run out.</li>
-                    <li>Connect your wallet to save progress, earn achievements, and compete on the leaderboard!</li>
-                </ul>
+        <div className={styles.instructionsContainer}>
+            <div className={styles.instructionsImageWrapper}>
+                <iframe 
+                    width="800" 
+                    height="600"
+                    src="https://www.youtube.com/embed/xjOUIsR1ZCY?autoplay=1&mute=1" 
+                    title="Game Instructions Video"
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowFullScreen
+                ></iframe>
             </div>
-            <div className={styles.instructionsActions}>
-                 <button 
-                    className={styles.secondaryButton} 
-                    onClick={() => handleButtonClick(onBackToMenu)}
-                    onMouseEnter={() => { if(buttonHoverSound) { buttonHoverSound.currentTime=0; buttonHoverSound.play().catch(e=>console.log(e)); }}}
-                >
-                    Back to Menu
-                </button>
-                 <button 
+            <div className={styles.instructionsButtons}>
+                <button 
                     className={styles.primaryButton} 
                     onClick={() => handleButtonClick(onStartGame)}
-                    onMouseEnter={() => { if(buttonHoverSound) { buttonHoverSound.currentTime=0; buttonHoverSound.play().catch(e=>console.log(e)); }}}
+                    onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
                 >
                     OK
                 </button>
             </div>
-        </motion.div>
+        </div>
     );
 };

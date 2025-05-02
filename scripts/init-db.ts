@@ -32,7 +32,7 @@ async function initializeDatabase() {
         console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
-                wallet_address VARCHAR(42) PRIMARY KEY,
+                wallet_address VARCHAR(44) PRIMARY KEY,
                 username VARCHAR(50) NOT NULL,
                 email VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -52,7 +52,7 @@ async function initializeDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS player_profiles (
                 profile_id SERIAL PRIMARY KEY,
-                wallet_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                wallet_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 level INTEGER DEFAULT 1,
                 coins INTEGER DEFAULT 0,
                 xp INTEGER DEFAULT 0,
@@ -161,7 +161,7 @@ async function initializeDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS player_inventories (
                 inventory_id SERIAL PRIMARY KEY,
-                wallet_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                wallet_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 item_id VARCHAR(50) NOT NULL REFERENCES items(id),
                 quantity INTEGER DEFAULT 1,
                 equipped BOOLEAN DEFAULT FALSE,
@@ -192,7 +192,7 @@ async function initializeDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS outfit_loadouts (
                 loadout_id SERIAL PRIMARY KEY,
-                wallet_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                wallet_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 name VARCHAR(100) NOT NULL,
                 body_item VARCHAR(50) REFERENCES items(id),
                 eyes_item VARCHAR(50) REFERENCES items(id),
@@ -351,7 +351,7 @@ async function initializeDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id SERIAL PRIMARY KEY,
-                sender_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                sender_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 message TEXT NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
@@ -431,8 +431,8 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS trade_history (
                 id SERIAL PRIMARY KEY,
                 trade_id VARCHAR(255) NOT NULL,
-                seller_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
-                buyer_address VARCHAR(42) REFERENCES users(wallet_address),
+                seller_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
+                buyer_address VARCHAR(44) REFERENCES users(wallet_address),
                 status VARCHAR(50) NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP WITH TIME ZONE,
@@ -448,8 +448,8 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 trade_id VARCHAR(255) NOT NULL,
                 item_id VARCHAR(50) NOT NULL REFERENCES items(id),
-                from_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
-                to_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                from_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
+                to_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 quantity INTEGER NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)
@@ -463,8 +463,8 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS trade_negotiations (
                 id SERIAL PRIMARY KEY,
                 trade_id VARCHAR(255) NOT NULL,
-                seller_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
-                buyer_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                seller_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
+                buyer_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 status VARCHAR(50) NOT NULL DEFAULT 'waiting',
                 seller_locked BOOLEAN DEFAULT FALSE,
                 buyer_locked BOOLEAN DEFAULT FALSE,
@@ -507,7 +507,7 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS trade_chat_messages (
                 id SERIAL PRIMARY KEY,
                 trade_id VARCHAR(255) NOT NULL,
-                sender_address VARCHAR(42) NOT NULL REFERENCES users(wallet_address),
+                sender_address VARCHAR(44) NOT NULL REFERENCES users(wallet_address),
                 message TEXT NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (trade_id) REFERENCES trade_history(trade_id)

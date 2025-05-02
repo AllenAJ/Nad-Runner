@@ -5,7 +5,7 @@ interface LoadingScreenProps {
     loadingProgress: number;
     leaderboardLoaded: boolean;
     isConnected: boolean;
-    onConnect: () => Promise<void>;
+    onConnect: (walletType: 'evm' | 'solana') => Promise<void>;
     assetsLoaded: boolean;
     onAssetsLoaded: () => void;
     walletAddress?: string;
@@ -89,14 +89,20 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     </h2>
                     
                     <p className={styles.connectionMessage}>
-                        Connect your wallet to start playing
+                        Connect your wallet to start playing:
                     </p>
                     
                     <button 
-                        onClick={onConnect} 
+                        onClick={() => onConnect('evm')}
                         className={styles.connectWalletButton}
                     >
-                        Connect Wallet
+                        Connect EVM Wallet (e.g., MetaMask)
+                    </button>
+                    <button 
+                        onClick={() => onConnect('solana')}
+                        className={`${styles.connectWalletButton} ${styles.marginTopSmall}`}
+                    >
+                        Connect Solana Wallet (e.g., Phantom)
                     </button>
                 </div>
             ) : (

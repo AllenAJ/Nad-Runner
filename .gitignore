@@ -38,3 +38,5 @@ codebase.md
 /artifacts
 /cache
 /typechain-types
+
+/server/

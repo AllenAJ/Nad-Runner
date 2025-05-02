@@ -21,6 +21,14 @@ import { NotificationData } from '../Notifications/AchievementNotification';
 import { Achievement } from '../../constants/achievements'; // Import Achievement type
 import FlappyBug from './FlappyBug'; // Import the new component
 
+// Import Solana wallet adapter hooks
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletName } from '@solana/wallet-adapter-base'; // Corrected import for WalletName
+import { PhantomWalletName } from '@solana/wallet-adapter-phantom'; // Example for a specific wallet
+
+// Import Solana UI component if you want to use it directly
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+
 // Constants
 const GAME_WIDTH = 1200;
 const GAME_HEIGHT = 700;
@@ -165,6 +173,12 @@ export default function GameContainer() {
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const notificationIdCounter = useRef(0);
 
+    // Add state for current wallet type
+    const [currentWalletType, setCurrentWalletType] = useState<'evm' | 'solana' | null>(null);
+
+    // Solana wallet hook
+    const solanaWallet = useWallet();
+
     // Function to add a new notification
     const addNotification = (notification: Omit<NotificationData, 'id'>) => {
         const newId = notificationIdCounter.current++;
@@ -257,8 +271,10 @@ export default function GameContainer() {
 
     // Handle wallet account changes
     const handleAccountsChanged = (accounts: string[]) => {
+        if (currentWalletType !== 'evm') return; // Only for EVM
+
         if (accounts.length === 0) {
-            // User disconnected their wallet
+            // User disconnected their EVM wallet
             console.log('Wallet disconnected.');
             setIsConnected(false);
             setWalletAddress("");
@@ -266,6 +282,7 @@ export default function GameContainer() {
             setUserData(null); // Clear user data
             setPlayerData(null); // Clear player data
             setIsNewUser(false); // Reset new user status
+            setCurrentWalletType(null); // Reset wallet type
             
             // Always navigate back to the main menu on disconnect
             setGameState(prev => ({
@@ -286,12 +303,13 @@ export default function GameContainer() {
             const newAddress = accounts[0];
             setIsConnected(true);
             setWalletAddress(newAddress);
+            setCurrentWalletType('evm'); // Ensure type is set
             
             // Re-check user status and load data for the new/switched account
             if (!provider && window.ethereum) {
                 setProvider(new ethers.BrowserProvider(window.ethereum));
             }
-            checkUserExistsAndLoadData(); // Fetch data for new account
+            checkUserExistsAndLoadData(newAddress, 'evm'); // Fetch data for new account
             
             // Reload necessary game assets if they weren't loaded
             if (!leaderboardLoaded || !assetsLoaded) {
@@ -302,43 +320,57 @@ export default function GameContainer() {
         }
     };
 
+    // Handle chain changes (EVM specific)
+    const handleChainChanged = () => {
+        if (currentWalletType === 'evm') {
+            window.location.reload();
+        }
+    };
+
     // Check wallet connection on initial load
     const checkWalletConnection = async () => {
+        // Try EVM first (existing logic)
         if (typeof window !== 'undefined' && window.ethereum) {
             try {
                 const web3Provider = new ethers.BrowserProvider(window.ethereum);
-                setProvider(web3Provider);
-                
                 const accounts = await web3Provider.listAccounts();
                 if (accounts.length > 0 && accounts[0]) {
                     const connectedAddress = accounts[0].address;
-                    console.log('Already connected:', connectedAddress);
+                    console.log('Already connected (EVM):', connectedAddress);
+                    setProvider(web3Provider);
                     setIsConnected(true);
                     setWalletAddress(connectedAddress);
-                    
-                    // If connected, load user data and other game data
-                    await checkUserExistsAndLoadData(); // Fetch user data
-                    await loadGameData(); // Load leaderboard/assets
-                } else {
-                    console.log('No connected accounts found initially.');
-                    setIsConnected(false);
-                    setWalletAddress("");
-                    setPlayerData(null);
-                    // Transition to menu even if not connected, after loading basic assets
-                    await loadGameData(); // Load assets/leaderboard regardless
+                    setCurrentWalletType('evm');
+                    await checkUserExistsAndLoadData(connectedAddress, 'evm');
+                    await loadGameData();
+                    return; // Exit if EVM connected
                 }
             } catch (error) {
-                console.log('Wallet connection check error:', error);
-                setIsConnected(false);
-                setPlayerData(null);
-                await loadGameData(); // Try loading assets anyway
+                console.log('EVM wallet connection check error:', error);
             }
-        } else {
-            console.log('No Ethereum provider detected.');
-            setIsConnected(false);
-            setPlayerData(null);
-            await loadGameData(); // Load assets/leaderboard
         }
+
+        // Check Solana wallet status (if EVM not connected)
+        if (solanaWallet.connected && solanaWallet.publicKey) {
+            const solanaAddress = solanaWallet.publicKey.toBase58();
+            console.log('Already connected (Solana):', solanaAddress);
+            setIsConnected(true);
+            setWalletAddress(solanaAddress);
+            setCurrentWalletType('solana');
+            setProvider(null); // Ensure EVM provider is null
+            await checkUserExistsAndLoadData(solanaAddress, 'solana');
+            await loadGameData();
+            return; // Exit if Solana connected
+        }
+        
+        // If neither is connected
+        console.log('No connected accounts found initially (EVM or Solana).');
+        setIsConnected(false);
+        setWalletAddress("");
+        setPlayerData(null);
+        setCurrentWalletType(null);
+        setProvider(null);
+        await loadGameData(); // Load assets/leaderboard regardless
     };
 
     // Load game data (leaderboard and assets)
@@ -361,8 +393,8 @@ export default function GameContainer() {
             setAssetsLoaded(true);
             setLoadingProgress(100);
             
-            // Only transition to menu if user is still in loading state
-            if (gameState.currentScreen === 'loading') {
+            // Only transition to menu if user is still in loading state AND wallet is connected
+            if (gameState.currentScreen === 'loading' && isConnected) {
                 // Give a slight delay for visual polish
                 setTimeout(() => {
                     setGameState(prev => ({
@@ -377,54 +409,112 @@ export default function GameContainer() {
     };
 
     // Connect wallet method
-    const handleConnect = async () => {
+    const handleConnect = async (walletType: 'evm' | 'solana') => {
         setIsConnectingWallet(true);
+        setMintStatus(null); 
+
         try {
-            if (isConnected) {
-                // Disconnect wallet (this is a UI-only disconnect, users must disconnect from their wallet)
-                setIsConnected(false);
-                setWalletAddress("");
-                setProvider(null);
-                setIsConnectingWallet(false);
-                return;
-            }
-
-            // Check for wallet
-            if (!window.ethereum) {
-                setMintStatus({
-                    status: 'error',
-                    message: 'No wallet detected. Please install MetaMask or use a Web3 browser.'
-                });
-                setIsConnectingWallet(false);
-                return;
-            }
-
-            // Request account access
-            const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-            
-            if (accounts.length > 0) {
-                const web3Provider = new ethers.BrowserProvider(window.ethereum);
-                setProvider(web3Provider);
-                setWalletAddress(accounts[0]);
-                setIsConnected(true);
-                
-                // Try to switch to correct network
-                try {
-                    await switchToMonadNetwork(window.ethereum);
-                } catch (error) {
-                    console.warn('Network switching failed, but proceeding with wallet connection:', error);
+            if (walletType === 'evm') {
+                setCurrentWalletType('evm');
+                if (isConnected && currentWalletType === 'evm') { 
+                    console.log("Attempting to disconnect EVM (manual)");
+                    setIsConnected(false);
+                    setWalletAddress("");
+                    setProvider(null);
+                    setCurrentWalletType(null);
+                    // Potentially clear user data too
+                    setUserData(null);
+                    setPlayerData(null);
+                    // No need to set setIsConnectingWallet(false) here, finally block handles it
+                    return;
                 }
-                
-                // Load game data
-                loadGameData();
+                if (!window.ethereum) {
+                    setMintStatus({
+                        status: 'error',
+                        message: 'No EVM wallet detected. Please install MetaMask or use a Web3 browser.'
+                    });
+                    setIsConnectingWallet(false); // Early exit
+                    return;
+                }
+
+                const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+            
+                if (accounts.length > 0 && accounts[0]) {
+                    const web3Provider = new ethers.BrowserProvider(window.ethereum);
+                    setProvider(web3Provider);
+                    setWalletAddress(accounts[0]);
+                    setIsConnected(true);
+                    try {
+                        await switchToMonadNetwork(window.ethereum);
+                    } catch (error) {
+                        console.warn('EVM network switching failed, but proceeding with wallet connection:', error);
+                    }
+                    await checkUserExistsAndLoadData(accounts[0], 'evm');
+                    loadGameData();
+                } else {
+                    // No accounts found or user rejected
+                    setMintStatus({ status: 'error', message: 'EVM wallet connection rejected or no accounts found.' });
+                    setIsConnectingWallet(false); // Early exit
+                    return;
+                }
+
+            } else if (walletType === 'solana') {
+                setCurrentWalletType('solana');
+                setProvider(null); 
+
+                if (!solanaWallet.wallet) { 
+                    const phantomAdapter = solanaWallet.wallets.find(w => w.adapter.name === PhantomWalletName)?.adapter;
+                    if (phantomAdapter) {
+                        try {
+                            solanaWallet.select(PhantomWalletName as WalletName);
+                            setMintStatus({ status: 'pending', message: 'Phantom selected. Approve connection in your wallet extension.' });
+                            // Connection will be attempted by useEffect reacting to solanaWallet.wallet or solanaWallet.connected
+                        } catch (e) {
+                            console.error("Error selecting Phantom:", e);
+                            setMintStatus({ status: 'error', message: 'Could not select Phantom. Is it installed?' });
+                            setIsConnectingWallet(false); // Early exit
+                            return;
+                        }
+                    } else {
+                        setMintStatus({ status: 'error', message: 'Phantom wallet not found. Please install or ensure it is enabled. You can also try other Solana wallets if a selection modal is available.' });
+                        // If you had a generic solana connect button/modal, you'd trigger it here.
+                        // For example, if you manage WalletModalProvider's setVisible state manually:
+                        // setSolanaModalVisible(true);
+                        setIsConnectingWallet(false); // Early exit
+                        return;
+                    }
+                } else if (!solanaWallet.connected) { 
+                    try {
+                        await solanaWallet.connect();
+                        // Success will be handled by the useEffect for solanaWallet.connected
+                    } catch (e:any) {
+                        console.error("Solana connect error:", e);
+                        setMintStatus({ status: 'error', message: e.message || `Failed to connect to ${solanaWallet.wallet.adapter.name}.` });
+                        // setIsConnectingWallet(false) will be handled in finally
+                    }
+                } else {
+                    // Already connected or wallet selected and connected - useEffect should have handled state updates.
+                    // Potentially refresh data if needed, though useEffect is preferred for this.
+                    console.log("Solana wallet already selected and connected.");
+                    if(solanaWallet.publicKey) await checkUserExistsAndLoadData(solanaWallet.publicKey.toBase58(), 'solana');
+                }
             }
-        } catch (error) {
-            console.error('Failed to connect wallet:', error);
+        } catch (error: any) {
+            console.error(`Wallet connection process error (${walletType}):`, error);
+            const errorMessage = error.message || `Failed to connect ${walletType} wallet. Please try again.`;
             setMintStatus({
                 status: 'error',
-                message: 'Failed to connect wallet. Please try again.'
+                message: errorMessage
             });
+            // Don't reset currentWalletType here, user might retry
+            // setIsConnectingWallet(false) in finally block
         } finally {
+            // Small delay for wallet popups, especially for Solana
+            // The main connection status will be updated by useEffects reacting to wallet state changes.
+            // setIsConnectingWallet is more about the *intent* to connect rather than the final state.
+            // If connection is successful, useEffects will set isConnected = true and isConnectingWallet = false.
+            // If it fails, it should also be reset.
+            // setTimeout(() => setIsConnectingWallet(false), 500); // Keep it simple for now.
             setIsConnectingWallet(false);
         }
     };
@@ -472,9 +562,9 @@ export default function GameContainer() {
 
     // Start game method
     const handleStartGame = () => {
-        // Don't allow starting if not connected
         if (!isConnected) {
-            handleConnect();
+            // Default to EVM connection if trying to start game while disconnected
+            handleConnect('evm'); 
             return;
         }
         
@@ -732,16 +822,18 @@ export default function GameContainer() {
     // Check if user exists and fetch initial data
     useEffect(() => {
         if (isConnected && walletAddress) {
-            checkUserExistsAndLoadData(); // Renamed function
+            // Pass wallet type to determine API endpoint or logic if needed
+            checkUserExistsAndLoadData(walletAddress, currentWalletType || 'evm'); 
         }
-    }, [isConnected, walletAddress]);
+    }, [isConnected, walletAddress, currentWalletType]); // Add currentWalletType
 
     // Check user existence and load data
-    const checkUserExistsAndLoadData = async () => {
-        if (!walletAddress) return; // Don't fetch if no address
+    const checkUserExistsAndLoadData = async (address: string, walletTypeUsed: 'evm' | 'solana' | null) => {
+        if (!address || !walletTypeUsed) return; 
         try {
-            const normalizedWalletAddress = walletAddress.toLowerCase();
-            const response = await fetch(`/api/user/data?walletAddress=${normalizedWalletAddress}`);
+            const normalizedWalletAddress = address.toLowerCase();
+            // Potentially use a different API endpoint or add walletType to query for backend
+            const response = await fetch(`/api/user/data?walletAddress=${normalizedWalletAddress}&walletType=${walletTypeUsed}`);
             
             if (response.ok) {
                 const data: PlayerDataState = await response.json(); // Expect full state object
@@ -765,13 +857,16 @@ export default function GameContainer() {
 
     // Handle submission of username for new users
     const handleUsernameSubmit = async (username: string) => {
-        if (!walletAddress) return;
+        if (!walletAddress || !currentWalletType) {
+            addNotification({ type: 'error', title: 'Connection Error', message: 'Wallet not connected or type unknown.'});
+            return;
+        }
         try {
             const normalizedWalletAddress = walletAddress.toLowerCase();
             const createResponse = await fetch('/api/user/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: normalizedWalletAddress, username }),
+                body: JSON.stringify({ walletAddress: normalizedWalletAddress, username, walletType: currentWalletType }),
             });
 
             const createData = await createResponse.json();
@@ -882,6 +977,69 @@ export default function GameContainer() {
         setIsSoundMuted(!isSoundMuted);
     };
 
+    // Check if user exists and fetch initial data
+    useEffect(() => {
+        // This effect syncs app state if Solana wallet connects/disconnects via its own UI
+        if (solanaWallet.connected && solanaWallet.publicKey) {
+            const solanaAddress = solanaWallet.publicKey.toBase58();
+            // Check if state needs update to prevent redundant calls or loops
+            if (walletAddress !== solanaAddress || !isConnected || currentWalletType !== 'solana') {
+                console.log('Solana wallet connected (detected by useEffect):', solanaAddress);
+                setIsConnected(true);
+                setWalletAddress(solanaAddress);
+                setCurrentWalletType('solana');
+                setProvider(null); 
+                checkUserExistsAndLoadData(solanaAddress, 'solana');
+                if (gameState.currentScreen === 'loading' && !assetsLoaded) loadGameData();
+                setMintStatus(null); 
+            }
+            if(isConnectingWallet) setIsConnectingWallet(false); // If we were in a connecting state, mark as done.
+
+        } else if (currentWalletType === 'solana' && !solanaWallet.connected && !solanaWallet.connecting && isConnected) {
+            // Only if it WAS connected as Solana and now it's not (and not in a connecting attempt)
+            console.log('Solana wallet disconnected (detected by useEffect).');
+            setIsConnected(false);
+            setWalletAddress("");
+            setCurrentWalletType(null);
+            // Optionally clear user data or navigate, based on desired UX
+            if (gameState.currentScreen !== 'menu' && gameState.currentScreen !== 'loading') {
+                 setGameState(prev => ({ ...prev, currentScreen: 'menu', isPlaying: false }));
+            }
+            if(isConnectingWallet) setIsConnectingWallet(false);
+        }
+    }, [
+        solanaWallet.connected, 
+        solanaWallet.publicKey, 
+        solanaWallet.connecting, // Important to prevent race conditions
+        currentWalletType, 
+        walletAddress, 
+        isConnected, 
+        isConnectingWallet, // Added to dependencies
+        checkUserExistsAndLoadData, // Ensure this is memoized if it's complex
+        loadGameData, 
+        assetsLoaded, 
+        gameState.currentScreen
+    ]);
+
+    // Effect to attempt connection if a Solana wallet is selected but not connected
+    useEffect(() => {
+        if (currentWalletType === 'solana' && solanaWallet.wallet && !solanaWallet.connected && !solanaWallet.connecting && isConnectingWallet) {
+            // This effect tries to connect if a wallet was just selected and we are in 'isConnectingWallet' state.
+            (async () => {
+                try {
+                    console.log(`Attempting to connect to selected Solana wallet: ${solanaWallet.wallet?.adapter.name} (useEffect)`);
+                    await solanaWallet.connect();
+                    // Success will be picked up by the useEffect above that watches solanaWallet.connected
+                } catch (error: any) {
+                    console.error("Delayed Solana connect error (useEffect):", error);
+                    setMintStatus({ status: 'error', message: error.message || "Failed to connect to selected Solana wallet." });
+                    setIsConnectingWallet(false); // Reset connecting flag on error
+                    setCurrentWalletType(null); // Revert type if connection failed post-selection
+                }
+            })();
+        }
+    }, [solanaWallet.wallet, solanaWallet.connected, solanaWallet.connecting, currentWalletType, isConnectingWallet]);
+
     // Render different screens based on current state
     const renderScreen = () => {
         switch (gameState.currentScreen) {
@@ -891,7 +1049,7 @@ export default function GameContainer() {
                         loadingProgress={loadingProgress}
                         leaderboardLoaded={leaderboardLoaded}
                         isConnected={isConnected}
-                        onConnect={handleConnect}
+                        onConnect={(walletType) => handleConnect(walletType)}
                         assetsLoaded={assetsLoaded}
                         onAssetsLoaded={handleAssetsLoaded}
                         walletAddress={walletAddress}
@@ -899,7 +1057,6 @@ export default function GameContainer() {
                     />
                 );
             case 'menu':
-                // Use the default stats function if playerData is null
                 const currentStats = playerData?.playerStats || getDefaultPlayerStats();
                 return (
                     <MainMenu 
@@ -907,7 +1064,7 @@ export default function GameContainer() {
                         onStartGame={handleStartGame}
                         onNavigateTo={navigateTo}
                         isConnected={isConnected}
-                        onConnect={handleConnect}
+                        onConnect={() => handleConnect(currentWalletType || 'evm')}
                         walletAddress={walletAddress}
                         isNewUser={isNewUser}
                         onUsernameSubmit={handleUsernameSubmit}
@@ -938,6 +1095,7 @@ export default function GameContainer() {
                             }));
                         }}
                         onBackToMenu={() => navigateTo('menu')}
+                        isMuted={isSoundMuted}
                     />
                 );
             case 'shop':
@@ -964,7 +1122,7 @@ export default function GameContainer() {
                         mintStatus={mintStatus}
                         onPlayerNameChange={(name) => setGameState(prev => ({ ...prev, playerName: name }))}
                         onNameSubmit={handleNameSubmit}
-                        onConnect={handleConnect}
+                        onConnect={() => handleConnect(currentWalletType || 'evm')}
                         onMintScore={handleMintScore}
                         onPlayAgain={handlePlayAgain}
                         onBackToMenu={() => navigateTo('menu')}
@@ -1069,7 +1227,7 @@ export default function GameContainer() {
                                 <div className={styles.walletAlert}>
                                     <h3>Wallet Disconnected</h3>
                                     <p>Your wallet has been disconnected. Please reconnect to continue.</p>
-                                    <button onClick={handleConnect} className={styles.primaryButton}>
+                                    <button onClick={() => handleConnect(currentWalletType || 'evm')} className={styles.primaryButton}>
                                         Reconnect Wallet
                                     </button>
                                 </div>
