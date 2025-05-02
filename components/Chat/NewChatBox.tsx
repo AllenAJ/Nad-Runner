@@ -884,16 +884,20 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     const handleRejectTrade = () => {
         if (!activeTradeNegotiation) return;
         
+        const rejectedOfferId = activeTradeNegotiation.offerId; // Store the ID before clearing
+
         // Emit rejection event to server
         socketRef.current?.emit('rejectTrade', {
-            offerId: activeTradeNegotiation.offerId,
+            offerId: rejectedOfferId,
             rejectedBy: username,
             rejectedByAddress: walletAddress.toLowerCase()
         });
 
-        // Clear local state
+        // Clear local trade state
         setActiveTradeNegotiation(null);
         setSelectedTradeItems([]);
+        setIsTradeOfferer(false); // Reset offerer status
+        setTradeChatMessages([]); // Clear trade chat
     };
 
     // Add a useEffect to monitor offers state changes

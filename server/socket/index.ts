@@ -923,13 +923,16 @@ export const setupSocket = (io: SocketServer) => {
                         });
                     }
                     
-                // Update trade status in database (both tables)
+                // Update ONLY the negotiation status in database
                     await client.query(
                     `UPDATE trade_negotiations SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE trade_id = $1`,
                     [data.offerId]
                 );
-                await updateTradeStatus(client, data.offerId, 'cancelled'); // Update history table
                 
+                // --- ADDED: Set history back to pending --- 
+                await updateTradeStatus(client, data.offerId, 'pending'); 
+                // --- END ADDED ---
+
                 // Reset the offer status back to pending in activeOffers if it exists
                 // This allows someone else to potentially accept it
                 const offerIndex = activeOffers.findIndex(o => o.id === data.offerId);
@@ -1153,7 +1156,12 @@ export const setupSocket = (io: SocketServer) => {
                 cancelActiveNegotiationsForUser(disconnectedAddress, io).catch(console.error);
                 
                 // Broadcast updated online users list
-                io.emit('onlineUsers', users.map(u => u.username));
+                io.emit('onlineUsers', users.map(u => ({ 
+                    username: u.username,
+                    walletAddress: u.walletAddress, 
+                    equippedSkinId: u.equippedSkinId,
+                    level: u.level
+                })));
             }
         });
 
@@ -1195,58 +1203,109 @@ async function cancelTradeHistoryOffer(tradeId: string) {
 
 async function cancelActiveNegotiationsForUser(disconnectedAddress: string, io: SocketServer) {
     const client = await wsPool.connect();
-    let userNegotiations: { trade_id: string, seller_address: string, buyer_address: string }[] = [];
+    let userNegotiations: { trade_id: string, seller_address: string, buyer_address: string, status: string }[] = [];
+    const processedTradeIds = new Set<string>();
+    const notifiedPartners = new Set<string>();
+    const offersToResetStatus = new Set<string>(); // Collect offer IDs to reset after commit
+
     try {
-        // Find negotiations in 'waiting' status involving the disconnected user
+        // Find negotiations involving the disconnected user (fetch status too)
         const negotiationRes = await client.query(
-            `SELECT trade_id, seller_address, buyer_address 
+            `SELECT trade_id, seller_address, buyer_address, status 
              FROM trade_negotiations 
-             WHERE (seller_address = $1 OR buyer_address = $1) AND status = 'waiting'`,
+             WHERE (seller_address = $1 OR buyer_address = $1)`,
             [disconnectedAddress]
         );
         userNegotiations = negotiationRes.rows;
 
-        if (userNegotiations.length > 0) {
+        const negotiationsToCancel = userNegotiations.filter(neg => neg.status === 'waiting');
+
+        if (negotiationsToCancel.length > 0) {
+            console.log(`Found ${negotiationsToCancel.length} 'waiting' negotiations to cancel for ${disconnectedAddress}`);
             await client.query('BEGIN');
             
-            for (const negotiation of userNegotiations) {
+            for (const negotiation of negotiationsToCancel) {
+                if (processedTradeIds.has(negotiation.trade_id)) {
+                    continue;
+                }
+
                 const partnerAddress = negotiation.buyer_address.toLowerCase() === disconnectedAddress 
                     ? negotiation.seller_address.toLowerCase() 
                     : negotiation.buyer_address.toLowerCase();
                 
-                // Update trade status in both tables to cancelled
-                console.log(`🔴 Cancelling negotiation ${negotiation.trade_id} due to disconnect.`);
-                await client.query(
-                    `UPDATE trade_negotiations SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE trade_id = $1`,
+                // Update negotiation status to cancelled
+                console.log(`[DB TX] Attempting to cancel negotiation ${negotiation.trade_id} (initially found as status ${negotiation.status}).`);
+                const updateResult = await client.query(
+                    `UPDATE trade_negotiations 
+                     SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 
+                     WHERE trade_id = $1`, // Removed "AND status = 'waiting'" condition
                     [negotiation.trade_id]
                 );
-                await updateTradeStatus(client, negotiation.trade_id, 'cancelled'); // Update history
 
-                // Notify the partner if they are still online
-                const partner = users.find(u => u.walletAddress.toLowerCase() === partnerAddress);
-                if (partner) {
-                    console.log(`🔴 Notifying partner ${partner.username} about cancelled negotiation ${negotiation.trade_id}`);
-                    io.to(partner.socketId).emit('tradeNegotiationCancelled', {
-                        offerId: negotiation.trade_id,
-                        reason: 'Partner disconnected'
-                    });
+                // Only proceed if the update actually changed a row (meaning it was truly waiting)
+                if (updateResult && updateResult.rowCount && updateResult.rowCount > 0) {
+                     console.log(`[DB TX] Successfully cancelled negotiation ${negotiation.trade_id}.`);
+                    // ---- Notification logic remains commented out ----
+                    if (!notifiedPartners.has(partnerAddress)) {
+                         notifiedPartners.add(partnerAddress); 
+                    }
+                    
+                    // Mark offer for status reset in memory AFTER commit
+                    const offerIndex = activeOffers.findIndex(o => o.id === negotiation.trade_id);
+                    if (offerIndex !== -1) {
+                         offersToResetStatus.add(negotiation.trade_id); // Add to set for later processing
+                    }
+                } else {
+                     console.log(`[DB TX] Skipped cancelling ${negotiation.trade_id} as its status was no longer 'waiting' during update.`);
                 }
-                
-                // Reset the original offer in activeOffers back to 'pending' if it exists
-                const offerIndex = activeOffers.findIndex(o => o.id === negotiation.trade_id);
-                if (offerIndex !== -1) {
-                    activeOffers[offerIndex].status = 'pending';
-                    io.emit('offerStatusUpdate', { offerId: negotiation.trade_id, status: 'pending' });
-                }
+
+                processedTradeIds.add(negotiation.trade_id);
             }
             
+            console.log("[DB TX] Committing transaction...");
             await client.query('COMMIT');
+            console.log("[DB TX] Transaction committed successfully.");
+
+            // --- Process memory/emit updates AFTER successful commit ---
+            if (offersToResetStatus.size > 0) {
+                console.log(`[MEM] Resetting status in activeOffers for: ${Array.from(offersToResetStatus).join(', ')}`);
+                activeOffers = activeOffers.map(offer => {
+                    if (offersToResetStatus.has(offer.id)) {
+                        // Ensure we only reset if it wasn't already pending or cancelled
+                        if (offer.status !== 'pending' && offer.status !== 'cancelled') {
+                           console.log(`[MEM] Resetting offer ${offer.id} from ${offer.status} to pending.`);
+                           offer.status = 'pending';
+                           // Emit status update AFTER commit and memory update
+                           io.emit('offerStatusUpdate', { offerId: offer.id, status: 'pending' });
+                           return offer;
+                        }
+                    }
+                    return offer;
+                });
+            }
+            // --- End post-commit processing ---
+
         }
     } catch (error) {
-        if (client) await client.query('ROLLBACK');
-        console.error('Error cancelling active negotiations on disconnect:', error);
+        console.error('[DB TX] Error during negotiation cancellation transaction, rolling back!', {
+            errorMessage: (error as Error).message,
+            errorStack: (error as Error).stack
+        });
+        if (client) {
+             try {
+                 await client.query('ROLLBACK');
+                 console.log("[DB TX] Rollback successful.");
+             } catch (rollbackError) {
+                 console.error("[DB TX] Error during rollback:", rollbackError);
+             }
+        } else {
+            console.error('Error cancelling active negotiations on disconnect (no client available):', error);
+        }
     } finally {
-       if (client) client.release();
+       if (client) {
+           console.log("Releasing DB client.");
+           client.release();
+       }
     }
 }
 // --- End Helper Functions --- 

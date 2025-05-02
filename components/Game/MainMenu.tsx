@@ -289,13 +289,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             >
                                 MULTIPLAYER
                             </button>
-                            {/* <button
+                            <button
                                 className={styles.connectButton}
                                 onClick={() => handleButtonClick(onConnect)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                             >
                                 {isConnected ? `Connected: ${formatWalletAddress(walletAddress)}` : 'Connect Wallet'}
-                            </button> */}
+                            </button>
                         </>
                     )}
                 </div>

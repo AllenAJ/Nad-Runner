@@ -525,17 +525,25 @@ async function initializeDatabase() {
         `);
 
         // Create function to update trade negotiation status
+        console.log('Creating function to update trade negotiation status...');
         await client.query(`
             CREATE OR REPLACE FUNCTION update_trade_negotiation_status()
             RETURNS TRIGGER AS $$
             BEGIN
+                -- Always update the timestamp
                 NEW.updated_at = CURRENT_TIMESTAMP;
                 
-                -- Update status based on locks
-                IF NEW.seller_locked AND NEW.buyer_locked THEN
-                    NEW.status = 'locked';
+                -- Only update status based on locks if it's not already being set to a terminal state
+                IF NEW.status IS DISTINCT FROM OLD.status AND (NEW.status = 'cancelled' OR NEW.status = 'completed') THEN
+                    -- If the UPDATE statement is explicitly setting to cancelled or completed, keep that value
+                    RETURN NEW;
                 ELSE
-                    NEW.status = 'waiting';
+                    -- Otherwise, determine status based on locks
+                    IF NEW.seller_locked AND NEW.buyer_locked THEN
+                        NEW.status = 'locked';
+                    ELSE
+                        NEW.status = 'waiting';
+                    END IF;
                 END IF;
                 
                 RETURN NEW;
@@ -544,6 +552,7 @@ async function initializeDatabase() {
         `);
 
         // Create trigger for trade negotiation status updates
+        console.log('Creating trigger for trade negotiation status updates...');
         await client.query(`
             DROP TRIGGER IF EXISTS trade_negotiation_status_trigger ON trade_negotiations;
             CREATE TRIGGER trade_negotiation_status_trigger
