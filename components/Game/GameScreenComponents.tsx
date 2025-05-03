@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './GameContainer.module.css';
 import { NewChatBox } from '../Chat/NewChatBox';
 import { useInventory } from '../../contexts/InventoryContext';
@@ -38,6 +39,12 @@ const LoadingSpinner: React.FC = () => (
     </div>
 );
 
+// Animation variants for inventory item cards
+const itemCardVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.9 }
+};
 
 type EquippedItems = {
     body: string | null;
@@ -173,39 +180,55 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             >
                 <div className={inventoryStyles.noItem}></div>
             </div>
-            {isLoading || isEquipping ? (
-                <div className={inventoryStyles.loadingContainer}>
-                    <LoadingSpinner />
-                </div>
-            ) : items.map((item) => (
-                <div 
-                    key={item.id} 
-                    className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as SubCategory] === item.id ? inventoryStyles.selected : ''}`}
-                    onClick={() => handleEquipItem(item.subCategory as SubCategory, item.id)}
-                    data-rarity={item.rarity}
-                >
-                    <div 
-                        className={inventoryStyles.itemImage}
-                        style={item.color ? { background: item.color } : undefined}
+            <AnimatePresence>
+                {isLoading || isEquipping ? (
+                    <motion.div 
+                        key="loading-indicator"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className={inventoryStyles.loadingContainer}
                     >
-                        {item.imageUrl ? (
-                            <Image 
-                                src={item.subCategory === 'head' || item.subCategory === 'mouth' || item.subCategory === 'eyes' || item.subCategory === 'nose'? item.imageUrl.replace('.png', '_preview.png') : item.imageUrl} 
-                                alt={item.name} 
-                                width={32} 
-                                height={32}
-                                layout="responsive"
-                            />
-                        ) : (
-                            <div className={inventoryStyles.placeholder}>{item.name.substring(0, 2)}</div>
+                        <LoadingSpinner />
+                    </motion.div>
+                ) : items.map((item) => (
+                    <motion.div
+                        key={item.id} 
+                        layout
+                        variants={itemCardVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        transition={{ duration: 0.15 }}
+                        whileHover={{ scale: 1.08, transition: { duration: 0.1 } }}
+                        className={`${inventoryStyles.itemCard} ${equippedItems[item.subCategory as SubCategory] === item.id ? inventoryStyles.selected : ''}`}
+                        onClick={() => handleEquipItem(item.subCategory as SubCategory, item.id)}
+                        data-rarity={item.rarity}
+                        onContextMenu={(e) => e.preventDefault()}
+                    >
+                        <div 
+                            className={inventoryStyles.itemImage}
+                            style={item.color ? { background: item.color } : undefined}
+                        >
+                            {item.imageUrl ? (
+                                <Image 
+                                    src={item.subCategory === 'head' || item.subCategory === 'mouth' || item.subCategory === 'eyes' || item.subCategory === 'nose'? item.imageUrl.replace('.png', '_preview.png') : item.imageUrl} 
+                                    alt={item.name} 
+                                    width={32} 
+                                    height={32}
+                                    layout="responsive"
+                                />
+                            ) : (
+                                <div className={inventoryStyles.placeholder}>{item.name.substring(0, 2)}</div>
+                            )}
+                        </div>
+                        {countItem(item.id) > 1 && (
+                            <div className={inventoryStyles.itemCount}>x{countItem(item.id)}</div>
                         )}
-                    </div>
-                    {countItem(item.id) > 1 && (
-                        <div className={inventoryStyles.itemCount}>x{countItem(item.id)}</div>
-                    )}
-                    <div className={`${inventoryStyles.rarityIndicator} ${inventoryStyles[item.rarity]}`} />
-                </div>
-            ))}
+                        <div className={`${inventoryStyles.rarityIndicator} ${inventoryStyles[item.rarity]}`} />
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
     );
 
@@ -281,7 +304,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     };
 
     return (
-        <div className={inventoryStyles.inventoryContainer}>
+        <motion.div 
+            className={inventoryStyles.inventoryContainer}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            onContextMenu={(e) => e.preventDefault()}
+        >
             <div className={inventoryStyles.header}>
                 <h1 className={inventoryStyles.title}>Inventory</h1>
                 <button
@@ -381,7 +411,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                     {renderInventoryContent()}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 

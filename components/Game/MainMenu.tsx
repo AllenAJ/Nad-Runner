@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './GameContainer.module.css';
 import { Alert } from './Alert';
 import { UsernamePrompt } from './UsernamePrompt';
@@ -7,6 +8,7 @@ import { LayeredCharacter } from '../Character/LayeredCharacter';
 import { useInventory } from '../../contexts/InventoryContext';
 import AchievementsPopup from '../Achievements/AchievementsPopup';
 import { ACHIEVEMENTS } from '../../constants/achievements';
+import { preloadScreenAssets } from '../../utils/image-preloader';
 
 interface MainMenuProps {
     leaderboard: Array<{name: string, score: number}>;
@@ -49,6 +51,29 @@ const playSound = (sound: HTMLAudioElement | null) => {
             console.log('Sound playback failed:', error);
         });
     }
+};
+
+// Animation variants for overlays/popups
+const overlayVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.9 }
+};
+
+// Variants for staggering main menu elements
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1 // Delay between children animating in
+        }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 }, // Start faded out and slightly down
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } } // Fade in and slide up
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ 
@@ -158,7 +183,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     }
 
     return (
-        <div className={styles.menuContainer}>
+        <motion.div
+            className={styles.menuContainer}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            // Prevent default right-click menu
+            onContextMenu={(e) => e.preventDefault()}
+        >
             {alert.show && (
                 <Alert
                     message={alert.message}
@@ -167,30 +200,38 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 />
             )}
             
-            <div className={styles.mainMenuLayout}>
-                {/* Left Column - Player Card */}
-                <div className={styles.characterSection}>
-                    <div className={styles.characterWrapper}>
+            <motion.div
+                className={styles.mainMenuLayout}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+            >
+                {/* Left Column - Player Card - Apply container variants to section, item variants to children */}
+                <motion.div 
+                    className={styles.characterSection}
+                    variants={containerVariants} // Use container variants to stagger children
+                >
+                    <motion.div variants={itemVariants} className={styles.characterWrapper}>
                         <LayeredCharacter 
                             width={120}
                             height={120}
                             className={styles.mainMenuCharacter}
                         />
                         <div className={styles.characterShadow} />
-                    </div>
-                    <div className={styles.walletAddress}>
+                    </motion.div>
+                    <motion.div variants={itemVariants} className={styles.walletAddress}>
                         {formatWalletAddress(walletAddress)}
-                    </div>
-                    <h2 className={styles.rankTitle}>
+                    </motion.div>
+                    <motion.h2 variants={itemVariants} className={styles.rankTitle}>
                         {playerStats.username}
-                    </h2>
-                    <div className={styles.badges}>
+                    </motion.h2>
+                    <motion.div variants={itemVariants} className={styles.badges}>
                         <div className={styles.bonusBadge}>
                             {playerStats.status}
                         </div>
-                    </div>
+                    </motion.div>
 
-                    <div className={styles.statsContainer}>
+                    <motion.div variants={itemVariants} className={styles.statsContainer}>
                         <div className={styles.statRow}>
                             <span>High Score</span>
                             <span>{playerStats.highScore}</span>
@@ -215,9 +256,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <span>Level</span>
                             <span>{playerStats.level}</span>
                         </div>
-                    </div>
+                    </motion.div>
 
-                    <div className={styles.xpSection}>
+                    <motion.div variants={itemVariants} className={styles.xpSection}>
                         <div className={styles.xpHeader}>
                             <span>XP</span>
                             <span className={styles.xpCount}>
@@ -230,9 +271,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 style={{ width: `${(playerStats.xp / playerStats.xpToNextLevel) * 100}%` }}
                             />
                         </div>
-                    </div>
+                    </motion.div>
 
-                    <div className={styles.infoBox}>
+                    <motion.div variants={itemVariants} className={styles.infoBox}>
                         <Image 
                             src="/assets/salmonad.png" 
                             alt="Box" 
@@ -240,138 +281,186 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             height={40}
                         />
                         <p>Earn XP and Coins by playing!</p>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
 
-                {/* Middle Column - Buttons */}
-                <div className={styles.menuActionSection}>
+                {/* Middle Column - Buttons - Apply container variants to section, item variants to buttons */}
+                <motion.div 
+                    className={styles.menuActionSection}
+                    variants={containerVariants} // Use container variants to stagger children
+                >
                     {isNewUser ? (
-                        <UsernamePrompt onSubmit={onUsernameSubmit} />
+                        // Assuming UsernamePrompt has its own animation or doesn't need staggering here
+                        <UsernamePrompt onSubmit={onUsernameSubmit} /> 
                     ) : (
+                        // Wrap buttons in a fragment or div if needed, apply variants to motion elements
                         <>
-                            <button
+                            <motion.button // Apply item variants to each button
                                 className={styles.primaryButton}
                                 onClick={() => handleButtonClick(onStartGame)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                                 disabled={!isConnected}
+                                variants={itemVariants}
                             >
                                 PLAY
-                            </button>
-                            <button
-                                className={styles.menuButton}
-                                onClick={handleShopButtonClick}
-                                onMouseEnter={() => playSound(buttonHoverSound)}
-                                disabled={!isConnected}
-                            >
-                                SHOP
-                            </button>
-                            <button
-                                className={styles.menuButton}
-                                onClick={handleInventoryClick}
-                                onMouseEnter={() => playSound(buttonHoverSound)}
-                                disabled={!isConnected || isInventoryLoading}
-                            >
-                                {isInventoryLoading ? 'LOADING...' : 'INVENTORY'}
-                            </button>
-                            <button
-                                className={styles.menuButton}
-                                onClick={() => handleButtonClick(handleAchievementsClick)}
-                                onMouseEnter={() => playSound(buttonHoverSound)}
-                                disabled={!isConnected}
-                            >
-                                ACHIEVEMENTS
-                            </button>
-                            <button
+                            </motion.button>
+                            <motion.button // Apply item variants
                                 className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleMultiplayerClick)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
                                 disabled={!isConnected}
+                                variants={itemVariants}
                             >
-                                MULTIPLAYER
-                            </button>
-                            <button
+                                MARKETPLACE
+                            </motion.button>
+                            <motion.button // Apply item variants
+                                className={styles.menuButton}
+                                onClick={handleShopButtonClick}
+                                // Preload shop assets on hover
+                                onMouseEnter={() => {
+                                    playSound(buttonHoverSound);
+                                    if (isConnected && walletAddress) {
+                                        preloadScreenAssets('shop', walletAddress);
+                                    }
+                                }}
+                                disabled={!isConnected}
+                                variants={itemVariants}
+                            >
+                                SHOP
+                            </motion.button>
+                            <motion.button // Apply item variants
+                                className={styles.menuButton}
+                                onClick={handleInventoryClick}
+                                // Preload inventory assets on hover
+                                onMouseEnter={() => {
+                                    playSound(buttonHoverSound);
+                                    if (isConnected && walletAddress) {
+                                        preloadScreenAssets('inventory', walletAddress);
+                                    }
+                                }}
+                                disabled={!isConnected || isInventoryLoading}
+                                variants={itemVariants}
+                            >
+                                {isInventoryLoading ? 'LOADING...' : 'INVENTORY'}
+                            </motion.button>
+                            <motion.button // Apply item variants
+                                className={styles.menuButton}
+                                onClick={() => handleButtonClick(handleAchievementsClick)}
+                                onMouseEnter={() => playSound(buttonHoverSound)}
+                                disabled={!isConnected}
+                                variants={itemVariants}
+                            >
+                                ACHIEVEMENTS
+                            </motion.button>
+
+                            <motion.button // Apply item variants
                                 className={styles.connectButton}
                                 onClick={() => handleButtonClick(onConnect)}
                                 onMouseEnter={() => playSound(buttonHoverSound)}
+                                variants={itemVariants}
                             >
                                 {isConnected ? `Connected: ${formatWalletAddress(walletAddress)}` : 'Connect Wallet'}
-                            </button>
+                            </motion.button>
                         </>
                     )}
-                </div>
+                </motion.div>
 
-                {/* Right Column - Leaderboard */}
+                {/* Right Column - Leaderboard - Apply item variants */}
                 {leaderboard.length > 0 && (
-                    <div className={styles.leaderboardSection}>
+                    <motion.div 
+                        className={styles.leaderboardSection}
+                        variants={itemVariants}
+                    >
                         <h3>TOP PLAYERS</h3>
-                        <div className={styles.leaderboardContent}>
+                        <motion.div
+                            className={styles.leaderboardContent}
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                        >
                             {leaderboard.slice(0, 10).map((entry, index) => (
-                                <div key={index} className={styles.leaderboardEntry}>
+                                <motion.div
+                                    key={index}
+                                    className={styles.leaderboardEntry}
+                                    variants={itemVariants}
+                                >
                                     <span className={styles.rank}>#{index + 1}</span>
                                     <span className={styles.name}>{entry.name}</span>
                                     <span className={styles.score}>{Math.floor(entry.score)}</span>
-                                </div>
+                                </motion.div>
                             ))}
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
                 )}
-            </div>
+            </motion.div>
 
-            {/* Shop Options Popup */}
-            {showShopPopup && isConnected && (
-                <div className={styles.shopPopupOverlay}>
-                    <div className={styles.shopPopupContainer}>
-                        <button 
-                            className={styles.shopPopupCloseButton} 
-                            onClick={() => setShowShopPopup(false)}
-                            onMouseEnter={() => playSound(buttonHoverSound)}
-                        >X</button>
-                        <button 
-                            className={styles.shopOptionButton} 
-                            onClick={handlePetsClick}
-                            onMouseEnter={() => { setIsPetsHovering(true); playSound(buttonHoverSound); }}
-                            onMouseLeave={() => { setIsPetsHovering(false); setIsPetsActive(false); }}
-                            onMouseDown={() => setIsPetsActive(true)}
-                            onMouseUp={() => setIsPetsActive(false)}
-                        >
-                            <Image 
-                                key={getButtonImageSrc('pets')}
-                                src={getButtonImageSrc('pets')}
-                                alt="Pets" 
-                                width={304} 
-                                height={118}
-                                priority
-                            />
-                        </button>
-                        <button 
-                            className={styles.shopOptionButton} 
-                            onClick={handleAccessoriesClick}
-                            onMouseEnter={() => { setIsAccessoriesHovering(true); playSound(buttonHoverSound); }}
-                            onMouseLeave={() => { setIsAccessoriesHovering(false); setIsAccessoriesActive(false); }}
-                            onMouseDown={() => setIsAccessoriesActive(true)}
-                            onMouseUp={() => setIsAccessoriesActive(false)}
-                        >
-                            <Image 
-                                key={getButtonImageSrc('accessories')}
-                                src={getButtonImageSrc('accessories')}
-                                alt="Accessories" 
-                                width={314} 
-                                height={118}
-                                priority
-                            />
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Shop Popup - Animated */}
+            <AnimatePresence>
+                {showShopPopup && (
+                    <motion.div
+                        className={styles.shopPopupOverlay}
+                        variants={overlayVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        transition={{ duration: 0.2 }}
+                    >
+                        <div className={styles.shopPopupContent}>
+                            <button 
+                                className={styles.shopPopupCloseButton}
+                                onClick={() => {
+                                    playSound(buttonClickSound);
+                                    setShowShopPopup(false);
+                                }}
+                            >
+                                X
+                            </button>
+                            <div className={styles.shopPopupButtons}>
+                                <button
+                                    className={styles.shopCategoryButton}
+                                    onMouseEnter={() => { playSound(buttonHoverSound); setIsAccessoriesHovering(true); }}
+                                    onMouseLeave={() => setIsAccessoriesHovering(false)}
+                                    onClick={handleAccessoriesClick}
+                                >
+                                    <Image 
+                                        src={getButtonImageSrc('accessories')}
+                                        alt="Accessories"
+                                        width={200}
+                                        height={100}
+                                    />
+                                </button>
+                                <button
+                                    className={styles.shopCategoryButton}
+                                    onMouseEnter={() => { playSound(buttonHoverSound); setIsPetsHovering(true); }}
+                                    onMouseLeave={() => setIsPetsHovering(false)}
+                                    onClick={handlePetsClick}
+                                >
+                                    <Image 
+                                        src={getButtonImageSrc('pets')}
+                                        alt="Pets"
+                                        width={200}
+                                        height={100}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* Achievements Popup (Render conditionally) */}
-            {showAchievements && isConnected && playerStats && (
-                <AchievementsPopup 
-                    achievements={ACHIEVEMENTS}
-                    bitmap={BigInt(playerStats.achievements_bitmap || '0')}
-                    onClose={() => setShowAchievements(false)} 
-                />
-            )}
-        </div>
+            {/* Achievements Popup - Animated (animation handled internally) */}
+            <AnimatePresence>
+                {showAchievements && (
+                    <AchievementsPopup 
+                        onClose={() => {
+                            playSound(buttonClickSound);
+                            setShowAchievements(false);
+                        }} 
+                        achievements={ACHIEVEMENTS}
+                        bitmap={BigInt(playerStats.achievements_bitmap || '0')}
+                    />
+                )}
+            </AnimatePresence>
+        </motion.div>
     );
 };

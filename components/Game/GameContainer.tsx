@@ -234,6 +234,25 @@ export default function GameContainer() {
         };
     }, []);
 
+    // Effect to disable default Tab key behavior globally
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Check if the Tab key was pressed
+            if (event.key === 'Tab') {
+                // Prevent the default focus change behavior
+                event.preventDefault();
+            }
+        };
+
+        // Add the event listener to the window
+        window.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup function to remove the listener when the component unmounts
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []); // Empty dependency array ensures this runs only once on mount
+
     // Handle wallet account changes
     const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
@@ -767,8 +786,12 @@ export default function GameContainer() {
     // Add zoom detection
     useEffect(() => {
         const checkZoom = () => {
+            // Use outerWidth/innerWidth as a proxy, but it's not perfectly reliable
             const zoom = Math.round((window.outerWidth / window.innerWidth) * 100);
-            setIsZoom100(zoom === 100);
+            // Check if zoom is within an acceptable range (e.g., 98% to 102%)
+            const isAcceptableZoom = zoom >= 82 && zoom <= 118;
+            setIsZoom100(isAcceptableZoom);
+            // console.log(`Zoom Check: inner=${window.innerWidth}, outer=${window.outerWidth}, ratio=${window.outerWidth / window.innerWidth}, rounded=${zoom}, acceptable=${isAcceptableZoom}`);
         };
 
         // Check initially
@@ -975,7 +998,11 @@ export default function GameContainer() {
                     {(gameState.currentScreen === 'game' || 
                       gameState.currentScreen === 'gameOver' || 
                       gameState.currentScreen === 'instructions') && (
-                        <div className={styles.gameWrapper}>
+                        <div 
+                            className={styles.gameWrapper}
+                            // Prevent default right-click menu on the game area
+                            onContextMenu={(e) => e.preventDefault()}
+                        >
                             <Canvas
                                 width={gameWidth}
                                 height={gameHeight}

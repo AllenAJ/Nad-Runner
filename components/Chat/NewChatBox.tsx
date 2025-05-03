@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { motion, AnimatePresence } from 'framer-motion';
 import styles from './NewChatBox.module.css';
 import { TradeSection } from './TradeSection';
 import { useInventory } from '../../contexts/InventoryContext';
@@ -766,8 +767,10 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
 
     const handleCancelOffer = (offerId: string) => {
         console.log('🔴 Requesting to cancel offer:', offerId);
+        // Optimistically remove the offer
+        setOffers(prev => prev.filter(offer => offer.id !== offerId));
         socketRef.current?.emit('cancelTradeOffer', offerId);
-        // No need to update local state here as it will be handled by the socket event
+        // Server event 'tradeOfferCancelled' or 'offerRemoved' will confirm or correct if needed.
     };
 
     const handleCloseOffer = () => {
@@ -866,7 +869,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             return { 
                 ...prev, 
                 status: 'waiting',
-                yourItems: originalItems
+                isLocked: false
             };
         });
 
@@ -877,7 +880,8 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         socketRef.current?.emit('tradeUnlock', {
             offerId: activeTradeNegotiation.offerId,
             walletAddress: walletAddress.toLowerCase(),
-            items: originalItems // Send the updated items
+            items: originalItems,
+            timestamp: new Date().toISOString()
         });
     };
 
@@ -933,11 +937,32 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         // Clear input first
         setTradeChatInput('');
 
+        // Optimistically add the message to the local state
+        setTradeChatMessages(prev => [...prev, newMessage]);
+        // Scroll to bottom immediately
+        tradeChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
         // Emit socket event
         socketRef.current?.emit('tradeChatMessage', {
             offerId: activeTradeNegotiation.offerId,
             message: newMessage
         });
+        // Server event 'tradeChatMessage' will be received by the partner,
+        // we don't need to handle it for the sender if already added optimistically.
+    };
+
+    // Animation variants for overlays
+    const overlayVariants = {
+        hidden: { opacity: 0, scale: 0.95 },
+        visible: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.95 }
+    };
+
+    // Animation variants for offer cards
+    const offerCardVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -20 }
     };
 
     // Update the trade items display logic
@@ -1015,7 +1040,11 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     }, [offers, walletAddress]);
 
     return (
-        <div className={styles.wrapper}>
+        <div 
+            className={styles.wrapper}
+            // Prevent default right-click menu
+            onContextMenu={(e) => e.preventDefault()}
+        >
             {(!isConnected || !isInitialized) && (
                 <div className={styles.loadingOverlay}>
                     <div className={styles.loadingContent}>
@@ -1060,84 +1089,103 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                 </div>
 
                 {/* Main Content */}
-                <div className={styles.mainContent}>
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={styles.mainContent}
+                >
                     {/* Trading Area */}
                     <div className={styles.tradingArea}>
                         <h2 className={styles.offersHeader}>OFFERS</h2>
                         <div className={styles.offerGrid}>
-                            {offers.map(offer => (
-                                <div 
-                                    key={offer.id} 
-                                    className={`${styles.offerCard} ${
-                                        offer.status === 'negotiating' ? styles.negotiating : 
-                                        offer.sellerAddress === walletAddress ? styles.waiting : ''
-                                    }`}
-                                >
-                                    {offer.status === 'negotiating' && (
-                                        <div className={styles.negotiatingOverlay}>
-                                            <span>In Trade</span>
+                            <AnimatePresence>
+                                {offers.map(offer => (
+                                    <motion.div
+                                        key={offer.id}
+                                        layout
+                                        variants={offerCardVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        exit="exit"
+                                        transition={{ duration: 0.2 }}
+                                        className={`${styles.offerCard} ${
+                                            offer.status === 'negotiating' ? styles.negotiating : 
+                                            offer.sellerAddress === walletAddress ? styles.waiting : ''
+                                        }`}
+                                    >
+                                        {offer.status === 'negotiating' && (
+                                            <div className={styles.negotiatingOverlay}>
+                                                <span>In Trade</span>
+                                            </div>
+                                        )}
+                                        <div className={styles.offerHeader}>
+                                            <span className={styles.offerSellerName}>{offer.sellerName}</span>
                                         </div>
-                                    )}
-                                    <div className={styles.offerHeader}>
-                                        <span className={styles.offerSellerName}>{offer.sellerName}</span>
-                                    </div>
-                                    <div className={styles.offerItemDisplay}>
-                                        <div 
-                                            className={styles.offerItemCard}
-                                            data-rarity={offer.item.rarity}
-                                        >
-                                            <div className={styles.offerItemImage}>
-                                                <img 
-                                                    src={offer.item.subCategory === 'head' || 
-                                                        offer.item.subCategory === 'mouth' || 
-                                                        offer.item.subCategory === 'eyes' || 
-                                                        offer.item.subCategory === 'nose' 
-                                                            ? offer.item.imageUrl.replace('.png', '_preview.png') 
-                                                            : offer.item.imageUrl
-                                                    } 
-                                                    alt={offer.item.name}
-                                                />
+                                        <div className={styles.offerItemDisplay}>
+                                            <div 
+                                                className={styles.offerItemCard}
+                                                data-rarity={offer.item.rarity}
+                                            >
+                                                <div className={styles.offerItemImage}>
+                                                    <img 
+                                                        src={offer.item.subCategory === 'head' || 
+                                                            offer.item.subCategory === 'mouth' || 
+                                                            offer.item.subCategory === 'eyes' || 
+                                                            offer.item.subCategory === 'nose' 
+                                                                ? offer.item.imageUrl.replace('.png', '_preview.png') 
+                                                                : offer.item.imageUrl
+                                                        } 
+                                                        alt={offer.item.name}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className={styles.offerItemInfo}>
+                                                <span className={styles.offerItemName}>{offer.item.name}</span>
+                                                <span className={styles.offerItemRarity}>
+                                                    {offer.item.rarity}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className={styles.offerItemInfo}>
-                                            <span className={styles.offerItemName}>{offer.item.name}</span>
-                                            <span className={styles.offerItemRarity}>
-                                                {offer.item.rarity}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className={styles.offerActions}>
-                                        {offer.sellerAddress === walletAddress ? (
-                                            <>
-                                                <span className={styles.offerWaitingText}>
-                                                    Waiting for interested traders...
-                                                </span>
+                                        <div className={styles.offerActions}>
+                                            {offer.sellerAddress === walletAddress ? (
+                                                <>
+                                                    <span className={styles.offerWaitingText}>
+                                                        Waiting for interested traders...
+                                                    </span>
+                                                    <button 
+                                                        className={styles.offerCancelButton}
+                                                        onClick={() => handleCancelOffer(offer.id)}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </>
+                                            ) : (
                                                 <button 
-                                                    className={styles.offerCancelButton}
-                                                    onClick={() => handleCancelOffer(offer.id)}
+                                                    className={styles.tradeButton}
+                                                    onClick={() => handleAcceptOffer(offer)}
+                                                    disabled={offer.sellerAddress.toLowerCase() === walletAddress.toLowerCase()}
                                                 >
-                                                    Cancel
+                                                    Trade
                                                 </button>
-                                            </>
-                                        ) : (
-                                            <button 
-                                                className={styles.tradeButton}
-                                                onClick={() => handleAcceptOffer(offer)}
-                                                disabled={offer.sellerAddress.toLowerCase() === walletAddress.toLowerCase()}
-                                            >
-                                                Trade
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {offers.length === 0 && (
-                                <div className={styles.noOffers}>
-                                    No active offers.
-                                    <br />
-                                    Make an offer to start trading!
-                                </div>
-                            )}
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                                {offers.length === 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className={styles.noOffers}
+                                    >
+                                        No active offers.
+                                        <br />
+                                        Make an offer to start trading!
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                         <div className={styles.tradeControls}>
                             <button 
@@ -1231,7 +1279,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                             })}
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Chat Section */}
                 <div className={styles.chatSection}>
@@ -1270,270 +1318,288 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                     </form>
                 </div>
 
-                {/* Item Selection Overlay */}
-                {isSelectingItem && (
-                    <div className={styles.itemSelectionOverlay}>
-                        <div className={styles.itemSelectionGrid}>
-                            <div className={styles.gridHeader}>
-                                <h4>Select an Item {selectedSlotIndex !== null ? `for slot ${selectedSlotIndex + 1}` : ''}</h4>
-                                <button 
-                                    className={styles.closeButton}
-                                    onClick={() => {
-                                        setIsSelectingItem(false);
-                                        setSelectedSlotIndex(null);
-                                    }}
-                                >
-                                    X
-                                </button>
-                            </div>
-                            <div className={styles.filterControls}>
-                                <div className={styles.filterGroup}>
-                                    <span className={styles.filterLabel}>Category:</span>
-                                    {CATEGORY_FILTERS.map(filter => (
-                                        <button
-                                            key={filter.id}
-                                            className={`${styles.filterButton} ${activeCategoryFilter === filter.id ? styles.active : ''}`}
-                                            onClick={() => setActiveCategoryFilter(filter.id)}
-                                        >
-                                            {filter.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className={styles.filterGroup}>
-                                    <span className={styles.filterLabel}>Rarity:</span>
-                                    <button
-                                        className={`${styles.filterButton} ${!activeRarityFilter ? styles.active : ''}`}
-                                        onClick={() => setActiveRarityFilter('')}
+                {/* Item Selection Overlay - Animated */}
+                <AnimatePresence>
+                    {isSelectingItem && (
+                        <motion.div 
+                            className={styles.itemSelectionOverlay}
+                            variants={overlayVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            transition={{ duration: 0.2 }}
+                        >
+                            <div className={styles.itemSelectionGrid}>
+                                <div className={styles.gridHeader}>
+                                    <h4>Select an Item {selectedSlotIndex !== null ? `for slot ${selectedSlotIndex + 1}` : ''}</h4>
+                                    <button 
+                                        className={styles.closeButton}
+                                        onClick={() => {
+                                            setIsSelectingItem(false);
+                                            setSelectedSlotIndex(null);
+                                        }}
                                     >
-                                        All
+                                        X
                                     </button>
-                                    {RARITY_FILTERS.map(filter => (
+                                </div>
+                                <div className={styles.filterControls}>
+                                    <div className={styles.filterGroup}>
+                                        <span className={styles.filterLabel}>Category:</span>
+                                        {CATEGORY_FILTERS.map(filter => (
+                                            <button
+                                                key={filter.id}
+                                                className={`${styles.filterButton} ${activeCategoryFilter === filter.id ? styles.active : ''}`}
+                                                onClick={() => setActiveCategoryFilter(filter.id)}
+                                            >
+                                                {filter.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className={styles.filterGroup}>
+                                        <span className={styles.filterLabel}>Rarity:</span>
                                         <button
-                                            key={filter.id}
-                                            className={`${styles.filterButton} ${activeRarityFilter === filter.id ? styles.active : ''}`}
-                                            onClick={() => setActiveRarityFilter(filter.id)}
+                                            className={`${styles.filterButton} ${!activeRarityFilter ? styles.active : ''}`}
+                                            onClick={() => setActiveRarityFilter('')}
                                         >
-                                            {filter.label}
+                                            All
                                         </button>
-                                    ))}
+                                        {RARITY_FILTERS.map(filter => (
+                                            <button
+                                                key={filter.id}
+                                                className={`${styles.filterButton} ${activeRarityFilter === filter.id ? styles.active : ''}`}
+                                                onClick={() => setActiveRarityFilter(filter.id)}
+                                            >
+                                                {filter.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className={styles.itemsGrid}>
+                                    {availableItems
+                                        .filter(item => 
+                                            (!activeRarityFilter || item.rarity === activeRarityFilter) &&
+                                            (activeCategoryFilter === 'all' || item.subCategory === activeCategoryFilter)
+                                        )
+                                        .map(item => (
+                                            <div 
+                                                key={item.id}
+                                                className={styles.itemCard}
+                                                data-rarity={item.rarity}
+                                                onClick={() => handleSelectItem(item)}
+                                            >
+                                                <div className={styles.itemImage}>
+                                                    {item.imageUrl ? (
+                                                        <img 
+                                                            src={item.subCategory === 'head' || 
+                                                                item.subCategory === 'mouth' || 
+                                                                item.subCategory === 'eyes' || 
+                                                                item.subCategory === 'nose' 
+                                                                    ? item.imageUrl.replace('.png', '_preview.png') 
+                                                                    : item.imageUrl
+                                                            } 
+                                                            alt={item.name} 
+                                                        />
+                                                    ) : (
+                                                        <div className={styles.placeholder}>{item.name.substring(0, 2)}</div>
+                                                    )}
+                                                </div>
+                                                <span className={styles.itemCount}>{item.quantity}</span>
+                                            </div>
+                                        ))}
                                 </div>
                             </div>
-                            <div className={styles.itemsGrid}>
-                                {availableItems
-                                    .filter(item => 
-                                        (!activeRarityFilter || item.rarity === activeRarityFilter) &&
-                                        (activeCategoryFilter === 'all' || item.subCategory === activeCategoryFilter)
-                                    )
-                                    .map(item => (
-                                        <div 
-                                            key={item.id}
-                                            className={styles.itemCard}
-                                            data-rarity={item.rarity}
-                                            onClick={() => handleSelectItem(item)}
-                                        >
-                                            <div className={styles.itemImage}>
-                                                {item.imageUrl ? (
-                                                    <img 
-                                                        src={item.subCategory === 'head' || 
-                                                            item.subCategory === 'mouth' || 
-                                                            item.subCategory === 'eyes' || 
-                                                            item.subCategory === 'nose' 
-                                                                ? item.imageUrl.replace('.png', '_preview.png') 
-                                                                : item.imageUrl
-                                                        } 
-                                                        alt={item.name} 
-                                                    />
-                                                ) : (
-                                                    <div className={styles.placeholder}>{item.name.substring(0, 2)}</div>
-                                                )}
-                                            </div>
-                                            <span className={styles.itemCount}>{item.quantity}</span>
-                                        </div>
-                                    ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                {/* Trade Negotiation Overlay */}
-                {activeTradeNegotiation && (
-                    <div className={styles.tradeNegotiationOverlay}>
-                        <div className={styles.tradeNegotiationContainer}>
-                            <div className={styles.tradeHeader}>
-                                <div className={styles.tradePartnerInfo}>
-                                    {isTradeOfferer ? (
-                                        <span className={styles.tradePartnerName}>
-                                            Trader interested: {activeTradeNegotiation.partnerName}
-                                        </span>
+                {/* Trade Negotiation Overlay - Animated */}
+                <AnimatePresence>
+                    {activeTradeNegotiation && (
+                        <motion.div 
+                            className={styles.tradeNegotiationOverlay}
+                            variants={overlayVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            transition={{ duration: 0.2 }}
+                        >
+                            <div className={styles.tradeNegotiationContainer}>
+                                <div className={styles.tradeHeader}>
+                                    <div className={styles.tradePartnerInfo}>
+                                        {isTradeOfferer ? (
+                                            <span className={styles.tradePartnerName}>
+                                                Trader interested: {activeTradeNegotiation.partnerName}
+                                            </span>
+                                        ) : (
+                                            <span className={styles.tradePartnerName}>
+                                                Your Partner: {activeTradeNegotiation.partnerName}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className={isTradeOfferer ? styles.offererTradeGrid : styles.partnerTradeGrid}>
+                                    {!isTradeOfferer ? (
+                                        <>
+                                            <div className={`${styles.partnerTradeSide} ${activeTradeNegotiation?.status === 'locked' ? styles.locked : ''}`}>
+                                                <div className={styles.partnerTradeHeader}>
+                                                    <span>You give:</span>
+                                                </div>
+                                                <PartnerTradeItemGrid 
+                                                    items={activeTradeNegotiation?.status === 'locked' ? 
+                                                        activeTradeNegotiation.yourItems || [] : 
+                                                        selectedTradeItems}
+                                                    isLocked={activeTradeNegotiation?.status === 'locked'}
+                                                    onSlotClick={handleTradeSlotClick}
+                                                />
+                                                <div className={styles.tradeCoins}>
+                                                    and <span>0 Coins</span>
+                                                </div>
+                                            </div>
+                                            <div className={styles.partnerTradeSide}>
+                                                <div className={styles.partnerTradeHeader}>
+                                                    <span>Item:</span>
+                                                </div>
+                                                <PartnerTradeItemGrid 
+                                                    items={activeTradeNegotiation?.originalOfferItems || []}
+                                                />
+                                            </div>
+                                        </>
                                     ) : (
-                                        <span className={styles.tradePartnerName}>
-                                            Your Partner: {activeTradeNegotiation.partnerName}
-                                        </span>
+                                        <>
+                                            <div className={styles.offererTradeSide}>
+                                                <div className={styles.offererTradeHeader}>
+                                                    <span>Your Offer:</span>
+                                                </div>
+                                                <OffererTradeItemGrid 
+                                                    items={activeTradeNegotiation?.originalOfferItems || []}
+                                                />
+                                            </div>
+                                            <div className={styles.offererTradeSide}>
+                                                <div className={styles.offererTradeHeader}>
+                                                    <span>You Get:</span>
+                                                </div>
+                                                <OffererTradeItemGrid 
+                                                    items={activeTradeNegotiation?.partnerItems || []}
+                                                />
+                                            </div>
+                                        </>
                                     )}
                                 </div>
-                            </div>
 
-                            <div className={isTradeOfferer ? styles.offererTradeGrid : styles.partnerTradeGrid}>
-                                {!isTradeOfferer ? (
-                                    <>
-                                        <div className={`${styles.partnerTradeSide} ${activeTradeNegotiation?.status === 'locked' ? styles.locked : ''}`}>
-                                            <div className={styles.partnerTradeHeader}>
-                                                <span>You give:</span>
-                                            </div>
-                                            <PartnerTradeItemGrid 
-                                                items={activeTradeNegotiation?.status === 'locked' ? 
-                                                    activeTradeNegotiation.yourItems || [] : 
-                                                    selectedTradeItems}
-                                                isLocked={activeTradeNegotiation?.status === 'locked'}
-                                                onSlotClick={handleTradeSlotClick}
-                                            />
-                                            <div className={styles.tradeCoins}>
-                                                and <span>0 Coins</span>
-                                            </div>
-                                        </div>
-                                        <div className={styles.partnerTradeSide}>
-                                            <div className={styles.partnerTradeHeader}>
-                                                <span>Item:</span>
-                                            </div>
-                                            <PartnerTradeItemGrid 
-                                                items={activeTradeNegotiation?.originalOfferItems || []}
-                                            />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className={styles.offererTradeSide}>
-                                            <div className={styles.offererTradeHeader}>
-                                                <span>Your Offer:</span>
-                                            </div>
-                                            <OffererTradeItemGrid 
-                                                items={activeTradeNegotiation?.originalOfferItems || []}
-                                            />
-                                        </div>
-                                        <div className={styles.offererTradeSide}>
-                                            <div className={styles.offererTradeHeader}>
-                                                <span>You Get:</span>
-                                            </div>
-                                            <OffererTradeItemGrid 
-                                                items={activeTradeNegotiation?.partnerItems || []}
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                                <div className={styles.tradeActions}>
+                                    {isTradeOfferer ? (
+                                        <>
+                                            {(() => {
+                                                if (!activeTradeNegotiation || typeof activeTradeNegotiation.isPartnerLocked === 'undefined') {
+                                                    return <div>Loading...</div>; // Or some placeholder
+                                                }
 
-                            <div className={styles.tradeActions}>
-                                {isTradeOfferer ? (
-                                    <>
-                                        {(() => {
-                                            if (!activeTradeNegotiation || typeof activeTradeNegotiation.isPartnerLocked === 'undefined') {
-                                                return <div>Loading...</div>; // Or some placeholder
-                                            }
+                                                const isPartnerLocked = activeTradeNegotiation.isPartnerLocked;
 
-                                            const isPartnerLocked = activeTradeNegotiation.isPartnerLocked;
-
-                                            if (isPartnerLocked) { // Buyer (Partner) is locked - Show Accept, Unlock, Reject
-                                                return (
-                                                    <>
-                                                        <button className={styles.tradeAcceptButton} onClick={handleAcceptTrade}>
-                                                            Accept Trade
-                                                        </button>
-                                                        <button className={styles.tradeUnlockButton} onClick={handleUnlockTrade}> 
-                                                            Unlock Partner {/* Renamed for clarity */}
-                                                        </button>
-                                                        <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
-                                                            Reject
-                                                        </button>
-                                                    </>
-                                                );
-                                            } else { // Buyer (Partner) is NOT locked - Show only Reject
-                                                 return (
-                                                     <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
-                                                         Reject
-                                                     </button>
-                                                 );
-                                            }
-                                        })()}
-                                    </>
-                                ) : (
-                                    <>
-                                        {/* Buyer: Show Unlock if they are locked (by themselves) */}
-                                        {activeTradeNegotiation.isLocked ? (
+                                                if (isPartnerLocked) { // Buyer (Partner) is locked - Show Accept, Unlock, Reject
+                                                    return (
+                                                        <>
+                                                            <button className={styles.tradeAcceptButton} onClick={handleAcceptTrade}>
+                                                                Accept Trade
+                                                            </button>
+                                                            <button className={styles.tradeUnlockButton} onClick={handleUnlockTrade}> 
+                                                                Unlock Partner {/* Renamed for clarity */}
+                                                            </button>
+                                                            <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    );
+                                                } else { // Buyer (Partner) is NOT locked - Show only Reject
+                                                     return (
+                                                         <button className={styles.tradeRejectButton} onClick={handleRejectTrade}>
+                                                             Reject
+                                                         </button>
+                                                     );
+                                                }
+                                            })()}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* Buyer: Show Unlock if they are locked (by themselves) */}
+                                            {activeTradeNegotiation.isLocked ? (
+                                                <button 
+                                                    className={styles.tradeUnlockButton}
+                                                    onClick={handleUnlockTrade}
+                                                >
+                                                    Unlock Trade
+                                                </button>
+                                            ) : (
+                                                <button 
+                                                    className={styles.tradeLockButton}
+                                                    onClick={handleLockTrade}
+                                                    disabled={selectedTradeItems.length === 0}
+                                                >
+                                                    OK, COOL!
+                                                </button>
+                                            )}
                                             <button 
-                                                className={styles.tradeUnlockButton}
-                                                onClick={handleUnlockTrade}
+                                                className={styles.tradeRejectButton}
+                                                onClick={handleRejectTrade}
                                             >
-                                                Unlock Trade
+                                                Leave
                                             </button>
-                                        ) : (
-                                            <button 
-                                                className={styles.tradeLockButton}
-                                                onClick={handleLockTrade}
-                                                disabled={selectedTradeItems.length === 0}
+                                        </>
+                                    )}
+                                </div>
+
+                                <div className={`${styles.tradeStatus} ${styles[activeTradeNegotiation.status + 'Status']}`}>
+                                    {isTradeOfferer ? (
+                                        // Seller Status Messages - Revised Flow V2
+                                        activeTradeNegotiation.isPartnerLocked ? 
+                                            'Partner locked. Accept, Reject, or ask Partner to Unlock & Modify.' :
+                                        'Waiting for partner to lock items...'
+                                    ) : (
+                                        // Buyer Status Messages - Revised Flow V2
+                                        activeTradeNegotiation.isLocked ? // Buyer is locked
+                                            'You locked items. Waiting for seller response...' :
+                                        // Buyer is not locked (initial state or after unlock)
+                                        'Select items to trade and click OK, COOL!'
+                                    )}
+                                </div>
+
+                                <div className={styles.tradeChatSection}>
+                                    <div className={styles.tradeChatHeader}>
+                                        <span>Trade Chat with {activeTradeNegotiation.partnerName}</span>
+                                    </div>
+                                    <div className={styles.tradeChatMessages}>
+                                        {tradeChatMessages.map(msg => (
+                                            <div 
+                                                key={msg.id}
+                                                className={`${styles.tradeChatMessage} ${msg.senderAddress.toLowerCase() === walletAddress.toLowerCase() ? styles.self : ''}`}
                                             >
-                                                OK, COOL!
-                                            </button>
-                                        )}
+                                                <span className={styles.sender}>{msg.sender}:</span>
+                                                <div className={styles.content}>{msg.content}</div>
+                                            </div>
+                                        ))}
+                                        <div ref={tradeChatEndRef} />
+                                    </div>
+                                    <form onSubmit={handleSendTradeMessage} className={styles.tradeChatInput}>
+                                        <input
+                                            type="text"
+                                            value={tradeChatInput}
+                                            onChange={(e) => setTradeChatInput(e.target.value)}
+                                            placeholder="Type a message..."
+                                            maxLength={100}
+                                        />
                                         <button 
-                                            className={styles.tradeRejectButton}
-                                            onClick={handleRejectTrade}
+                                            type="submit"
+                                            disabled={!tradeChatInput.trim()}
                                         >
-                                            Leave
+                                            Send
                                         </button>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className={`${styles.tradeStatus} ${styles[activeTradeNegotiation.status + 'Status']}`}>
-                                {isTradeOfferer ? (
-                                    // Seller Status Messages - Revised Flow V2
-                                    activeTradeNegotiation.isPartnerLocked ? 
-                                        'Partner locked. Accept, Reject, or ask Partner to Unlock & Modify.' :
-                                    'Waiting for partner to lock items...'
-                                ) : (
-                                    // Buyer Status Messages - Revised Flow V2
-                                    activeTradeNegotiation.isLocked ? // Buyer is locked
-                                        'You locked items. Waiting for seller response...' :
-                                    // Buyer is not locked (initial state or after unlock)
-                                    'Select items to trade and click OK, COOL!'
-                                )}
-                            </div>
-
-                            <div className={styles.tradeChatSection}>
-                                <div className={styles.tradeChatHeader}>
-                                    <span>Trade Chat with {activeTradeNegotiation.partnerName}</span>
+                                    </form>
                                 </div>
-                                <div className={styles.tradeChatMessages}>
-                                    {tradeChatMessages.map(msg => (
-                                        <div 
-                                            key={msg.id}
-                                            className={`${styles.tradeChatMessage} ${msg.senderAddress.toLowerCase() === walletAddress.toLowerCase() ? styles.self : ''}`}
-                                        >
-                                            <span className={styles.sender}>{msg.sender}:</span>
-                                            <div className={styles.content}>{msg.content}</div>
-                                        </div>
-                                    ))}
-                                    <div ref={tradeChatEndRef} />
-                                </div>
-                                <form onSubmit={handleSendTradeMessage} className={styles.tradeChatInput}>
-                                    <input
-                                        type="text"
-                                        value={tradeChatInput}
-                                        onChange={(e) => setTradeChatInput(e.target.value)}
-                                        placeholder="Type a message..."
-                                        maxLength={100}
-                                    />
-                                    <button 
-                                        type="submit"
-                                        disabled={!tradeChatInput.trim()}
-                                    >
-                                        Send
-                                    </button>
-                                </form>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

@@ -26,6 +26,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const equipItem = useCallback(async (itemId: string, category: SubCategory, equipped: boolean = true) => {
         if (!address) return false;
         
+        // --- Optimistic Update Start ---
+        // 1. Store the previous state for potential rollback
+        const previousEquippedState = { ...equippedItems }; 
+        // 2. Update the state immediately
+        setEquippedItems(prev => ({
+            ...prev,
+            [category]: equipped ? itemId : undefined
+        }));
+        // --- Optimistic Update End ---
+
         try {
             const response = await fetch('/api/inventory/equip', {
                 method: 'POST',
@@ -46,33 +56,36 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 return false;
             }
 
-            // Update local state to reflect the change
+            // State is already updated optimistically. 
+            // Keep the logic to update the main inventoryItems list if needed.
             setInventoryItems(prevItems => 
                 prevItems.map(item => {
-                    // If item is in the same category, unequip it
                     if (item.subCategory === category && item.id !== itemId) {
                         return { ...item, equipped: false };
                     }
-                    // If this is the target item, set its equipped status
                     if (item.id === itemId) {
                         return { ...item, equipped: equipped };
                     }
                     return item;
                 })
             );
-
-            // Update equipped items state
-            setEquippedItems(prev => ({
-                ...prev,
-                [category]: equipped ? itemId : undefined
-            }));
+            
+            // Don't need to call setEquippedItems again here if successful
+            // setEquippedItems(prev => ({
+            //     ...prev,
+            //     [category]: equipped ? itemId : undefined
+            // }));
 
             return true;
         } catch (error) {
             console.error('Error equipping item:', error);
+            // --- Optimistic Update Rollback ---
+            // Revert to the previous state on error
+            setEquippedItems(previousEquippedState);
+            // --- Optimistic Update Rollback End ---
             return false;
         }
-    }, [address]);
+    }, [address, equippedItems]);
     
     // Then define any other functions that depend on equipItem
 

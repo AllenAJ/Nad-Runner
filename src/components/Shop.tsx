@@ -1,5 +1,6 @@
 // src/components/Shop.tsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'; // Import framer-motion
 import styles from './Shop.module.css';
 import { LayeredCharacter } from '../../components/Character/LayeredCharacter';
 import inventoryStyles from '../../styles/Inventory.module.css';
@@ -153,6 +154,13 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
             setLoading(false);
         }
     }, [walletAddress]);
+
+    // Animation variants for item cards
+    const itemCardVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -20 }
+    };
 
     useEffect(() => {
         fetchItems();
@@ -342,7 +350,15 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
     };
 
     return (
-        <div className={styles.container}>
+        <motion.div // Wrap the main container
+            className={styles.container}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }} // Only works if parent uses AnimatePresence
+            transition={{ duration: 0.3 }}
+            // Prevent default right-click menu
+            onContextMenu={(e) => e.preventDefault()}
+        >
             <div className={styles.header}>
                 <h1>Shop</h1>
                 {onClose && (
@@ -493,67 +509,79 @@ const Shop: React.FC<ShopProps> = ({ walletAddress, onClose, updateCoins }) => {
                         </div>
                     ) : (
                         <div className={styles.itemsGrid}>
-                            {filteredItems.map((item) => (
-                                <div key={item.id} className={styles.itemContainer}>
-                                    <div
-                                        className={`${styles.itemCard} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.previewActive : ''}`}
-                                        data-rarity={item.rarity}
-                                        onClick={() => handlePreviewItem(item)}
+                            <AnimatePresence> {/* Wrap item mapping */}
+                                {filteredItems.map((item) => (
+                                    <motion.div // Wrap the individual item container
+                                        key={item.id}
+                                        layout // Animate layout changes
+                                        variants={itemCardVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        exit="exit"
+                                        transition={{ duration: 0.2 }}
+                                        className={styles.itemContainer} // Use existing container class
                                     >
-                                        <div className={styles.itemImage}>
-                                            <img
-                                                src={getPreviewImageUrl(item.image_url)}
-                                                alt={item.name}
-                                                loading="lazy"
-                                            />
+                                        {/* Keep original item card structure inside motion.div */}
+                                        <div
+                                            className={`${styles.itemCard} ${previewState[item.sub_category as keyof PreviewState] === item.id ? styles.previewActive : ''}`}
+                                            data-rarity={item.rarity}
+                                            onClick={() => handlePreviewItem(item)}
+                                        >
+                                            <div className={styles.itemImage}>
+                                                <img
+                                                    src={getPreviewImageUrl(item.image_url)}
+                                                    alt={item.name}
+                                                    loading="lazy"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div className={styles.itemDetails}>
-                                        <div className={styles.itemName}>{item.name}</div>
-                                        <div className={styles.itemDescription}>{item.description}</div>
                                         
-                                        <div className={styles.itemPrice}>
-                                            {item.price} {item.type === 'normal' ? <CoinIcon /> : <DiamondIcon />}
+                                        <div className={styles.itemDetails}>
+                                            <div className={styles.itemName}>{item.name}</div>
+                                            <div className={styles.itemDescription}>{item.description}</div>
+                                            
+                                            <div className={styles.itemPrice}>
+                                                {item.price} {item.type === 'normal' ? <CoinIcon /> : <DiamondIcon />}
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div className={styles.itemActions}>
-                                        {item.owned && <div className={styles.ownedLabel}>Owned</div>}
-                                        <div className={styles.buttonContainer}>
-                                            <button
-                                                className={styles.tryButton}
-                                                onClick={() => handlePreviewItem(item)}
-                                                disabled={!walletAddress}
-                                            >
-                                                <Image 
-                                                    src="/ShopUI/tryButton.svg"
-                                                    alt="Try"
-                                                    width={80}
-                                                    height={40}
-                                                 />
-                                            </button>
-                                            <button
-                                                className={styles.buyButton}
-                                                onClick={() => handleBuyItem(item)}
-                                                disabled={!walletAddress || purchaseStatus[item.id] === 'buying'}
-                                            >
-                                                <Image 
-                                                    src="/ShopUI/buyButton.svg"
-                                                    alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
-                                                    width={80}
-                                                    height={40}
-                                                 />
-                                            </button>
+                                        
+                                        <div className={styles.itemActions}>
+                                            {item.owned && <div className={styles.ownedLabel}>Owned</div>}
+                                            <div className={styles.buttonContainer}>
+                                                <button
+                                                    className={styles.tryButton}
+                                                    onClick={() => handlePreviewItem(item)}
+                                                    disabled={!walletAddress}
+                                                >
+                                                    <Image 
+                                                        src="/ShopUI/tryButton.svg"
+                                                        alt="Try"
+                                                        width={80}
+                                                        height={40}
+                                                     />
+                                                </button>
+                                                <button
+                                                    className={styles.buyButton}
+                                                    onClick={() => handleBuyItem(item)}
+                                                    disabled={!walletAddress || purchaseStatus[item.id] === 'buying'}
+                                                >
+                                                    <Image 
+                                                        src="/ShopUI/buyButton.svg"
+                                                        alt={purchaseStatus[item.id] === 'buying' ? 'Buying...' : 'Buy'}
+                                                        width={80}
+                                                        height={40}
+                                                     />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            ))}
+                                    </motion.div> // End motion.div for item card
+                                ))}
+                            </AnimatePresence> {/* End AnimatePresence for items */}
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </motion.div> // End motion.div for main container
     );
 };
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import styles from './AchievementsPopup.module.css';
 import { Achievement, ACHIEVEMENTS, isAchievementUnlocked } from '../../constants/achievements';
 
@@ -8,13 +9,26 @@ interface AchievementsPopupProps {
     achievements: Achievement[]; // Receive the list of all achievements
 }
 
+// Animation variants (can be defined here or passed as props if needed)
+const popupVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.2, ease: "easeOut" } },
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.15, ease: "easeIn" } }
+};
+
 const AchievementsPopup: React.FC<AchievementsPopupProps> = ({ bitmap, onClose, achievements }) => {
 
     const unlockedCount = achievements.filter(ach => isAchievementUnlocked(bitmap, ach.index)).length;
     const totalCount = achievements.length;
 
     return (
-        <div className={styles.popupOverlay}>
+        <motion.div 
+            className={styles.popupOverlay}
+            variants={popupVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+        >
             <div className={styles.popupContainer}>
                 <button onClick={onClose} className={styles.closeButton}>&times;</button>
                 <h2>Achievements ({unlockedCount}/{totalCount})</h2>
@@ -41,7 +55,7 @@ const AchievementsPopup: React.FC<AchievementsPopupProps> = ({ bitmap, onClose, 
                     })}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
