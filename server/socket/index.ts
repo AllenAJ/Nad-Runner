@@ -380,6 +380,7 @@ export const setupSocket = (io: SocketServer) => {
 
         // Trade offer handlers
         socket.on('makeTradeOffer', async (offer: TradeOffer) => {
+            console.log('🟣 Received makeTradeOffer from', offer.offerer, 'Offer ID:', offer.id);
             const offererAddress = offer.offerer?.toLowerCase();
             if (!offererAddress) {
                 socket.emit('serverAlert', { message: 'Invalid offer data: Missing offerer address', type: 'error' });
@@ -422,9 +423,15 @@ export const setupSocket = (io: SocketServer) => {
                 activeOffers.push(offer); // Add to in-memory list
                 io.emit('newTradeOffer', offer); // Broadcast to all clients
                 await client.query('COMMIT');
-            } catch (error) {
+                
+                // ADDED LOG BEFORE EMIT
+                console.log(`   Emit 'newTradeOffer' for ID: ${offer.id}`);
+                // Emit to all connected clients (including sender for confirmation)
+                io.emit('newTradeOffer', offer);
+                
+            } catch (dbError) {
                 await client.query('ROLLBACK');
-                console.error('Failed to create trade offer:', error);
+                console.error('Failed to create trade offer:', dbError);
                 socket.emit('serverAlert', { message: 'Failed to create trade offer', type: 'error' });
             } finally {
                 client.release();

@@ -92,7 +92,6 @@ const RARITY_FILTERS = [
     { id: 'rare', label: 'Rare' },
     { id: 'event_rare', label: 'Event' },
     { id: 'ultra_rare', label: 'Ultra' },
-    { id: 'trade_cash', label: 'Trade' }
 ] as const;
 
 // Add blacklisted item IDs
@@ -272,11 +271,17 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     []);
 
     const setupSocketListeners = useCallback(() => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) {
+            console.warn('[SocketSetup] Attempted to setup listeners but socketRef is null.');
+            return;
+        }
 
+        console.log(`[SocketSetup] Running setupSocketListeners for socket ID: ${socketRef.current.id}`);
+        console.log('[SocketSetup] Removing ALL existing listeners...');
         // Remove existing listeners before adding new ones
         socketRef.current.removeAllListeners();
 
+        console.log('[SocketSetup] Attaching new listeners...');
         socketRef.current.on('connect', () => {
             console.log('Connected to chat server');
             setIsConnected(true);
@@ -316,11 +321,16 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             setIsCreatingOffer(false);
         });
 
-        // Handle new trade offers
+        // Handle new trade offers - ADDED DUPLICATE CHECK
         socketRef.current.on('newTradeOffer', (offer: TradeOffer) => {
-            console.log('🟢 Received new trade offer:', offer);
+            console.log('🟢 Received new trade offer event with ID:', offer.id);
             setOffers(prev => {
-                if (prev.some(o => o.id === offer.id)) return prev;
+                // Check if an offer with the same ID already exists
+                if (prev.some(o => o.id === offer.id)) {
+                    console.log(`   -> Offer ID ${offer.id} already exists, skipping state update.`);
+                    return prev; // Return previous state unchanged
+                }
+                console.log(`   -> Adding new offer ID ${offer.id} to state.`);
                 return [offer, ...prev];
             });
             setIsCreatingOffer(false);
@@ -591,27 +601,39 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
     useEffect(() => {
         // Only create socket connection if it doesn't exist
         if (!socketRef.current) {
-        socketRef.current = io(SOCKET_URL, {
-            reconnection: true,
-            reconnectionAttempts: RECONNECT_ATTEMPTS,
-            reconnectionDelay: RECONNECT_DELAY,
-            transports: ['websocket', 'polling'],
-            timeout: 10000,
+            console.log('[UseEffect Cleanup/Setup] No socket ref exists. Creating new socket connection...');
+            const newSocket = io(SOCKET_URL, {
+                reconnection: true,
+                reconnectionAttempts: RECONNECT_ATTEMPTS,
+                reconnectionDelay: RECONNECT_DELAY,
+                transports: ['websocket', 'polling'],
+                timeout: 10000,
                 forceNew: false // Changed to false to prevent multiple connections
-        });
-
-        setupSocketListeners();
+            });
+            socketRef.current = newSocket;
+            console.log(`[UseEffect Cleanup/Setup] NEW Socket instance created with ID: ${newSocket.id}`);
+            setupSocketListeners();
+        } else {
+            console.log(`[UseEffect Cleanup/Setup] Socket ref ALREADY EXISTS with ID: ${socketRef.current.id}. Skipping creation.`);
+            // Optionally re-run setupSocketListeners if dependencies changed, 
+            // but the useCallback should handle that. Logging it might be useful.
+            // console.log('[UseEffect Cleanup/Setup] Re-running setupSocketListeners on existing socket.');
+            // setupSocketListeners(); 
         }
 
         // Cleanup function
         return () => {
             if (socketRef.current) {
+                console.log(`[UseEffect Cleanup/Setup] CLEANUP: Disconnecting socket ${socketRef.current.id} and removing listeners...`);
                 socketRef.current.removeAllListeners();
                 socketRef.current.disconnect();
                 socketRef.current = undefined;
+            } else {
+                console.log('[UseEffect Cleanup/Setup] CLEANUP: No socket ref found, skipping cleanup.');
             }
         };
-    }, []); // Empty dependency array since we only want to set up once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Keep empty dependency array for singleton connection management
 
     // Move the socket event setup to a separate useEffect
     useEffect(() => {
@@ -1208,7 +1230,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                         </button>
                                     ))}
                                 </div>
-                                <div className={styles.filterGroup}>
+                                {/* <div className={styles.filterGroup}>
                                     <span className={styles.filterLabel}>Rarity:</span>
                                     <button
                                         className={`${styles.filterButton} ${!activeRarityFilter ? styles.active : ''}`}
@@ -1225,7 +1247,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
                                             {filter.label}
                                         </button>
                                     ))}
-                                </div>
+                                </div> */}
                             </div>
                         </div>
                     </div>

@@ -950,13 +950,8 @@ export default function GameContainer() {
                     />
                 );
             case 'multiplayer':
-                return (
-                    <MultiplayerScreen 
-                        onBackToMenu={() => navigateTo('menu')} 
-                        walletAddress={walletAddress} 
-                        username={playerData?.playerStats.username || 'Guest'}
-                    />
-                );
+                // Removed MultiplayerScreen rendering from here, it's handled in the main structure
+                return null; 
             default:
                 return null;
         }
