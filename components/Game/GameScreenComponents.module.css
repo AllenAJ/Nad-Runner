@@ -1,0 +1,73 @@
+.multiplayerContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.multiplayerMenu {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2rem;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(106, 27, 154, 0.5);
+}
+
+.playerList {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.playerItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playerItem:last-child {
+    border-bottom: none;
+}
+
+.ready {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.notReady {
+    color: #f44336;
+}
+
+.readyButton {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.readyButton:hover {
+    background: #388E3C;
+    transform: scale(1.05);
+}
+
+.error {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid #f44336;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin: 1rem 0;
+} 

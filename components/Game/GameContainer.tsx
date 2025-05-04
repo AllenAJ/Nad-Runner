@@ -929,12 +929,6 @@ export default function GameContainer() {
                 );
             case 'inventory':
                 return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
-            case 'multiplayer':
-                return <MultiplayerScreen 
-                    onBackToMenu={() => navigateTo('menu')} 
-                    walletAddress={walletAddress}
-                    username={playerData?.playerStats?.username || ''}
-                />;
             case 'gameOver':
                 return (
                     <GameOverScreen 
@@ -955,6 +949,14 @@ export default function GameContainer() {
                         onBackToMenu={() => navigateTo('menu')}
                     />
                 );
+            case 'multiplayer':
+                return (
+                    <MultiplayerScreen 
+                        onBackToMenu={() => navigateTo('menu')} 
+                        walletAddress={walletAddress} 
+                        username={playerData?.playerStats.username || 'Guest'}
+                    />
+                );
             default:
                 return null;
         }
@@ -962,7 +964,7 @@ export default function GameContainer() {
 
     return (
         <>
-            {/* Render Notification Container */} 
+            {/* Render Notification Container */}
             <NotificationContainer 
                 notifications={notifications} 
                 onDismissNotification={removeNotification} 
@@ -979,13 +981,8 @@ export default function GameContainer() {
                 </div>
             )}
             
-            {isZoom100 && gameState.currentScreen === 'multiplayer' ? (
-                <MultiplayerScreen 
-                    onBackToMenu={() => navigateTo('menu')}
-                    walletAddress={walletAddress}
-                    username={playerData?.playerStats.username || ''}
-                />
-            ) : isZoom100 && (
+            {/* Always render the main container if zoom is 100% */} 
+            {isZoom100 && (
                 <div 
                     className={styles.container}
                     data-screen={gameState.currentScreen}
@@ -994,26 +991,37 @@ export default function GameContainer() {
                         position: 'relative'
                     }}
                 >
-                    {/* Show game canvas in game, game over, and instructions screens */}
+                    {/* Render gameWrapper for game, gameOver, instructions AND multiplayer */}
                     {(gameState.currentScreen === 'game' || 
                       gameState.currentScreen === 'gameOver' || 
-                      gameState.currentScreen === 'instructions') && (
+                      gameState.currentScreen === 'instructions' ||
+                      gameState.currentScreen === 'multiplayer') && (
                         <div 
                             className={styles.gameWrapper}
                             // Prevent default right-click menu on the game area
                             onContextMenu={(e) => e.preventDefault()}
                         >
-                            <Canvas
-                                width={gameWidth}
-                                height={gameHeight}
-                                isPlaying={gameState.isPlaying}
-                                onGameOver={handleGameOver}
-                            />
+                            {/* Conditionally render Canvas or MultiplayerScreen inside wrapper */}
+                            {gameState.currentScreen === 'multiplayer' ? (
+                                <MultiplayerScreen 
+                                    onBackToMenu={() => navigateTo('menu')} 
+                                    walletAddress={walletAddress}
+                                    username={playerData?.playerStats.username || ''}
+                                />
+                            ) : (
+                                <Canvas
+                                    width={gameWidth}
+                                    height={gameHeight}
+                                    isPlaying={gameState.isPlaying}
+                                    onGameOver={handleGameOver}
+                                />
+                            )}
                         </div>
                     )}
                     
+                    {/* Overlay container for menus, game over screen etc. (excluding multiplayer now) */}
                     <div className={styles.overlayContainer}>
-                        {renderScreen()}
+                        {renderScreen()} 
                         
                         {isConnectingWallet && (
                             <div className={styles.overlay}>
