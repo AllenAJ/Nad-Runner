@@ -253,9 +253,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 return (
                     <div className={inventoryStyles.inventoryContent}>
                         <div className={inventoryStyles.categorySection}>
-                            <h3 className={inventoryStyles.categoryTitle}>
+                            <motion.h3 
+                                className={inventoryStyles.categoryTitle}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.3, delay: 0.25 }}
+                            >
                                 {categoryTitles[selectedSubCategory as SubCategory]}
-                            </h3>
+                            </motion.h3>
                             {renderItemGrid(
                                 getItemsByCategory(selectedSubCategory as ItemCategory),
                                 selectedSubCategory === 'speed' || selectedSubCategory === 'jump' || selectedSubCategory === 'shield' 
@@ -282,7 +287,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             return (
                 <div className={inventoryStyles.inventoryContent}>
                     <div className={inventoryStyles.categorySection}>
-                        <h3 className={inventoryStyles.categoryTitle}>All Items</h3>
+                        <motion.h3 
+                            className={inventoryStyles.categoryTitle}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3, delay: 0.25 }}
+                        >
+                            All Items
+                        </motion.h3>
                         {renderItemGrid(allItems, 'skin' as SubCategory)}
                     </div>
                 </div>
@@ -292,7 +304,14 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
         return (
             <div className={inventoryStyles.inventoryContent}>
                 <div className={inventoryStyles.categorySection}>
-                    <h3 className={inventoryStyles.categoryTitle}>Powerups</h3>
+                    <motion.h3 
+                        className={inventoryStyles.categoryTitle}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.25 }}
+                    >
+                        Powerups
+                    </motion.h3>
                     {renderItemGrid([
                         ...getItemsByCategory('speed'),
                         ...getItemsByCategory('jump'),
@@ -312,7 +331,12 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
             transition={{ duration: 0.3 }}
             onContextMenu={(e) => e.preventDefault()}
         >
-            <div className={inventoryStyles.header}>
+            <motion.div 
+                className={inventoryStyles.header}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: 0.05 }}
+            >
                 <h1 className={inventoryStyles.title}>Inventory</h1>
                 <button
                     onClick={handleBackToMenu}
@@ -322,94 +346,165 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 >
                     Back to Menu
                 </button>
-            </div>
+            </motion.div>
             <div className={inventoryStyles.mainContent}>
-                {renderCharacterPreview()}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                >
+                    {renderCharacterPreview()}
+                </motion.div>
                 <div className={inventoryStyles.categoryButtons}>
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.all}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('all');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.skin}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('skin');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.fur}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('fur');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.body}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('body');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.heads}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('head');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.eyes}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('eyes');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.nose}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('nose');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.mouth}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('mouth');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipets}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('minipet');
-                        }}
-                    />
-                    <div 
-                        className={`${inventoryStyles.categoryButton} ${inventoryStyles.misc}`} 
-                        onClick={() => {
-                            playSound(buttonClickSound);
-                            setSelectedCategory('outfits');
-                            setSelectedSubCategory('misc');
-                        }}
-                    />
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.1 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.all}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('all');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.15 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.skin}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('skin');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.2 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.fur}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('fur');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.25 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.body}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('body');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.3 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.heads}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('head');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.35 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.eyes}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('eyes');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.4 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.nose}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('nose');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.45 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.mouth}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('mouth');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.5 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipets}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('minipet');
+                            }}
+                        />
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: 0.55 }}
+                    >
+                        <div 
+                            className={`${inventoryStyles.categoryButton} ${inventoryStyles.misc}`} 
+                            onClick={() => {
+                                playSound(buttonClickSound);
+                                setSelectedCategory('outfits');
+                                setSelectedSubCategory('misc');
+                            }}
+                        />
+                    </motion.div>
                 </div>
-                <div className={inventoryStyles.itemsContainer}>
+                <motion.div 
+                    className={inventoryStyles.itemsContainer}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.15 }}
+                >
                     {renderInventoryContent()}
-                </div>
+                </motion.div>
             </div>
         </motion.div>
     );
@@ -457,13 +552,15 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
     return (
         <div className={styles.instructionsContainer}>
             <div className={styles.instructionsImageWrapper}>
-                <Image 
-                    src="/assets/Instructions.svg"
-                    alt="Game Instructions"
-                    width={800}
-                    height={600}
-                    priority
-                />
+                <iframe 
+                    width="800" 
+                    height="600"
+                    src="https://www.youtube.com/embed/xjOUIsR1ZCY?autoplay=1&mute=1" 
+                    title="Game Instructions Video"
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowFullScreen
+                ></iframe>
             </div>
 
             <div className={styles.instructionsButtons}>

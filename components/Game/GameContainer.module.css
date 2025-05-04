@@ -1912,19 +1912,29 @@
 
 /* Instructions Screen Styles */
 .instructionsContainer {
+    /* Make it cover the full viewport */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000; /* Ensure it's on top */
+
+    /* Keep centering and background */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    max-width: 840px;
-    margin: 0 auto;
-    padding: 2rem;
-    background-color: rgba(0, 0, 0, 0.8);
-    border-radius: 1rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    padding: 2rem; /* Keep some padding */
+    background-color: rgba(0, 0, 0, 0.85); /* Slightly darker overlay */
     color: white;
-    text-align: center;
+
+    /* Remove properties that conflict with full-screen */
+    /* max-width: 840px; */ /* Removed */
+    /* margin: 0 auto; */   /* Removed */
+    /* border-radius: 1rem; */ /* Can be kept or removed */
+    /* box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); */ /* Can be kept or removed */
+    /* text-align: center; */ /* Centering is handled by flexbox */
 }
 
 .instructionsContainer h1 {
@@ -1968,7 +1978,7 @@
 .instructionsButtons {
     display: flex;
     gap: 1rem;
-    margin-top: 1rem;
+    /* margin-top: 1rem; */ /* Removed, spacing handled by flexbox */
 }
 
 /* Instruction screen button styles - scoped to not affect other buttons */
@@ -2004,14 +2014,18 @@
 }
 
 .instructionsImageWrapper {
-    width: 100%;
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: center;
+    width: 90%; /* Limit video width relative to viewport */
+    max-width: 800px; /* But not larger than original */
+    height: auto; /* Let height adjust based on aspect ratio */
+    margin-bottom: 1.5rem;
+    display: flex;       /* Already centered, keep */
+    justify-content: center; /* Already centered, keep */
 }
 
-.instructionsImageWrapper img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.5rem;
+.instructionsImageWrapper iframe { /* Target the iframe specifically */
+    width: 100%; /* Make iframe fill its wrapper */
+    aspect-ratio: 16 / 9; /* Maintain video aspect ratio (approx 800/600) */
+    max-height: 75vh; /* Prevent video from being too tall */
+    border-radius: 8px; /* Add some rounding to the video */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

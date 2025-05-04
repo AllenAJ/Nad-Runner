@@ -60,8 +60,9 @@
 .mainContent {
     display: grid;
     grid-template-columns: 2fr 0.5fr 3fr;  /* Updated to include space for buttons */
+    grid-template-rows: 1fr;
     gap: 0.5rem;
-    height: calc(100% - 3rem);
+    flex-grow: 1;
     min-height: 0;
     overflow: hidden;
     width: 100%;
@@ -81,6 +82,7 @@
     min-width: 0;
     box-sizing: border-box;
     position: relative;
+    padding-left: 0.5rem;
 }
 
 .characterModel {
@@ -147,7 +149,7 @@
     padding: 1rem 1.25rem;
     border-radius: 0.5rem;
     overflow-y: auto;
-    height: 96%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     width: 97%;
@@ -191,7 +193,7 @@
     border-radius: 8px;
     padding: 0.25rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease; /* Slightly faster transition */
     position: relative;
     width: 42px;
     height: 42px;
@@ -229,13 +231,34 @@
 }
 
 .itemCard:hover {
-    transform: scale(1.1);
+    /* Combine scale and translate */
+    transform: scale(1.1) translate(-1px, -1px); /* Smaller translate for smaller items */
     z-index: 1;
+    /* Optionally add a subtle shadow lift if desired, matching rarity color */
+    /* box-shadow: 1px 1px 5px rgba(255, 255, 255, 0.2); */
+}
+
+.itemCard:active {
+    /* Press down effect */
+    transform: scale(1.05) translate(1px, 1px); /* Scale slightly less than hover, translate down */
+    transition-duration: 0.05s; /* Make active state snappier */
+    /* Optionally adjust brightness or shadow */
+    /* filter: brightness(0.9); */
 }
 
 .itemCard.selected {
-    transform: scale(0.95);
+    /* Keep existing selected style, maybe reduce scale slightly if needed */
+    transform: scale(0.95); /* Keep original selected scale */
     filter: brightness(0.8);
+    border-width: 3px; /* Make selection more prominent */
+}
+
+/* Prevent hover/active animations when selected */
+.itemCard.selected:hover {
+    transform: scale(0.95); /* Override hover transform */
+}
+.itemCard.selected:active {
+    transform: scale(0.93); /* Slightly smaller press when selected */
 }
 
 .itemImage {
@@ -440,6 +463,10 @@
     /* justify-content: center; */
     align-items: center;
     padding: 0.5rem 0;
+    height: 100%;
+    overflow-y: auto;
+    min-height: 0;
+    box-sizing: border-box;
 }
 
 .categoryButton {
