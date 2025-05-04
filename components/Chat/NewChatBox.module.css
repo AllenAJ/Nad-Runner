@@ -1127,7 +1127,7 @@
   background: #1a1a1a;
   border: 2px solid #4a9eff;
   border-radius: 12px;
-  padding: 24px;
+  padding: 10px;
   width: 90%;
   max-width: 600px;
   color: white;
@@ -1222,7 +1222,6 @@
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-top: 24px;
 }
 
 .tradeLockButton {
@@ -1264,7 +1263,6 @@
 .tradeStatus {
   text-align: center;
   color: #9ca3af;
-  margin-top: 16px;
   font-size: 0.9rem;
 }
 
@@ -1283,10 +1281,10 @@
 /* Trade Chat Styles */
 .tradeChatSection {
   border-top: 1px solid rgba(74, 158, 255, 0.3);
-  padding-top: 20px;
+  padding-top:5px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 5px;
   height: 200px;
 }
 
@@ -1386,7 +1384,6 @@
 .partnerTradeGrid {
   display: flex;
   gap: 20px;
-  margin-bottom: 20px;
   width: 100%;
 }
 
@@ -1436,7 +1433,6 @@
 .offererTradeGrid {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
   width: 100%;
 }
 
