@@ -19,6 +19,7 @@ import {
 import NotificationContainer from '../Notifications/NotificationContainer';
 import { NotificationData } from '../Notifications/AchievementNotification';
 import { Achievement } from '../../constants/achievements'; // Import Achievement type
+import FlappyBug from './FlappyBug'; // Import the new component
 
 // Constants
 const GAME_WIDTH = 1200;
@@ -27,7 +28,7 @@ const MOBILE_GAME_WIDTH = 400;
 const MOBILE_GAME_HEIGHT = 500;
 
 // Define types for game state and screens
-type GameScreen = 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer' | 'instructions';
+type GameScreen = 'loading' | 'menu' | 'game' | 'gameOver' | 'shop' | 'inventory' | 'multiplayer' | 'instructions' | 'minigame';
 
 interface GameState {
     currentScreen: GameScreen;
@@ -695,6 +696,16 @@ export default function GameContainer() {
 
     // Navigation method
     const navigateTo = (screen: Exclude<GameState['currentScreen'], 'loading'>) => {
+        // Check if the target screen is 'minigame' and handle music
+        if (screen === 'minigame' && audioRef.current && !isMuted) {
+            // You might want to pause the main menu music here
+            audioRef.current.pause(); 
+            // Potentially load/play mini-game specific music later
+        } else if (gameState.currentScreen === 'minigame' && screen !== 'minigame' && audioRef.current && !isMuted) {
+            // Resume main menu music when leaving the mini-game
+            audioRef.current.play().catch(e => console.log("Error resuming music:", e));
+        }
+
         setGameState(prev => ({
             ...prev,
             currentScreen: screen
@@ -898,6 +909,7 @@ export default function GameContainer() {
                             seconds: 56
                         }}
                         playerStats={currentStats} // Pass the resolved stats
+                        isMuted={isMuted}
                     />
                 );
             case 'instructions':
@@ -928,7 +940,7 @@ export default function GameContainer() {
                     />
                 );
             case 'inventory':
-                return <InventoryScreen onBackToMenu={() => navigateTo('menu')} />;
+                return <InventoryScreen onBackToMenu={() => navigateTo('menu')} isMuted={isMuted} />;
             case 'gameOver':
                 return (
                     <GameOverScreen 
@@ -950,8 +962,13 @@ export default function GameContainer() {
                     />
                 );
             case 'multiplayer':
-                // Removed MultiplayerScreen rendering from here, it's handled in the main structure
+                // Multiplayer is handled outside renderScreen now
                 return null; 
+            case 'minigame': // Add case for minigame
+                // Placeholder for now - will add FlappyBug component later
+                return (
+                    <FlappyBug onBackToMenu={() => navigateTo('menu')} />
+                );
             default:
                 return null;
         }
@@ -1009,6 +1026,7 @@ export default function GameContainer() {
                                     height={gameHeight}
                                     isPlaying={gameState.isPlaying}
                                     onGameOver={handleGameOver}
+                                    isMuted={isMuted}
                                 />
                             )}
                         </div>

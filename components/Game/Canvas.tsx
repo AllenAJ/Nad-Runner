@@ -8,6 +8,7 @@ interface CanvasProps {
     height: number;
     isPlaying: boolean;
     onGameOver: (results: { score: number; boxJumps: number; coinCount: number; xp: number; }) => void;
+    isMuted: boolean; // <-- Add this prop
 }
 
 interface GameState {
@@ -478,8 +479,12 @@ const hitSounds = [
     typeof window !== 'undefined' ? new Audio('/assets/audio/12_hit3.mp3') : null,
     typeof window !== 'undefined' ? new Audio('/assets/audio/13_hit4.mp3') : null,
     typeof window !== 'undefined' ? new Audio('/assets/audio/14_hit5.mp3') : null,
-    typeof window !== 'undefined' ? new Audio('/assets/audio/15_hit6.mp3') : null
+    typeof window !== 'undefined' ? new Audio('/assets/audio/15_hit6.mp3') : null,
 ];
+// --- Preload missing sounds ---
+const glassBreakSound = typeof window !== 'undefined' ? new Audio('/assets/audio/glass-break.mp3') : null;
+const coinSound = typeof window !== 'undefined' ? new Audio('/assets/audio/coin.mp3') : null;
+// --- End preload ---
 
 
 const COIN_MAGNET_STRENGTH = 400; // Speed at which coins are pulled (pixels per second)
@@ -544,7 +549,7 @@ const drawPowerupIcons = (ctx: CanvasRenderingContext2D, state: GameState, width
     ctx.restore(); // Restore original context state (including filter)
 };
 
-const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver }) => {
+const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver, isMuted }) => { // <-- Added isMuted
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const gameStateRef = useRef<GameState>({ ...INITIAL_STATE });
     const lastTimeRef = useRef<number>(0);
@@ -930,10 +935,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                             
                             // Add breaking sound effect
                             if (typeof window !== 'undefined') {
-                                const breakSound = new Audio('/assets/audio/glass-break.mp3');
-                                breakSound.play().catch(error => {
-                                    console.log('Glass break sound playback failed:', error);
-                                });
+                                // Use preloaded sound
+                                if (!isMuted && glassBreakSound) { // Check isMuted
+                                    glassBreakSound.currentTime = 0; // Reset playback
+                                    glassBreakSound.play().catch(error => {
+                                        console.log('Glass break sound playback failed:', error);
+                                    });
+                                }
                             }
                         }
 
@@ -1337,13 +1345,14 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 state.jumpBarValue -= state.jumpBarDepletionRate * deltaTime;
                 state.jumpBarValue = Math.max(0, state.jumpBarValue); 
                 
-                // Handle ticking sound based on jump bar value
+                // Handle ticking sound based on jump bar value and mute state
                 if (tickingSound) {
-                    if (state.jumpBarValue <= 10 && state.jumpBarValue > 0) {
+                    if (!isMuted && state.jumpBarValue <= 10 && state.jumpBarValue > 0) { // Check isMuted
                         if (tickingSound.paused) {
                             tickingSound.play().catch(error => console.log('Ticking sound failed:', error));
                         }
                     } else {
+                        // Pause if muted OR jump bar is above threshold OR game over
                         if (!tickingSound.paused) {
                             tickingSound.pause();
                             tickingSound.currentTime = 0;
@@ -1520,11 +1529,13 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         console.log('Jump Bar +1 from coin:', state.jumpBarValue);
 
         // Play coin collection sound
-        const coinSound = new Audio('/assets/audio/coin.mp3');
-        coinSound.volume = 0.3;
-        coinSound.play().catch(error => {
-            console.log('Coin sound playback failed:', error);
-        });
+        if (!isMuted && coinSound) { // Check isMuted
+            coinSound.volume = 0.3;
+            coinSound.currentTime = 0; // Reset playback
+            coinSound.play().catch(error => {
+                console.log('Coin sound playback failed:', error);
+            });
+        }
 
         // Add sparkle particles using the pool
         for (let i = 0; i < 8; i++) {
@@ -2484,11 +2495,11 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 cancelAnimationFrame(animationFrameRef.current);
             }
             
-            // Stop ticking sound when game is paused/stopped
+            // Stop ticking sound when game is paused/stopped OR MUTED
             if (tickingSound) {
                 tickingSound.pause();
                 tickingSound.currentTime = 0;
-                console.log('Stopped ticking sound - game paused');
+                console.log('Stopped ticking sound - game paused or muted');
             }
             
             resetGame();
@@ -2503,19 +2514,19 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 cancelAnimationFrame(animationFrameRef.current);
             }
             
-            // Stop ticking sound when component unmounts
+            // Stop ticking sound when component unmounts OR MUTED
             if (tickingSound) {
                 tickingSound.pause();
                 tickingSound.currentTime = 0;
-                console.log('Stopped ticking sound - component cleanup');
+                console.log('Stopped ticking sound - component cleanup or muted');
             }
         };
-    }, [isPlaying]);
+    }, [isPlaying, isMuted]); // <-- Added isMuted dependency here
 
     useEffect(() => {
         const handleJump = () => {
             const state = gameStateRef.current;
-            // --- Prevent jumping if game over ---
+            // --- Prevent jumping if game over --- 
             if (state.gameOverReason || state.deathAnimation.active) return;
             // ---
 
@@ -2531,7 +2542,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
                 
                 // Play random combo sound for box jump
                 const randomComboSound = comboSounds[Math.floor(Math.random() * comboSounds.length)];
-                if (randomComboSound) {
+                if (!isMuted && randomComboSound) { // Check isMuted
                     randomComboSound.currentTime = 0;
                     randomComboSound.play().catch(error => {
                         console.log('Combo sound playback failed:', error);
@@ -2585,7 +2596,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
             } else if (!state.isJumping || state.jumpCount < state.maxJumps) {
                 // Normal jump - play regular jump sound
-                if (jumpSound) {
+                if (!isMuted && jumpSound) { // Check isMuted
                     jumpSound.currentTime = 0;
                     jumpSound.play().catch(error => {
                         console.log('Jump sound playback failed:', error);
@@ -2692,7 +2703,7 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [isPlaying]); // Keep dependencies
+    }, [isPlaying, isMuted]); // <-- Added isMuted dependency here
 
     const handleCollision = (x: number, y: number, obstacle?: Obstacle) => {
         const state = gameStateRef.current;
@@ -2705,11 +2716,11 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
         state.isColliding = true;
         state.gameOverReason = 'collision'; // Set the reason
         
-        // Stop ticking sound if it's playing
-        if (tickingSound) {
+        // Stop ticking sound if it's playing or if muted
+        if (tickingSound && (!tickingSound.paused || isMuted)) {
             tickingSound.pause();
             tickingSound.currentTime = 0;
-            console.log('Stopped ticking sound - collision occurred');
+            console.log('Stopped ticking sound - collision occurred or muted');
         }
 
         // Store death cause information for debug mode
@@ -2724,12 +2735,12 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
 
         // Play random hit sound followed by explosion sound
         const randomHitSound = hitSounds[Math.floor(Math.random() * hitSounds.length)];
-        if (randomHitSound) {
+        if (!isMuted && randomHitSound) { // Check isMuted
             randomHitSound.currentTime = 0;
             randomHitSound.play()
                 .then(() => {
-                    // Play explosion sound after hit sound finishes
-                    if (explosionSound) {
+                    // Play explosion sound after hit sound finishes (also check mute)
+                    if (!isMuted && explosionSound) { // Check isMuted again
                         explosionSound.currentTime = 0;
                         explosionSound.play().catch(error => {
                             console.log('Explosion sound playback failed:', error);
@@ -2789,6 +2800,37 @@ const Canvas: React.FC<CanvasProps> = ({ width, height, isPlaying, onGameOver })
             });
         }, 1600);
     };
+
+    // --- Add useEffect to handle mute state changes for looping sounds ---
+    useEffect(() => {
+        const state = gameStateRef.current;
+        if (tickingSound) {
+            if (isMuted) {
+                if (!tickingSound.paused) {
+                    tickingSound.pause();
+                    tickingSound.currentTime = 0;
+                    console.log("Muted: Paused ticking sound.");
+                }
+            } else {
+                // If unmuted, check if the sound *should* be playing based on game state
+                if (isPlaying && !state.gameOverReason && !state.deathAnimation.active &&
+                    state.jumpBarValue <= 10 && state.jumpBarValue > 0) {
+                    if (tickingSound.paused) {
+                        tickingSound.play().catch(error => console.log('Ticking sound failed on unmute:', error));
+                        console.log("Unmuted: Resumed ticking sound.");
+                    }
+                } else {
+                    // Ensure it stays paused if conditions aren't met
+                    if (!tickingSound.paused) {
+                        tickingSound.pause();
+                        tickingSound.currentTime = 0;
+                    }
+                }
+            }
+        }
+    // Dependencies: If any of these change, re-evaluate the ticking sound state
+    }, [isMuted, isPlaying, gameStateRef.current.gameOverReason, gameStateRef.current.deathAnimation.active, gameStateRef.current.jumpBarValue]);
+    // --- End useEffect for mute state ---
 
     // Define the drawing function for the jump bar
     const drawJumpBar = (ctx: CanvasRenderingContext2D, state: GameState) => {

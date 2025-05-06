@@ -12,9 +12,9 @@ import { LayeredCharacter } from '../Character/LayeredCharacter';
 const buttonHoverSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnhover.mp3') : null;
 const buttonClickSound = typeof window !== 'undefined' ? new Audio('/assets/audio/btnclick.mp3') : null;
 
-// Helper function to play sounds
-const playSound = (sound: HTMLAudioElement | null) => {
-    if (sound) {
+// Helper function to play sounds (Updated to accept isMuted)
+const playSound = (sound: HTMLAudioElement | null, isMuted: boolean) => {
+    if (!isMuted && sound) { // Check isMuted
         sound.currentTime = 0;
         sound.play().catch(error => {
             console.log('Sound playback failed:', error);
@@ -59,7 +59,14 @@ type EquippedItems = {
     powerups: string | null;
 };
 
-export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBackToMenu }) => {
+// --- Update InventoryScreen props ---
+interface InventoryScreenProps {
+    onBackToMenu: () => void;
+    isMuted: boolean; // <-- Add isMuted prop
+}
+// --- End Update ---
+
+export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onBackToMenu, isMuted }) => { // <-- Add isMuted to props
     const {
         items,
         itemCounts,
@@ -75,7 +82,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     const [isEquipping, setIsEquipping] = useState(false);
 
     const handleButtonClick = (callback: () => void) => {
-        playSound(buttonClickSound);
+        playSound(buttonClickSound, isMuted); // <-- Pass isMuted
         callback();
     };
 
@@ -84,7 +91,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
     };
 
     const handleEquipItem = async (slot: SubCategory, itemId: string | null) => {
-        playSound(buttonClickSound);
+        playSound(buttonClickSound, isMuted); // <-- Pass isMuted
         setIsEquipping(true);
         
         try {
@@ -340,7 +347,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                 <h1 className={inventoryStyles.title}>Inventory</h1>
                 <button
                     onClick={handleBackToMenu}
-                    onMouseEnter={() => playSound(buttonHoverSound)}
+                    onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
                     className={inventoryStyles.backButton}
                     style={{ whiteSpace: 'nowrap' }}
                 >
@@ -364,7 +371,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.all}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('all');
                             }}
@@ -378,7 +385,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.skin}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('skin');
                             }}
@@ -392,7 +399,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.fur}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('fur');
                             }}
@@ -406,7 +413,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.body}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('body');
                             }}
@@ -420,7 +427,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.heads}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('head');
                             }}
@@ -434,7 +441,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.eyes}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('eyes');
                             }}
@@ -448,7 +455,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.nose}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('nose');
                             }}
@@ -462,7 +469,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.mouth}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('mouth');
                             }}
@@ -476,7 +483,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.minipets}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('minipet');
                             }}
@@ -490,7 +497,7 @@ export const InventoryScreen: React.FC<{ onBackToMenu: () => void }> = ({ onBack
                         <div 
                             className={`${inventoryStyles.categoryButton} ${inventoryStyles.misc}`} 
                             onClick={() => {
-                                playSound(buttonClickSound);
+                                playSound(buttonClickSound, isMuted);
                                 setSelectedCategory('outfits');
                                 setSelectedSubCategory('misc');
                             }}
@@ -522,16 +529,22 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
     username
 }) => {
     const handleButtonClick = (callback: () => void) => {
-        playSound(buttonClickSound);
+        if (buttonClickSound) {
+            buttonClickSound.currentTime = 0;
+            buttonClickSound.play().catch(e => console.log(e));
+        }
         callback();
     };
 
     return (
-        <NewChatBox 
-            walletAddress={walletAddress} 
-            username={username} 
-            onBackToMenu={onBackToMenu}
-        />
+        <div className={styles.multiplayerContainer}>
+
+            <NewChatBox 
+                walletAddress={walletAddress}
+                username={username}
+                onBackToMenu={onBackToMenu}
+            />
+        </div>
     );
 };
 
@@ -545,33 +558,64 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
     onBackToMenu
 }) => {
     const handleButtonClick = (callback: () => void) => {
-        playSound(buttonClickSound);
+        if (buttonClickSound) {
+            buttonClickSound.currentTime = 0;
+            buttonClickSound.play().catch(e => console.log(e));
+        }
         callback();
     };
 
     return (
-        <div className={styles.instructionsContainer}>
-            <div className={styles.instructionsImageWrapper}>
-                <iframe 
-                    width="800" 
-                    height="600"
-                    src="https://www.youtube.com/embed/xjOUIsR1ZCY?autoplay=1&mute=1" 
-                    title="Game Instructions Video"
-                    frameBorder="0" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                    allowFullScreen
-                ></iframe>
-            </div>
+        <motion.div 
+            className={styles.instructionsContainer}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+        >
+            <h2>How to Play</h2>
+            <div className={styles.instructionsContent}>
+                <p><strong>Objective:</strong> Travel as far as you can while collecting coins and avoiding obstacles!</p>
+                
+                <h4>Controls:</h4>
+                <ul>
+                    <li><strong>Jump:</strong> Space Bar / Tap Screen</li>
+                    <li><strong>Move Left:</strong> Left Arrow / 'A' Key / Swipe Left (when grounded)</li>
+                    <li><strong>Move Right:</strong> Right Arrow / 'D' Key / Swipe Right (when grounded)</li>
+                    <li><strong>Directional Jump:</strong> Move Left/Right + Jump for a boosted jump in that direction!</li>
+                </ul>
 
-            <div className={styles.instructionsButtons}>
-                <button 
+                <h4>Gameplay:</h4>
+                <ul>
+                    <li>Your <strong>Jump Bar</strong> depletes over time. Keep it filled by jumping on boxes or collecting power-ups!</li>
+                    <li><strong>Box Jumps:</strong> Landing on boxes gives you XP and replenishes your Jump Bar. Chain them for combos!</li>
+                    <li><strong>Power-ups:</strong> Collect Moyakis for special abilities like Triple Jump, 2x Score, Coin Magnet, and Time Warp (resets Jump Bar).</li>
+                    <li><strong>Coins:</strong> Gather coins to spend in the Shop.</li>
+                </ul>
+
+                <h4>Tips:</h4>
+                <ul>
+                    <li>Master the directional jump to clear large gaps.</li>
+                    <li>Watch your Jump Bar! Don't let it run out.</li>
+                    <li>Connect your wallet to save progress, earn achievements, and compete on the leaderboard!</li>
+                </ul>
+            </div>
+            <div className={styles.instructionsActions}>
+                 <button 
+                    className={styles.secondaryButton} 
+                    onClick={() => handleButtonClick(onBackToMenu)}
+                    onMouseEnter={() => { if(buttonHoverSound) { buttonHoverSound.currentTime=0; buttonHoverSound.play().catch(e=>console.log(e)); }}}
+                >
+                    Back to Menu
+                </button>
+                 <button 
                     className={styles.primaryButton} 
                     onClick={() => handleButtonClick(onStartGame)}
-                    onMouseEnter={() => playSound(buttonHoverSound)}
+                    onMouseEnter={() => { if(buttonHoverSound) { buttonHoverSound.currentTime=0; buttonHoverSound.play().catch(e=>console.log(e)); }}}
                 >
                     OK
                 </button>
             </div>
-        </div>
+        </motion.div>
     );
 };

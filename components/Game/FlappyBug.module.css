@@ -1,0 +1,195 @@
+.flappyContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Added for vertical centering */
+    width: 100vw; /* Full viewport width */
+    height: 100vh; /* Full viewport height */
+    /* background-color: #2c3e50; */ /* Parent container might handle overall background */
+    color: white;
+    /* padding: 20px; */ /* Removing padding to allow true centering of game area */
+    box-sizing: border-box;
+    position: relative; 
+    /* overflow: hidden; */ /* Usually good for full-screen containers */
+    /* Add explicit width/height or make it inline-block to wrap content */
+    /* For example, if canvas is 800x600, and padding is 20px: */
+    /* width: 840px; */ 
+    /* Or let canvas define its size and this centers it */
+}
+
+.gameAreaWrapper {
+    position: relative; /* For the absolutely positioned overlay */
+    /* Width and height are set inline via style prop in the JSX */
+    /* border: 1px dashed red; */ /* For debugging */
+}
+
+.gameCanvas { /* Renamed from .gameArea */
+    display: block; /* Important for layout */
+    /* The actual width and height attributes are set by JS on the canvas element */
+    /* border: 2px solid #ecf0f1; */ /* Border can be on wrapper or canvas */
+    /* Let's put border on wrapper to contain overlay perfectly */
+}
+
+.gameAreaWrapper {
+    position: relative; 
+    border: 2px solid #ecf0f1; /* Put border on the wrapper */
+    /* Width and height are set inline via style prop in the JSX */
+    /* This ensures the overlay (100% width/height) respects this border */
+}
+
+.backButton {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background-color: #e74c3c; /* Reddish color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-top: 20px; /* Ensures spacing between game area and back button */
+}
+
+.backButton:hover {
+    background-color: #c0392b; /* Darker red on hover */
+}
+
+/* Remove styles for elements now drawn on canvas */
+/* 
+.bug { ... }
+.pipe { ... }
+.scoreDisplay { ... }
+.overlay { ... }
+.retryButton { ... }
+*/
+
+/* --- Game Element Styles --- */
+
+.bug {
+    position: absolute;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    /* Add a slight transition for smoother Y movement */
+    /* transition: top 0.05s linear; */ 
+    /* Transitions might interfere with precise physics, 
+       remove if causing issues */
+    will-change: top; /* Hint for browser optimization */
+    z-index: 10;
+}
+
+.pipe {
+    position: absolute;
+    background-color: #27ae60; /* Green color for pipes */
+    border: 2px solid #2ecc71; /* Lighter green border */
+    box-sizing: border-box;
+    will-change: left; /* Hint for browser optimization */
+    z-index: 5;
+    /* You can use background-image for textured pipes later */
+    /* background-image: url('/path/to/pipe.png'); */
+    /* background-size: cover; */
+}
+
+.scoreDisplay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+    z-index: 20;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 30;
+}
+
+.overlay h2 {
+    margin-bottom: 10px;
+    font-size: 2rem;
+}
+
+.overlay p {
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+}
+
+.retryButton {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background-color: #3498db; /* Blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.retryButton:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+}
+
+/* Add styles for the bug, pipes, score etc. later */ 
+
+/* --- Game Over Popup Styles --- */
+
+.gameOverPopupOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%; /* 100% of gameAreaWrapper */
+    height: 100%; /* 100% of gameAreaWrapper */
+    background-color: rgba(0, 0, 0, 0.6); 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50; 
+}
+
+.gameOverPopupContent {
+    background-color: #34495e; /* Same as canvas bg for consistency */
+    padding: 30px 40px;
+    border-radius: 10px;
+    border: 2px solid #ecf0f1; /* Same as canvas border */
+    text-align: center;
+    color: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.gameOverPopupContent h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 2.5rem;
+}
+
+.gameOverPopupContent p {
+    margin-bottom: 25px;
+    font-size: 1.5rem;
+}
+
+.retryButtonPopup {
+    padding: 12px 25px;
+    font-size: 1.1rem;
+    background-color: #3498db; /* Blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-weight: bold;
+}
+
+.retryButtonPopup:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+} 

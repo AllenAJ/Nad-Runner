@@ -314,7 +314,7 @@ export async function getPlayerData(walletAddress: string) {
 function calculateXpToNextLevel(level: number): number {
     // Base XP requirement is 150 (from GAME_CONSTANTS.DEFAULT_XP_TO_NEXT_LEVEL)
     // Each level requires 20% more XP than the previous level
-    return Math.floor(150 * Math.pow(1.2, level - 1));
+    return Math.floor(150 * Math.pow(1.4, level - 1));
 }
 
 // Interface for the return type of updatePlayerGameStats

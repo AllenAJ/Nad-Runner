@@ -1,5 +1,5 @@
 .container {
-    min-height: 100vh;
+    height: 100vh;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -31,12 +31,13 @@
 .gameWrapper {
     position: relative;
     width: 100%;
-    height: 100vh;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 0;
     overflow: hidden;
+    pointer-events: auto;
 }
 
 .overlayContainer {
@@ -2028,4 +2029,12 @@
     max-height: 75vh; /* Prevent video from being too tall */
     border-radius: 8px; /* Add some rounding to the video */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Add rule for the container used within MultiplayerScreen */
+.multiplayerContainer {
+    width: 100%;
+    height: 100%;
+    display: flex; /* Ensure it can contain and size its children */
+    flex-direction: column; /* Stack children vertically if needed */
 }

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { Item, ItemCategory, Rarity, ItemCounts, OutfitLoadout, InventoryContextType, SubCategory } from '../types/inventory';
 import { useAccount } from 'wagmi';
 
-const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
+export const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
 export const useInventory = () => {
     const context = useContext(InventoryContext);

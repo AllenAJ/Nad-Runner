@@ -9,7 +9,7 @@ interface MiniPetProps {
     className?: string;
 }
 
-const MINIPET_FRAMES = {
+export const MINIPET_FRAMES = {
     'Baldeagle': 8,
     'Bug': 8,
     'Devil': 8,
