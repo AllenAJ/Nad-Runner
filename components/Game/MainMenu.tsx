@@ -37,7 +37,9 @@ interface MainMenuProps {
         username: string;
         achievements_bitmap: string;
     };
-    isMuted: boolean;
+    isMuted?: boolean; // Keep for backward compatibility
+    isMusicMuted?: boolean;
+    isSoundMuted?: boolean;
 }
 
 // Add button sounds at the top
@@ -100,8 +102,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         username: '',
         achievements_bitmap: '0'
     },
-    isMuted,
+    isMuted = false,
+    isMusicMuted = false,
+    isSoundMuted = false,
 }) => {
+    // Use isSoundMuted if provided, otherwise fall back to isMuted for backward compatibility
+    const shouldMuteSound = isSoundMuted !== undefined ? isSoundMuted : isMuted;
+    
     const { reloadInventory } = useInventory();
     const [isInventoryLoading, setIsInventoryLoading] = useState(false);
     const [alert, setAlert] = React.useState<{
@@ -123,30 +130,30 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleMiniGameClick = () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         onNavigateTo('minigame');
     };
 
     const handleShopButtonClick = () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         setShowShopPopup(true);
     };
 
     const handleAccessoriesClick = () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         setShowShopPopup(false);
         onNavigateTo('shop');
     };
 
     const handlePetsClick = () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         // TODO: Implement Pets navigation or functionality
         console.log("Pets button clicked - functionality TBD");
         setShowShopPopup(false);
     };
 
     const handleInventoryClick = async () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         setIsInventoryLoading(true);
         try {
             await reloadInventory();
@@ -157,7 +164,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleAchievementsClick = () => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         setShowAchievements(true);
     };
 
@@ -168,7 +175,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleButtonClick = (callback: () => void) => {
-        playSound(buttonClickSound, isMuted);
+        playSound(buttonClickSound, shouldMuteSound);
         callback();
     };
 
@@ -305,7 +312,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <motion.button // Apply item variants to each button
                                 className={styles.primaryButton}
                                 onClick={() => handleButtonClick(onStartGame)}
-                                onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
+                                onMouseEnter={() => playSound(buttonHoverSound, shouldMuteSound)}
                                 disabled={!isConnected}
                                 variants={itemVariants}
                             >
@@ -314,7 +321,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <motion.button // Add Mini-Game button
                                 className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleMiniGameClick)}
-                                onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
+                                onMouseEnter={() => playSound(buttonHoverSound, shouldMuteSound)}
                                 disabled={!isConnected}
                                 variants={itemVariants}
                             >
@@ -323,7 +330,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <motion.button // Apply item variants
                                 className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleMultiplayerClick)}
-                                onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
+                                onMouseEnter={() => playSound(buttonHoverSound, shouldMuteSound)}
                                 disabled={!isConnected}
                                 variants={itemVariants}
                             >
@@ -334,7 +341,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 onClick={handleShopButtonClick}
                                 // Preload shop assets on hover
                                 onMouseEnter={() => {
-                                    playSound(buttonHoverSound, isMuted);
+                                    playSound(buttonHoverSound, shouldMuteSound);
                                     if (isConnected && walletAddress) {
                                         preloadScreenAssets('shop', walletAddress);
                                     }
@@ -349,7 +356,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 onClick={handleInventoryClick}
                                 // Preload inventory assets on hover
                                 onMouseEnter={() => {
-                                    playSound(buttonHoverSound, isMuted);
+                                    playSound(buttonHoverSound, shouldMuteSound);
                                     if (isConnected && walletAddress) {
                                         preloadScreenAssets('inventory', walletAddress);
                                     }
@@ -363,7 +370,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <motion.button // Apply item variants
                                 className={styles.menuButton}
                                 onClick={() => handleButtonClick(handleAchievementsClick)}
-                                onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
+                                onMouseEnter={() => playSound(buttonHoverSound, shouldMuteSound)}
                                 disabled={!isConnected}
                                 variants={itemVariants}
                             >
@@ -373,7 +380,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <motion.button // Apply item variants
                                 className={styles.connectButton}
                                 onClick={() => handleButtonClick(onConnect)}
-                                onMouseEnter={() => playSound(buttonHoverSound, isMuted)}
+                                onMouseEnter={() => playSound(buttonHoverSound, shouldMuteSound)}
                                 variants={itemVariants}
                             >
                                 {isConnected ? `Connected: ${formatWalletAddress(walletAddress)}` : 'Connect Wallet'}
@@ -426,7 +433,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <button 
                                 className={styles.shopPopupCloseButton}
                                 onClick={() => {
-                                    playSound(buttonClickSound, isMuted);
+                                    playSound(buttonClickSound, shouldMuteSound);
                                     setShowShopPopup(false);
                                 }}
                             >
@@ -435,7 +442,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <div className={styles.shopPopupButtons}>
                                 <button
                                     className={styles.shopCategoryButton}
-                                    onMouseEnter={() => { playSound(buttonHoverSound, isMuted); setIsAccessoriesHovering(true); }}
+                                    onMouseEnter={() => { playSound(buttonHoverSound, shouldMuteSound); setIsAccessoriesHovering(true); }}
                                     onMouseLeave={() => setIsAccessoriesHovering(false)}
                                     onClick={handleAccessoriesClick}
                                 >
@@ -448,7 +455,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 </button>
                                 <button
                                     className={styles.shopCategoryButton}
-                                    onMouseEnter={() => { playSound(buttonHoverSound, isMuted); setIsPetsHovering(true); }}
+                                    onMouseEnter={() => { playSound(buttonHoverSound, shouldMuteSound); setIsPetsHovering(true); }}
                                     onMouseLeave={() => setIsPetsHovering(false)}
                                     onClick={handlePetsClick}
                                 >
@@ -470,7 +477,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {showAchievements && (
                     <AchievementsPopup 
                         onClose={() => {
-                            playSound(buttonClickSound, isMuted);
+                            playSound(buttonClickSound, shouldMuteSound);
                             setShowAchievements(false);
                         }} 
                         achievements={ACHIEVEMENTS}

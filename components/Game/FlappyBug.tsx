@@ -8,6 +8,7 @@ import { INITIAL_ITEMS } from '../../constants/inventory'; // Changed from ALL_I
 
 interface FlappyBugProps {
     onBackToMenu: () => void;
+    isSoundMuted: boolean;
 }
 
 // Game Constants
@@ -50,7 +51,7 @@ interface Pipe {
     scored?: boolean; // Add optional scored flag
 }
 
-const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
+const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu, isSoundMuted }) => {
     const [status, setStatus] = useState<GameStatus>('ready');
     const [bugY, setBugY] = useState(GAME_HEIGHT / 2); // BugY is now center Y
     const [bugVelocity, setBugVelocity] = useState(0);
@@ -179,6 +180,16 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
         scoreSoundRef.current.load();
     }, []);
 
+    // Helper function to play sounds (respecting mute state)
+    const playSound = (sound: HTMLAudioElement | null, isMuted: boolean) => {
+        if (!isMuted && sound) {
+            sound.currentTime = 0;
+            sound.play().catch(error => {
+                console.log('Sound playback failed:', error);
+            });
+        }
+    };
+
     // Setup Canvas Context
     useEffect(() => {
         if (canvasRef.current) {
@@ -269,6 +280,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                     let distanceY = bugCenterY - closestY;
                     let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
                     if (distanceSquared < (BUG_RADIUS * BUG_RADIUS)) {
+                        playSound(flySoundRef.current, isSoundMuted); // Play hit sound (using fly for now)
                         gameOver(); // This will change status, current loop continues, next loop iteration sees 'gameOver'
                         collisionDetected = true;
                         continue;
@@ -283,6 +295,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                     distanceY = bugCenterY - closestY;
                     distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
                     if (distanceSquared < (BUG_RADIUS * BUG_RADIUS)) {
+                        playSound(flySoundRef.current, isSoundMuted); // Play hit sound (using fly for now)
                         gameOver();
                         collisionDetected = true;
                         continue;
@@ -291,7 +304,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                     if (!pipe.scored && bugCenterX > pipe.x + PIPE_WIDTH) {
                         setScore(prev => prev + 1);
                         pipe.scored = true;
-                        scoreSoundRef.current?.play().catch(e => console.error("Error playing score sound:", e));
+                        playSound(scoreSoundRef.current, isSoundMuted); // Play score sound
                     }
                 }
 
@@ -301,6 +314,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                 } else {
                      // Ground collision (Only if playing and no pipe collision)
                     if (newBugY + BUG_RADIUS > GAME_HEIGHT) {
+                        playSound(flySoundRef.current, isSoundMuted); // Play hit sound (using fly for now)
                         gameOver();
                     } else if (newBugY - BUG_RADIUS < 0) { // Ceiling collision
                         setBugY(BUG_RADIUS);
@@ -336,7 +350,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                 gameLoopRef.current = null;
             }
         };
-    }, [status, bugY, bugVelocity, pipes, score]); // Dependencies that affect the loop
+    }, [status, bugY, bugVelocity, pipes, score, isSoundMuted]); // Dependencies that affect the loop
 
     // --- Game State Management --- 
     const resetGameForPlay = () => {
@@ -369,9 +383,10 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
     };
 
     const gameOver = () => {
+        if (status === 'gameOver') return; // Prevent multiple game over calls
         setStatus('gameOver');
-        setShowGameOverPopup(true);
-
+        playSound(flySoundRef.current, isSoundMuted); // Example: play a sound on game over (using fly for now)
+        
         if (score > bestScore) {
             setBestScore(score);
         }
@@ -389,13 +404,14 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
 
     // --- Jump Logic --- 
     const jump = useCallback(() => {
-        // Apply jump impulse only if playing
         if (status === 'playing') {
             setBugVelocity(JUMP_STRENGTH);
-            flySoundRef.current?.play().catch(e => console.error("Error playing fly sound:", e));
-        } 
-        // Removed 'ready' state handling from here
-    }, [status]); // Dependency on status is important
+            playSound(flySoundRef.current, isSoundMuted);
+        } else if (status === 'ready' || status === 'gameOver') {
+            // If ready or game over, clicking starts/restarts the game
+            startGame();
+        }
+    }, [status, startGame, isSoundMuted]); // Added isSoundMuted to dependencies
 
     // --- Input Handling --- 
     useEffect(() => {
@@ -406,7 +422,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                     // Start game and apply first jump
                     resetGameForPlay(); 
                     setBugVelocity(JUMP_STRENGTH); // Apply first jump impulse
-                    flySoundRef.current?.play().catch(e => console.error("Error playing fly sound:", e));
+                    playSound(flySoundRef.current, isSoundMuted);
                 } else if (status === 'playing') {
                     jump(); // Normal jump during play
                 } else if (status === 'gameOver') {
@@ -422,7 +438,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
                 // Start game and apply first jump
                 resetGameForPlay();
                 setBugVelocity(JUMP_STRENGTH); // Apply first jump impulse
-                flySoundRef.current?.play().catch(e => console.error("Error playing fly sound:", e));
+                playSound(flySoundRef.current, isSoundMuted);
             } else if (status === 'playing') {
                 jump();
             }
@@ -438,7 +454,7 @@ const FlappyBug: React.FC<FlappyBugProps> = ({ onBackToMenu }) => {
             window.removeEventListener('click', handleClick);
             window.removeEventListener('touchstart', handleClick);
         };
-    }, [status, jump]); // Re-bind if jump function changes (due to status change)
+    }, [status, jump, isSoundMuted]); // Re-bind if jump function changes (due to status change)
 
     // --- Drawing Functions --- 
     const drawGame = () => {

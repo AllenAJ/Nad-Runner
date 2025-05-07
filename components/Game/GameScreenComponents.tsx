@@ -521,12 +521,14 @@ interface MultiplayerScreenProps {
     onBackToMenu: () => void;
     walletAddress: string;
     username: string;
+    isMuted: boolean;
 }
 
 export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({ 
     onBackToMenu,
     walletAddress,
-    username
+    username,
+    isMuted
 }) => {
     const handleButtonClick = (callback: () => void) => {
         if (buttonClickSound) {
@@ -538,11 +540,11 @@ export const MultiplayerScreen: React.FC<MultiplayerScreenProps> = ({
 
     return (
         <div className={styles.multiplayerContainer}>
-
             <NewChatBox 
                 walletAddress={walletAddress}
                 username={username}
                 onBackToMenu={onBackToMenu}
+                isMuted={isMuted}
             />
         </div>
     );

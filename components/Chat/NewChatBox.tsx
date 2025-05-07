@@ -77,6 +77,7 @@ interface ChatBoxProps {
     walletAddress: string;
     username: string;
     onBackToMenu: () => void;
+    isMuted: boolean;
 }
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
@@ -212,7 +213,7 @@ const OffererTradeItemGrid: React.FC<{
     );
 };
 
-export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBackToMenu }) => {
+export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, onBackToMenu, isMuted }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
@@ -564,7 +565,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             setMessages(prev => [...prev, systemMessage]);
 
             // Play success sound if available
-            if (chatSound) {
+            if (!isMuted && chatSound) {
                 chatSound.currentTime = 0;
                 chatSound.play().catch(console.error);
             }
@@ -596,7 +597,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
             console.log('🗑️ Offer removed:', offerId);
             setOffers(prev => prev.filter(offer => offer.id !== offerId));
         });
-    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory, offers]);
+    }, [walletAddress, username, scrollToBottom, activeTradeNegotiation, users, updateInventory, offers, isMuted]);
 
     useEffect(() => {
         // Only create socket connection if it doesn't exist
@@ -685,7 +686,7 @@ export const NewChatBox: React.FC<ChatBoxProps> = ({ walletAddress, username, on
         scrollToBottom(); // Scroll down
 
         try {
-            if (chatSound) {
+            if (!isMuted && chatSound) {
                 chatSound.currentTime = 0;
                 await chatSound.play().catch(console.error); // Added catch for safety
             }

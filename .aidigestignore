@@ -11,6 +11,10 @@
 /bin
 # testing
 /coverage
+/public
+/components/Chat/NewChatBox.module.css
+/components/Game/GameContainer.module.css
+/canvas.tsx
 
 # next.js
 /.next/

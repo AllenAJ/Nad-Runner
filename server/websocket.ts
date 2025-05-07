@@ -44,9 +44,10 @@ const pingServer = () => {
     const serverUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://monad-run-chat.onrender.com';
     console.log('Pinging server:', serverUrl);
     
-    const requester = serverUrl.startsWith('https') ? https : require('http');
+    const httpUrl = serverUrl.replace(/^ws(s?):/, 'http$1:');
+    const requester = httpUrl.startsWith('https') ? https : http;
     
-    requester.get(`${serverUrl}/health`, (res: http.IncomingMessage) => {
+    requester.get(`${httpUrl}/health`, (res: http.IncomingMessage) => {
         if (res.statusCode === 200) {
             console.log('Server pinged successfully');
         } else {

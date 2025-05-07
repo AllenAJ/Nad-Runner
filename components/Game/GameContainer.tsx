@@ -156,7 +156,8 @@ export default function GameContainer() {
     const [isUpdatingStats, setIsUpdatingStats] = useState(false);
 
     // Audio state - default to false (unmuted)
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMusicMuted, setIsMusicMuted] = useState(false);
+    const [isSoundMuted, setIsSoundMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const gameOverSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -465,7 +466,7 @@ export default function GameContainer() {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });
         } finally {
-            setIsMuted(false);
+            setIsMusicMuted(false);
         }
     };
 
@@ -478,7 +479,7 @@ export default function GameContainer() {
         }
         
         // --- Start background music on game start (user interaction) ---
-        if (audioRef.current && !isMuted) {
+        if (audioRef.current && !isMusicMuted) {
             audioRef.current.currentTime = 0; // Start from beginning
             audioRef.current.play().catch(error => {
                 console.log('Background music playback failed on start:', error);
@@ -510,7 +511,7 @@ export default function GameContainer() {
         const roundedScore = Math.floor(results.score);
 
         // Play game over sound if not muted
-        if (gameOverSoundRef.current && !isMuted) {
+        if (gameOverSoundRef.current && !isSoundMuted) {
             gameOverSoundRef.current.currentTime = 0; // Reset to start
             gameOverSoundRef.current.play().catch(error => {
                 console.log('Game over sound playback failed:', error);
@@ -586,7 +587,9 @@ export default function GameContainer() {
                 if (mappedStats.level > previousLevel) {
                     const levelUpSound = new Audio('/assets/audio/levelup.mp3');
                     levelUpSound.volume = 0.5;
-                    levelUpSound.play().catch(error => console.log('Level up sound failed:', error));
+                    if (!isSoundMuted) {
+                        levelUpSound.play().catch(error => console.log('Level up sound failed:', error));
+                    }
                     addNotification({
                         type: 'level-up',
                         title: 'Level Up!',
@@ -601,7 +604,9 @@ export default function GameContainer() {
                     
                     updatedData.unlockedAchievements.forEach((achievement: Achievement) => {
                         achievementSound.currentTime = 0;
-                        achievementSound.play().catch(error => console.log('Achievement sound failed:', error));
+                        if (!isSoundMuted) {
+                            achievementSound.play().catch(error => console.log('Achievement sound failed:', error));
+                        }
                         addNotification({
                             type: 'achievement',
                             title: 'Achievement Unlocked!',
@@ -697,11 +702,11 @@ export default function GameContainer() {
     // Navigation method
     const navigateTo = (screen: Exclude<GameState['currentScreen'], 'loading'>) => {
         // Check if the target screen is 'minigame' and handle music
-        if (screen === 'minigame' && audioRef.current && !isMuted) {
+        if (screen === 'minigame' && audioRef.current && !isMusicMuted) {
             // You might want to pause the main menu music here
             audioRef.current.pause(); 
             // Potentially load/play mini-game specific music later
-        } else if (gameState.currentScreen === 'minigame' && screen !== 'minigame' && audioRef.current && !isMuted) {
+        } else if (gameState.currentScreen === 'minigame' && screen !== 'minigame' && audioRef.current && !isMusicMuted) {
             // Resume main menu music when leaving the mini-game
             audioRef.current.play().catch(e => console.log("Error resuming music:", e));
         }
@@ -823,9 +828,12 @@ export default function GameContainer() {
         gameOverSoundRef.current = gameOverSound;
 
         // Check localStorage for mute preference
-        const storedMute = localStorage.getItem('nadrunner_muted');
-        const shouldBeMuted = storedMute ? storedMute === 'true' : false; // Default to unmuted
-        setIsMuted(shouldBeMuted);
+        const storedMusicMute = localStorage.getItem('nadrunner_music_muted');
+        const storedSoundMute = localStorage.getItem('nadrunner_sound_muted');
+        const shouldMusicBeMuted = storedMusicMute ? storedMusicMute === 'true' : false;
+        const shouldSoundBeMuted = storedSoundMute ? storedSoundMute === 'true' : false;
+        setIsMusicMuted(shouldMusicBeMuted);
+        setIsSoundMuted(shouldSoundBeMuted);
 
         // Cleanup
         return () => {
@@ -840,11 +848,11 @@ export default function GameContainer() {
         };
     }, []);
 
-    // Handle mute/unmute for all audio
+    // Handle music mute/unmute
     useEffect(() => {
         // Only handle pausing/resuming here, not initial playback
         if (audioRef.current) {
-            if (!isMuted) {
+            if (!isMusicMuted) {
                 // Attempt to play only if needed (e.g., if it was paused due to mute)
                 // Browsers might still block this if no prior interaction, 
                 // but the main playback trigger will be user actions.
@@ -857,21 +865,21 @@ export default function GameContainer() {
             }
         }
         // Persist mute state
-        localStorage.setItem('nadrunner_muted', isMuted.toString());
-    }, [isMuted]);
+        localStorage.setItem('nadrunner_music_muted', isMusicMuted.toString());
+    }, [isMusicMuted]);
 
-    // Restart music when entering play area (This effect seems redundant now)
-    // useEffect(() => {
-    //     if (gameState.currentScreen === 'game' && audioRef.current && !isMuted) {
-    //         audioRef.current.currentTime = 0; // Reset to start
-    //         audioRef.current.play().catch(error => {
-    //             console.log('Audio playback failed:', error);
-    //         });
-    //     }
-    // }, [gameState.currentScreen, isMuted]);
+    // Handle sound effects mute/unmute
+    useEffect(() => {
+        // Persist sound mute state
+        localStorage.setItem('nadrunner_sound_muted', isSoundMuted.toString());
+    }, [isSoundMuted]);
 
-    const toggleMute = () => {
-        setIsMuted(!isMuted);
+    const toggleMusicMute = () => {
+        setIsMusicMuted(!isMusicMuted);
+    };
+
+    const toggleSoundMute = () => {
+        setIsSoundMuted(!isSoundMuted);
     };
 
     // Render different screens based on current state
@@ -909,7 +917,8 @@ export default function GameContainer() {
                             seconds: 56
                         }}
                         playerStats={currentStats} // Pass the resolved stats
-                        isMuted={isMuted}
+                        isMusicMuted={isMusicMuted}
+                        isSoundMuted={isSoundMuted}
                     />
                 );
             case 'instructions':
@@ -940,7 +949,7 @@ export default function GameContainer() {
                     />
                 );
             case 'inventory':
-                return <InventoryScreen onBackToMenu={() => navigateTo('menu')} isMuted={isMuted} />;
+                return <InventoryScreen onBackToMenu={() => navigateTo('menu')} isMuted={isSoundMuted} />;
             case 'gameOver':
                 return (
                     <GameOverScreen 
@@ -967,7 +976,10 @@ export default function GameContainer() {
             case 'minigame': // Add case for minigame
                 // Placeholder for now - will add FlappyBug component later
                 return (
-                    <FlappyBug onBackToMenu={() => navigateTo('menu')} />
+                    <FlappyBug 
+                        onBackToMenu={() => navigateTo('menu')} 
+                        isSoundMuted={isSoundMuted}
+                    />
                 );
             default:
                 return null;
@@ -1019,6 +1031,7 @@ export default function GameContainer() {
                                     onBackToMenu={() => navigateTo('menu')} 
                                     walletAddress={walletAddress}
                                     username={playerData?.playerStats.username || ''}
+                                    isMuted={isSoundMuted}
                                 />
                             ) : (
                                 <Canvas
@@ -1026,7 +1039,7 @@ export default function GameContainer() {
                                     height={gameHeight}
                                     isPlaying={gameState.isPlaying}
                                     onGameOver={handleGameOver}
-                                    isMuted={isMuted}
+                                    isMuted={isSoundMuted}
                                 />
                             )}
                         </div>
@@ -1064,25 +1077,48 @@ export default function GameContainer() {
                         )}
                     </div>
 
-                    {/* Add audio control button */}
-                    <button 
-                        className={styles.audioControl}
-                        onClick={toggleMute}
-                        aria-label={isMuted ? 'Unmute' : 'Mute'}
-                    >
-                        {isMuted ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                                <line x1="23" y1="9" x2="17" y2="15" />
-                                <line x1="17" y1="9" x2="23" y2="15" />
-                            </svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                            </svg>
-                        )}
-                    </button>
+                    {/* Add audio control buttons */}
+                    <div className={styles.audioControls}>
+                        <button 
+                            className={styles.audioControl}
+                            onClick={toggleMusicMute}
+                            aria-label={isMusicMuted ? 'Unmute Music' : 'Mute Music'}
+                        >
+                            {isMusicMuted ? (
+                                <svg version="1.1" id="Layer_1_Muted" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 130 122.88" xmlSpace="preserve">
+                                    <g>
+                                        <path style={{ fillRule: "evenodd", clipRule: "evenodd" }} d="M87.9,78.04c2.74-0.48,5.33-0.4,7.6,0.13V24.82L39.05,41.03v61.95c0.03,0.34,0.05,0.69,0.05,1.03 c0,0,0,0.01,0,0.01c0,8.34-8.75,16.62-19.55,18.49C8.76,124.37,0,119.12,0,110.77c0-8.34,8.76-16.62,19.55-18.48 c4.06-0.7,7.84-0.39,10.97,0.71l0-76.26h0.47L104.04,0v85.92c0.13,0.63,0.2,1.27,0.2,1.91c0,0,0,0,0,0.01 c0,6.97-7.32,13.89-16.33,15.44c-9.02,1.56-16.33-2.83-16.33-9.8C71.57,86.51,78.88,79.59,87.9,78.04L87.9,78.04L87.9,78.04z"/>
+                                    </g>
+                                    <line x1="110" y1="53.94" x2="125" y2="68.94" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/>
+                                    <line x1="110" y1="68.94" x2="125" y2="53.94" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/>
+                                </svg>
+                            ) : (
+                                <svg version="1.1" id="Layer_1_Unmuted" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 130 122.88" xmlSpace="preserve">
+                                    <g>
+                                        <path style={{ fillRule: "evenodd", clipRule: "evenodd" }} d="M87.9,78.04c2.74-0.48,5.33-0.4,7.6,0.13V24.82L39.05,41.03v61.95c0.03,0.34,0.05,0.69,0.05,1.03 c0,0,0,0.01,0,0.01c0,8.34-8.75,16.62-19.55,18.49C8.76,124.37,0,119.12,0,110.77c0-8.34,8.76-16.62,19.55-18.48 c4.06-0.7,7.84-0.39,10.97,0.71l0-76.26h0.47L104.04,0v85.92c0.13,0.63,0.2,1.27,0.2,1.91c0,0,0,0,0,0.01 c0,6.97-7.32,13.89-16.33,15.44c-9.02,1.56-16.33-2.83-16.33-9.8C71.57,86.51,78.88,79.59,87.9,78.04L87.9,78.04L87.9,78.04z"/>
+                                    </g>
+                                </svg>
+                            )}
+                        </button>
+                        <button 
+                            className={styles.audioControl}
+                            onClick={toggleSoundMute}
+                            aria-label={isSoundMuted ? 'Unmute Sound Effects' : 'Mute Sound Effects'}
+                        >
+                            {isSoundMuted ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                    <line x1="23" y1="9" x2="17" y2="15" />
+                                    <line x1="17" y1="9" x2="23" y2="15" />
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                </svg>
+                            )}
+                        </button>
+                    </div>
                 </div>
             )}
         </>
